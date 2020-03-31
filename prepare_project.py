@@ -290,7 +290,7 @@ data_shapes = list_files("{base_dir}/data/shapefiles/".format(
 # place holding shapefiles
 if not os.path.isdir(shapes_dir):
     os.makedirs(shapes_dir)
-with zipfile.ZipFile("{qswatplus_wf_dir}/shapes.dat".format(
+with zipfile.ZipFile("{qswatplus_wf_dir}/packages/shapes.dat".format(
         qswatplus_wf_dir=os.environ["swatplus_wf_dir"]), 'r') as zip_ref:
     zip_ref.extractall(shapes_dir)
 all_files_shapes = list_files(shapes_dir)
