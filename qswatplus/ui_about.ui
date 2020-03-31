@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>aboutQSWAT</class>
+ <widget class="QDialog" name="aboutQSWAT">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>245</width>
+    <height>251</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>About QSWAT+</string>
+  </property>
+  <property name="windowIcon">
+   <iconset resource="resources.qrc">
+    <normaloff>:/plugins/QSWATPlus/swatplus.ico</normaloff>:/plugins/QSWATPlus/swatplus.ico</iconset>
+  </property>
+  <property name="sizeGripEnabled">
+   <bool>false</bool>
+  </property>
+  <layout class="QGridLayout" name="gridLayout_2">
+   <item row="0" column="0" rowspan="3" colspan="3">
+    <layout class="QGridLayout" name="gridLayout"/>
+   </item>
+   <item row="1" column="1" colspan="2">
+    <widget class="QTextBrowser" name="textBrowser"/>
+   </item>
+   <item row="2" column="1">
+    <widget class="QPushButton" name="SWATHomeButton">
+     <property name="text">
+      <string>SWAT home page</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="2">
+    <widget class="QPushButton" name="closeButton">
+     <property name="text">
+      <string>Close</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources>
+  <include location="resources.qrc"/>
+ </resources>
+ <connections/>
+</ui>

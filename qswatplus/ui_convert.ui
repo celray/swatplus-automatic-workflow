@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>arcConvertChoice</class>
+ <widget class="QDialog" name="arcConvertChoice">
+  <property name="windowModality">
+   <enum>Qt::ApplicationModal</enum>
+  </property>
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>545</width>
+    <height>303</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Convert to QSWAT+ choice</string>
+  </property>
+  <property name="windowIcon">
+   <iconset resource="resources.qrc">
+    <normaloff>:/plugins/QSWATPlus/swatplus.ico</normaloff>:/plugins/QSWATPlus/swatplus.ico</iconset>
+  </property>
+  <widget class="QDialogButtonBox" name="buttonBox">
+   <property name="geometry">
+    <rect>
+     <x>190</x>
+     <y>260</y>
+     <width>341</width>
+     <height>32</height>
+    </rect>
+   </property>
+   <property name="orientation">
+    <enum>Qt::Horizontal</enum>
+   </property>
+   <property name="standardButtons">
+    <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>10</y>
+     <width>511</width>
+     <height>201</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;There are three options available for converting an ArcSWAT project to QSWAT+.&lt;/p&gt;&lt;p&gt;Choose &lt;span style=&quot; font-weight:600;&quot;&gt;Full &lt;/span&gt;if you want to create a QSWAT+ project from scratch using your DEM, landuse and soil maps, and other data, starting with watershed delineation. You will be able to set thresholds, define landscape units, a floodplain, and HRUs, as well as edit your inputs before running SWAT+.&lt;/p&gt;&lt;p&gt;Choose&lt;span style=&quot; font-weight:600;&quot;&gt; Existing &lt;/span&gt;if you want to keep your existing watershed and subbasin boundaries and move straight to overlaying your landuse and soil maps and defining your HRUs. This avoids the risk that watershed delineation using QGIS and TauDEM will differ from watershed delineation using ArcGIS.  You will not be able to define landscape units. You will be able to define a floodplain and HRUs, and edit your inputs before running SWAT+.&lt;/p&gt;&lt;p&gt;Choose &lt;span style=&quot; font-weight:600;&quot;&gt;No GIS&lt;/span&gt; if you want to run SWAT+ using your existing SWAT inputs. You will not be using GIS, will not be able to change your watershed, subbasins or HRUs, nor be able to create landscape units or a floodplain. You will be able to edit your inputs before running SWAT+.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="wordWrap">
+    <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QRadioButton" name="noGISButton">
+   <property name="geometry">
+    <rect>
+     <x>320</x>
+     <y>230</y>
+     <width>82</width>
+     <height>17</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>No GIS</string>
+   </property>
+  </widget>
+  <widget class="QRadioButton" name="existingButton">
+   <property name="geometry">
+    <rect>
+     <x>190</x>
+     <y>230</y>
+     <width>82</width>
+     <height>17</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Existing</string>
+   </property>
+  </widget>
+  <widget class="QRadioButton" name="fullButton">
+   <property name="geometry">
+    <rect>
+     <x>60</x>
+     <y>230</y>
+     <width>82</width>
+     <height>17</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Full</string>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+  </widget>
+ </widget>
+ <resources>
+  <include location="resources.qrc"/>
+ </resources>
+ <connections>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>accepted()</signal>
+   <receiver>arcConvertChoice</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>248</x>
+     <y>254</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>157</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>rejected()</signal>
+   <receiver>arcConvertChoice</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>316</x>
+     <y>260</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>286</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>
