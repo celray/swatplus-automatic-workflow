@@ -23,6 +23,7 @@ sys.path.insert(0, sys.argv[1])
 
 from helper_functions import (read_from, write_to, raster_statistics,
     list_files, copy_file, file_name, python_variable, get_extents)
+from projection_lookup import epsg_lookup_dictionary
 from qgs_project_template import template
 from sqlite_tools import sqlite_connection
 
@@ -44,6 +45,7 @@ class dem_data:
 
 # location of wgn
 # https://bitbucket.org/swatplus/swatplus.editor/downloads/swatplus_wgn.sqlite
+
 
 # set importane variables
 project_name = namelist.Project_Name
@@ -141,14 +143,8 @@ srs = osr.SpatialReference(wkt=prjcrs)
 proj4 = srs.ExportToProj4()
 geogcs = srs.GetAttrValue('geogcs')
 
-epsg_lookup_raw = read_from(
-    "{qswatplus_wf_dir}/wkt_lookup.uesv".format(qswatplus_wf_dir=os.environ["swatplus_wf_dir"]))
-epsg_lookup_dict = {line.split(";")[1]: [line.split(";")[4], line.split(
-    ";")[2], line.split(";")[0], line.split(";")[3]] for line in epsg_lookup_raw}
-# descr: [epsg, projacronym, srsid, ellipsoidacronym]
-
-if prjcrs.split('"')[1] in epsg_lookup_dict:
-    srid, projectionacronym, srsid, ellipsoidacronym = epsg_lookup_dict[prjcrs.split('"')[
+if prjcrs.split('"')[1] in epsg_lookup_dictionary:
+    srid, projectionacronym, srsid, ellipsoidacronym = epsg_lookup_dictionary[prjcrs.split('"')[
         1]]
     geographicflag = "false"
 else:
@@ -302,8 +298,8 @@ for shp_file in all_files_shapes:
     os.rename(shp_file, shp_file.replace("[dem]", dem_name))
 
 for shape_data in data_shapes:
-    if (outlet_name in shape_data) or ((burn_name in shape_data) \
-        and (not burn_name == "")):
+    if (outlet_name in shape_data) or ((burn_name in shape_data)
+                                       and (not burn_name == "")):
         copy_file(shape_data, "{shapes_dir}/{file_n}".format(
             shapes_dir=shapes_dir, file_n=file_name(shape_data, extension=True)))
     if outlet_name in shape_data:
