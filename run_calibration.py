@@ -33,9 +33,10 @@ import namelist
 
 def clear_directory(dir_path):
     try:
-        shutil.rmtree(dir_path)
+        if os.path.isdir(dir_path):
+            shutil.rmtree(dir_path)
     except:
-        print("\t! Workspace was not cleared.")
+        print("\t! workspace was not cleared.")
 
 
 def calculate_nse(observation_fn, simulated_fn, t_step=2):
@@ -203,6 +204,12 @@ if __name__ == "__main__":
         config_file=config_file_name, home_dir=home_dir)
 
     observation_filename = read_from(config_file_path)[2].split(",")[2]
+    observation_file_path = "{home_dir}/data/observations/{cal_obs_fn}".format(
+                cal_obs_fn=observation_filename, home_dir=sys.argv[1])
+
+    if not os.path.isfile(observation_file_path):
+        print("\t! the observation file was not found!\n\t   path: {0}".format(observation_file_path))
+        sys.exit(1)
     unit_number = read_from(config_file_path)[3].split(",")[2]
     print("\t> calibrating to channel number {0}".format(unit_number))
     calibration_time_step = read_from(config_file_path)[4].split(",")[2]

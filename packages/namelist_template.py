@@ -77,7 +77,7 @@ Cal_File                = "{calfile_name}"            # a calibration.cal file w
                                         # leave as "" if there is no file to be used.
 
 Calibrate               = False        # set to "True" to perform calibration, "False" to skip calibration
-Calibration_Config_File = ""             # 
+Calibration_Config_File = "calibration_config.csv"             # 
 Number_of_Runs          =   0          # Set the number of runs for calibration
 Number_of_Processes     =   1          # Set the number of parallel processes to make calibration faster
 
@@ -86,3 +86,19 @@ Make_Figures            = False         # set to "True" to create maps, "False" 
 # Log progress or not? If yes, you will not see updates
 log                     = False        # True or False
 '''---------------------------  Settings End  -----------------------'''"""
+
+calibration_config_template = """Parameter,Minimum,Maximum,Change Type,
+"1 = pctchg, 2 = abschg, 3 = absval",,,,
+File Name:,,observed_flows.csv,,
+Channel Number:,,35,,
+Timestep:,,2,,"1 = day, 2 = month, 3 = year"
+Calibration Variable:,,1,,"1 = flow, 2 = evapotranspiration"
+,,,,
+Parameter,Min,Max,Change Type,
+cn2,-25,25,pctchg,
+esco,-0.6,0.6,abschg,
+perco,-20,20,pctchg,
+awc,-20,20,pctchg,
+surlag,-20,20,pctchg,
+alpha,-20,20,pctchg,
+"""

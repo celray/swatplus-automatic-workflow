@@ -19,7 +19,7 @@ sys.argv[1] = sys.argv[1].replace("\\", "/")
 sys.path.insert(0, "{0}/packages".format(os.environ["swatplus_wf_dir"]))
 sys.path.insert(0, sys.argv[1])
 
-from namelist_template import namelist_string
+from namelist_template import namelist_string, calibration_config_template
 from helper_functions import file_name, list_folders, read_from, xml_children_attributes, write_to
 
 specified_name = False
@@ -82,28 +82,24 @@ else:
 # create dada directory structure
 directories = ["calibration", "observations", "rasters", "shapefiles", "tables", "weather"]
 
-# just incase data directory already exists
-# if os.path.isdir("{0}/{1}".format(sys.argv[1], "data")):
-#     count = 1
-#     while True:
-#         try:
-#             os.rename("{0}/{1}".format(sys.argv[1], "data"), "{0}/{1}_bu_{2}".format(sys.argv[1], "data", count))
-#             break
-#         except OSError:
-#             count += 1
-
 for directory in directories:
     if not os.path.isdir("{0}/{1}/{2}".format(sys.argv[1], "data", directory)):
         os.makedirs("{0}/{1}/{2}".format(sys.argv[1], "data", directory))
+
+# save calibration config file
+write_to(
+    "{base}/data/calibration/calibration_config.csv".format(base = sys.argv[1]),
+    calibration_config_template
+)
 
 # get project data from xml file
 xml_fn = "{base}/{fn}/{fn}.qgs".format(base = sys.argv[1], fn = selected_model)
 
 title = xml_children_attributes(xml_fn, "./")["title"]
-delin_data = xml_children_attributes(xml_fn, "./properties/upper_sabi2/delin")
-hru_data = xml_children_attributes(xml_fn, "./properties/upper_sabi2/hru")
-landuse_data = xml_children_attributes(xml_fn, "./properties/upper_sabi2/landuse")
-soil_data = xml_children_attributes(xml_fn, "./properties/upper_sabi2/soil")
+delin_data = xml_children_attributes(xml_fn, "./properties/{s}/delin".format(s = selected_model))
+hru_data = xml_children_attributes(xml_fn, "./properties/{s}/hru".format(s = selected_model))
+landuse_data = xml_children_attributes(xml_fn, "./properties/{s}/landuse".format(s = selected_model))
+soil_data = xml_children_attributes(xml_fn, "./properties/{s}/soil".format(s = selected_model))
 
 # get rasters
 shutil.copyfile(    # get soil file
