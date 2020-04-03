@@ -18,6 +18,7 @@ import subprocess
 from itertools import product
 
 sys.path.insert(0, os.path.join(os.environ["swatplus_wf_dir"], "packages"))
+sys.path.append(os.path.join(os.environ["swatplus_wf_dir"]))
 sys.path.insert(0, sys.argv[1])
 
 sys.argv[1] = sys.argv[1].replace("\\\\", "/")
@@ -185,10 +186,15 @@ def run_parameter_set(parameter_set_list, core_number, chg_typ_dict, header, cal
 
 
 if __name__ == "__main__":
+
+
     if namelist.Model_2_namelist:
         sys.exit(0)
     if not namelist.Calibrate:
         sys.exit(0)
+
+    # announce
+    print("\n     >> running calibration")
     start_time = time.time()
 
     # set variables

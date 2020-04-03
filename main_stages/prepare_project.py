@@ -19,6 +19,7 @@ import gdal
 import osr
 
 sys.path.insert(0, os.path.join(os.environ["swatplus_wf_dir"], "packages"))
+sys.path.append(os.path.join(os.environ["swatplus_wf_dir"]))
 sys.path.insert(0, sys.argv[1])
 
 from helper_functions import (read_from, write_to, raster_statistics,
@@ -46,6 +47,8 @@ class dem_data:
 # location of wgn
 # https://bitbucket.org/swatplus/swatplus.editor/downloads/swatplus_wgn.sqlite
 
+# anounce action
+print("\n     >> preparing project")
 
 # set importane variables
 project_name = namelist.Project_Name

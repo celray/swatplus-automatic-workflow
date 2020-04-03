@@ -13,6 +13,7 @@ import shutil
 
 # adding to path before importing custom modules
 sys.path.insert(0, os.path.join(os.environ["swatplus_wf_dir"], "packages"))
+sys.path.append(os.path.join(os.environ["swatplus_wf_dir"]))
 sys.path.insert(0, sys.argv[1])
 
 from sqlite_tools import sqlite_connection
@@ -169,6 +170,7 @@ class swat_plus_editor:
         config_info[11] = "observed"
         config_info[12] = self.txt_in_out_dir
 
+        print(" ")
         self.db.delete_rows("project_config")
         self.db.insert_row("project_config", config_info)
 
@@ -233,6 +235,7 @@ class swat_plus_editor:
 
         # set simulation times
         time_sim_data = ["1", "0", str(Start_Year), "0", str(End_Year), "0"]
+        print(" ")
         self.db.connect()
         self.db.delete_rows("time_sim")
         self.db.insert_row("time_sim", time_sim_data)
@@ -298,12 +301,16 @@ class swat_plus_editor:
 if __name__ == "__main__":
     if namelist.Model_2_namelist:
         sys.exit(0)
+    # announce
+    print("\n     >> configuring model in editor")
+
     editor = swat_plus_editor(base_dir, model_name)
     editor.initialise_databases()
     editor.setup_project()
     editor.set_printing_weather(namelist.Start_Year, namelist.End_Year)
     editor.model_options()
     editor.write_files()
+    print("")
     if not namelist.Calibrate:
         if namelist.Executable_Type == 0:
             editor.run(namelist.Executable_Type)

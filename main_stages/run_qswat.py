@@ -34,6 +34,7 @@ Processing.initialize()
 import processing
 
 sys.path.append(os.path.join(os.environ["swatplus_wf_dir"], "packages"))
+sys.path.append(os.path.join(os.environ["swatplus_wf_dir"]))
 sys.path.insert(0, sys.argv[1])
 
 from helper_functions import list_files
@@ -120,6 +121,8 @@ for Watershed_shape in Watershed_shapes:
 for delete_shape in delete_shapes:
     QSWATUtils.removeFiles(delete_shape)
 
+# announce
+print("\n     >> setting up model hrus")
 
 shutil.rmtree(QSWATUtils.join(projDir, r'Watershed\Text'), ignore_errors=True)
 
@@ -147,7 +150,7 @@ delin = Delineation(plugin._gv, plugin._demIsProcessed)
 delin.init()
 
 QSWATUtils.information(
-    '\n\n\t - DEM: {0}'.format(os.path.split(plugin._gv.demFile)[1]), True)
+    '\t - DEM: {0}'.format(os.path.split(plugin._gv.demFile)[1]), True)
 
 delin.addHillshade(plugin._gv.demFile, None, None, None)
 QSWATUtils.information(
@@ -172,7 +175,6 @@ if not os.path.exists(QSWATUtils.join(plugin._gv.textDir, Parameters._BASINREPOR
     QSWATUtils.error('\t ! Landuse and soil report not created', True)
     sys.exit(1)
 
-
 hrus.calcHRUs()
 if not os.path.exists(QSWATUtils.join(plugin._gv.textDir, Parameters._HRUSREPORT)):
     QSWATUtils.error('\t ! HRUs report not created', True)
@@ -192,4 +194,3 @@ if not os.path.exists(QSWATUtils.join(projDir, r'Watershed\Shapes\subs1.shp')):
 if os.path.isdir("{base}/__pycache__".format(base=sys.argv[1])):
     shutil.rmtree("{base}/__pycache__".format(base=sys.argv[1]))
 
-print("")

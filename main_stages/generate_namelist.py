@@ -17,6 +17,7 @@ sys.argv[1] = sys.argv[1].replace("\\\\", "/")
 sys.argv[1] = sys.argv[1].replace("\\", "/")
 
 sys.path.insert(0, "{0}/packages".format(os.environ["swatplus_wf_dir"]))
+sys.path.append(os.path.join(os.environ["swatplus_wf_dir"]))
 sys.path.insert(0, sys.argv[1])
 
 from namelist_template import namelist_string, calibration_config_template
@@ -78,6 +79,9 @@ if not specified_name:
 
 else:
     selected_model = namelist.Project_Name
+
+# announce
+print("\n     >> generating namelist and extracting data")
 
 # create dada directory structure
 directories = ["calibration", "observations", "rasters", "shapefiles", "tables", "weather"]
