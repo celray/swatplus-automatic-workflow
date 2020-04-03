@@ -650,7 +650,6 @@ class WgnImport(ExecutableApi):
 
 		data = cursor.fetchall()
 		records = len(data)
-		print(records)
 
 		i = 1
 		for row in data:

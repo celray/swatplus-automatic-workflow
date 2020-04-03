@@ -156,7 +156,8 @@ class QSWATUtils:
         if not reportErrors:
             return
         if isBatch:
-            sys.stdout.write('{0}\n'.format(msg))
+            sys.stdout.write('\r{0}      '.format(msg))
+            sys.stdout.flush()
         else:
             msgbox: QMessageBox = QMessageBox()
             msgbox.setWindowTitle(QSWATUtils._QSWATNAME)
@@ -234,7 +235,9 @@ class QSWATUtils:
         else:
             label.setText(text)
             # shows on console if visible; more useful in testing when appears on standard output
-            print(text)
+            sys.stdout.write("\r{0}                                ".format(text))
+            sys.stdout.flush()
+
             # calling processEvents after label.clear can cause QGIS to hang
             label.update()
             QCoreApplication.processEvents(QEventLoop.ExcludeUserInputEvents)

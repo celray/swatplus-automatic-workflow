@@ -27,14 +27,31 @@ from helper_functions import (read_from, write_to, raster_statistics,
 from projection_lookup import epsg_lookup_dictionary
 from qgs_project_template import template
 from sqlite_tools import sqlite_connection
+from logger import log
+
+log = log("{base}/swatplus_aw_log.txt".format(base = sys.argv[1]))
+keep_log = True
 
 # check if there is need to prepare project
 if os.path.isfile("{base}/namelist.py".format(base=sys.argv[1])):
     import namelist
+    if namelist.Keep_Log == True:
+        keep_log = True
+        log.initialise()
+    else:
+        keep_log = False
     if namelist.Model_2_namelist == True:
-        print("\t> Creating namelist, the old namelist will be saved in './data/old_namelists/'")
+        log.info("namelist creation is required; 'Model_2_namelist' is set to 'True'", keep_log)
+
         sys.exit(0)
 else:
+    if namelist.Keep_Log == True:
+        keep_log = True
+        log.initialise()
+    else:
+        keep_log = False
+    
+    log.info("namelist was not found in the current directory", keep_log)
     print("\t! namelist.py not found in current directory")
     sys.exit(0)
 
@@ -47,8 +64,9 @@ class dem_data:
 # location of wgn
 # https://bitbucket.org/swatplus/swatplus.editor/downloads/swatplus_wgn.sqlite
 
-# anounce action
+# announce action
 print("\n     >> preparing project")
+log.info("preparing the qgis project", keep_log)
 
 # set importane variables
 project_name = namelist.Project_Name
@@ -70,12 +88,16 @@ soil_name = namelist.Soils if ".tif" in namelist.Soils.lower(
 extension_suffix = ".tif"
 
 # prepare rasters
+log.info("preparing raster files", keep_log)
 dem_fn = "{base_dir}/data/rasters/{dem_file}".format(
     base_dir=sys.argv[1], dem_file=namelist.Topography)
+log.info(" - dem file: {0}".format(namelist.Topography), keep_log)
 soil_fn = "{base_dir}/data/rasters/{dem_file}".format(
     base_dir=sys.argv[1], dem_file=namelist.Soils)
+log.info(" - soils file: {0}".format(namelist.Soils), keep_log)
 landuse_fn = "{base_dir}/data/rasters/{dem_file}".format(
     base_dir=sys.argv[1], dem_file=namelist.Land_Use)
+log.info(" - soils file: {0}".format(namelist.Land_Use), keep_log)
 
 
 dem_dirname = '{base}/{project_name}/Watershed/Rasters/DEM/'.format(
@@ -85,6 +107,7 @@ soil_dirname = '{base}/{project_name}/Watershed/Rasters/Landuse/'.format(
 landuse_dirname = '{base}/{project_name}/Watershed/Rasters/Soil/'.format(
     base=sys.argv[1], project_name=project_name)
 
+log.info("creating raster directories in project", keep_log)
 if not os.path.isdir(dem_dirname):
     os.makedirs(dem_dirname)
 
@@ -101,6 +124,10 @@ if not os.path.isdir(landuse_dirname):
 #     os.remove(prjcrs_tmp)
 
 # copy and convert rasters
+log.info("extracting DEM to {0}".format(
+    '{base}/{project_name}/Watershed/Rasters/DEM/{dem_name}'.format(
+        base=sys.argv[1], project_name=project_name, dem_name=dem_name)
+), keep_log)
 if namelist.Topography.lower().endswith(".tif"):
     copy_file(dem_fn, '{base}/{project_name}/Watershed/Rasters/DEM/{dem_name}'.format(
         base=sys.argv[1], project_name=project_name, dem_name=dem_name))
@@ -113,6 +140,10 @@ else:
     ds = gdal.Translate('{base}/{project_name}/Watershed/Rasters/DEM/{dem_name}slp_bands.tif'.format(
         base=sys.argv[1], project_name=project_name, dem_name=dem_name[:-4]), src_ds, format='GTiff')
 
+log.info("extracting DEM to {0}".format(
+    '{base}/{project_name}/Watershed/Rasters/Landuse/{landuse_name}'.format(
+        base=sys.argv[1], project_name=project_name, landuse_name=landuse_name)
+), keep_log)
 if namelist.Land_Use.lower().endswith(".tif"):
     copy_file(landuse_fn, '{base}/{project_name}/Watershed/Rasters/Landuse/{landuse_name}'.format(
         base=sys.argv[1], project_name=project_name, landuse_name=landuse_name))
@@ -121,6 +152,10 @@ else:
     ds = gdal.Translate('{base}/{project_name}/Watershed/Rasters/Landuse/{landuse_name}'.format(
         base=sys.argv[1], project_name=project_name, landuse_name=landuse_name), src_ds, format='GTiff')
 
+log.info("extracting DEM to {0}".format(
+    '{base}/{project_name}/Watershed/Rasters/Soil/{soil_name}'.format(
+        base=sys.argv[1], project_name=project_name, soil_name=soil_name)
+), keep_log)
 if namelist.Soils.lower().endswith(".tif"):
     copy_file(soil_fn, '{base}/{project_name}/Watershed/Rasters/Soil/{soil_name}'.format(
         base=sys.argv[1], project_name=project_name, soil_name=soil_name))
@@ -129,6 +164,7 @@ else:
     ds = gdal.Translate('{base}/{project_name}/Watershed/Rasters/Soil/{soil_name}'.format(
         base=sys.argv[1], project_name=project_name, soil_name=soil_name), src_ds, format='GTiff')
 
+log.info("getting dem projection information", keep_log)
 dataset = gdal.Open('{base}/{project_name}/Watershed/Rasters/DEM/{dem_name}'.format(
     base=sys.argv[1], project_name=project_name, dem_name=dem_name))
 
@@ -145,6 +181,8 @@ srs = osr.SpatialReference(wkt=prjcrs)
 
 proj4 = srs.ExportToProj4()
 geogcs = srs.GetAttrValue('geogcs')
+log.info("geogcs: {0}".format(geogcs), keep_log)
+log.info("proj4: {0}".format(proj4), keep_log)
 
 if prjcrs.split('"')[1] in epsg_lookup_dictionary:
     srid, projectionacronym, srsid, ellipsoidacronym = epsg_lookup_dictionary[prjcrs.split('"')[
@@ -153,6 +191,7 @@ if prjcrs.split('"')[1] in epsg_lookup_dictionary:
 else:
     srid, projectionacronym, srsid, ellipsoidacronym = "", "", "", ""
     geographicflag = "true"
+    log.error("DEM is not projected", keep_log)
     print("Error! DEM is not projected!")
     sys.exit(1)
 
@@ -160,6 +199,7 @@ srs_description = prjcrs.split('"')[1]
 
 
 # hru settings
+log.info("setting hru filter method", keep_log)
 hru_land_thres, hru_soil_thres, hru_slope_thres = "", "", ""
 area_val = 0      # value for area if option 3 for HRU Filter Method is selected
 target_val = 0    # value for area if option 4 for HRU Filter Method is selected
@@ -169,20 +209,31 @@ is_dominant_hru = 0
 is_multiple = 0
 is_target = 0
 
+if namelist.HRU_Filter_Method == 1:
+    log.info("> filter method is dominant landuse, soil, slope", keep_log)
+    is_dominant_hru = 1
+
 if namelist.HRU_Filter_Method == 2:
+    log.info("> filter method is dominant hrus", keep_log)
     is_dominant_hru = 1
 
 if namelist.HRU_Filter_Method == 3:
+    log.info("> filter method is target area", keep_log)
     area_val = namelist.Target_Area
+    log.info("  - target area = {0}".format(area_val), keep_log)
     is_multiple = 1
     is_area = 1
 
 if namelist.HRU_Filter_Method == 4:
+    log.info("> filter method is target area", keep_log)
     target_val = namelist.Target_Value
+    log.info("  - target value = {0}".format(target_val), keep_log)
     is_multiple = 1
     is_target = 1
 
 if namelist.HRU_Filter_Method == 5:
+    log.info("> filter method is filter by landuse, soil, slope", keep_log)
+    log.info("  - thresholds = {0}".format(namelist.Land_Soil_Slope_Thres), keep_log)
     if len(namelist.Land_Soil_Slope_Thres.split(",")) != 3:
         print('\t! Provide thresholds in the namelist with the correct format\n\t - e.g. Land_Soil_Slope_Thres = "12, 10, 7"')
         sys.exit(1)
@@ -191,6 +242,7 @@ if namelist.HRU_Filter_Method == 5:
             " ", "").split(",")
         is_multiple = 1
 
+log.info("writing raster projection information", keep_log)
 write_to('{base}/{project_name}/Watershed/Rasters/DEM/{dem_name}.prj.txt'.format(
     base=sys.argv[1], project_name=project_name, dem_name=dem_name), formated_projcs)
 write_to('{base}/{project_name}/Watershed/Rasters/DEM/{dem_name}.prj'.format(
@@ -198,6 +250,7 @@ write_to('{base}/{project_name}/Watershed/Rasters/DEM/{dem_name}.prj'.format(
 write_to('{base}/{project_name}/Watershed/Rasters/DEM/{dem_name}hillshade.prj'.format(
     base=sys.argv[1], project_name=project_name, dem_name=dem_name), prjcrs)
 
+log.info("getting gis data extents", keep_log)
 extent_xmin, extent_ymin, extent_xmax, extent_ymax = get_extents(dem_fn)
 raster_stats = raster_statistics(dem_fn)
 third_delta = round((raster_stats.maximum - raster_stats.minimum)/3, 0)
@@ -263,6 +316,10 @@ project_string = project_string.replace("--close-curly--", "}")
 project_string = project_string.replace("key--open-curly--", 'key="{')
 project_string = project_string.replace("value--open-curly--", 'value="{')
 
+log.info("writing qgis project file to {0}.qgs".format(
+    "{base}/{project_name}/{project_name}.qgs".format(
+    base=sys.argv[1], project_name=project_name)
+), keep_log)
 write_to("{base}/{project_name}/{project_name}.qgs".format(
     base=sys.argv[1], project_name=project_name), project_string)
 
@@ -276,6 +333,7 @@ write_to("{base}/{project_name}/{project_name}.qgs".format(
 #             base=sys.argv[1], project_name=project_name, dem_name=dem_name, suff=suff), 'wb') as fl:
 #         fl.write(dem_data_variable.raster_data)
 
+log.info("creating hillshade for DEM", keep_log)
 hillshade_name = '{base}/{project_name}/Watershed/Rasters/DEM/{dem_name}hillshade.tif'.format(
     base=sys.argv[1], project_name=project_name, dem_name=dem_name[:-4])
 src_ds = gdal.Open('{base}/{project_name}/Watershed/Rasters/DEM/{dem_name}'.format(
@@ -291,6 +349,7 @@ data_shapes = list_files("{base_dir}/data/shapefiles/".format(
     base_dir=sys.argv[1]))
 
 # place holding shapefiles
+log.info("creating placeholder shapefiles", keep_log)
 if not os.path.isdir(shapes_dir):
     os.makedirs(shapes_dir)
 with zipfile.ZipFile("{qswatplus_wf_dir}/packages/shapes.dat".format(
@@ -300,24 +359,23 @@ all_files_shapes = list_files(shapes_dir)
 for shp_file in all_files_shapes:
     os.rename(shp_file, shp_file.replace("[dem]", dem_name))
 
+log.info("copying outlet and burn shapefiles", keep_log)
 for shape_data in data_shapes:
     if (outlet_name in shape_data) or ((burn_name in shape_data)
-                                       and (not burn_name == "")):
+        and (not burn_name == "")):
         copy_file(shape_data, "{shapes_dir}/{file_n}".format(
             shapes_dir=shapes_dir, file_n=file_name(shape_data, extension=True)))
-    if outlet_name in shape_data:
-        copy_file(shape_data, "{shapes_dir}/{file_n}".format(
-            shapes_dir=shapes_dir, file_n=file_name(
-                shape_data, extension=True)))
 
 # prepare databases
 # - copy templates
+log.info("getting swatplus_datasets.sqlite", keep_log)
 copy_file(
     "{qswatplus_wf_dir}/editor_api/swatplus_datasets.sqlite".format(
         qswatplus_wf_dir=os.environ["swatplus_wf_dir"]),
     '{base}/{project_name}/swatplus_datasets.sqlite'.format(
         base=sys.argv[1], project_name=project_name)
 )
+log.info("creating {0}.sqlite".format(project_name), keep_log)
 copy_file(
     "{qswatplus_wf_dir}/editor_api/template.sqlite".format(
         qswatplus_wf_dir=os.environ["swatplus_wf_dir"]),
@@ -332,6 +390,7 @@ project_database = sqlite_connection(
 )
 
 # - copy templates
+log.info("importing usersoil into project database", keep_log)
 project_database.connect()
 if project_database.table_exists("{usersoil}".format(usersoil=usersoil)):
     project_database.delete_table("{usersoil}".format(usersoil=usersoil))
@@ -378,6 +437,7 @@ for usersoil_row in usersoil_rows:
 print("")
 
 # - - soil lookup
+log.info("importing soil lookup into project database", keep_log)
 soillookup_rows = read_from("{base_dir}/data/tables/{soil_lookup}".format(
     base_dir=sys.argv[1], soil_lookup=namelist.Soil_Lookup))
 
@@ -402,6 +462,7 @@ for line in soillookup_rows[1:]:
         soil_lookup=soil_lookup), [line.split(",")], messages=False)
 
 # - - landuse lookup
+log.info("importing landuse lookup into project database", keep_log)
 landuselookup_rows = read_from("{base_dir}/data/tables/{landuse_file}".format(
     base_dir=sys.argv[1], landuse_file=namelist.Landuse_Lookup))
 
@@ -422,7 +483,4 @@ for line in landuselookup_rows[1:]:
         land_lookup=land_lookup), [line.split(",")], messages=False)
 
 project_database.close_connection()
-
-# clean up
-if os.path.isdir("{base}/__pycache__".format(base=sys.argv[1])):
-    rmtree("{base}/__pycache__".format(base=sys.argv[1]))
+log.info("project has been prepared\n", keep_log)

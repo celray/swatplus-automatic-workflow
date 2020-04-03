@@ -8,25 +8,27 @@ licence     : MIT 2020
 '''
 
 namelist_string = """
-# Project Identification
-Project_Name     = "{prj_name}"
-Model_2_namelist = True        # True = get settings from existing model 
-                                # False = get model from current settings
+'''----------------- QSWAT+ Workflow v1.0 Settings File --------------'''
 
-'''---------------------------   File Names  --------------------------'''
+# Project Identification
+Project_Name          = "{prj_name}"
+Model_2_namelist      = True        # True = get settings from existing model 
+                                    # False = get model from current settings
+
+'''---------------------------- File Names ---------------------------'''
 # Raster files (Should be projected with the same projection)
-Topography         = "{dem_fn}"
-Soils              = "{soil_fn}"
-Land_Use           = "{landuse_fn}"
+Topography            = "{dem_fn}"
+Soils                 = "{soil_fn}"
+Land_Use              = "{landuse_fn}"
 
 
 # Database Files
-Soil_Lookup        = "{soillookup_fn}"
-Landuse_Lookup     = "{landuselookup_fn}"
-Usersoil           = "{usersoil_fn}"
+Soil_Lookup           = "{soillookup_fn}"
+Landuse_Lookup        = "{landuselookup_fn}"
+Usersoil              = "{usersoil_fn}"
 
 # Shape Files
-Outlets             = "{outlets_fn}" # it should have same format as in the example
+Outlets               = "{outlets_fn}" # it should have same format as in the example
 
 '''---------------------------  Project Options  ----------------------'''
 # Watershed Deliniation (1 = Cells)
@@ -37,13 +39,13 @@ Out_Snap_Threshold    = {shap_threshold}                # metres
 Burn_In_Shape         = ""                 # leave as "" if none
 
 #  -------------------  HRU Definition  ------------------
-Slope_Classes          = "{slope_classes}"
+Slope_Classes         = "{slope_classes}"
 
 # HRU creation method   (1 = Dominant landuse, soil, slope , 2 = Dominant HRU,
 #                        3 = Filter by Area,                 4 = Target Number of HRUs,
 #                        5 = Filter by landuse, soil, slope)
 
-HRU_Filter_Method   = {hru_method}
+HRU_Filter_Method     = {hru_method}
 
 # Thresholds_Type           (1 = Total Area (ha) , 2 = Percent)
 HRU_Thresholds_Type   = {hru_threshold_type}
@@ -71,9 +73,9 @@ Print_Objects         = {{           # 1 = daily, 2 = month, 3 = year, 4 = annua
 {print_objects}
                         }}
 
-Executable_Type         = 0             # 1 = Release, 2 = Debug   0 = Don't run
+Executable_Type       = 0             # 1 = Release, 2 = Debug   0 = Don't run
 
-Cal_File                = "{calfile_name}"            # a calibration.cal file with parameters for the calibrated model
+Cal_File              = "{calfile_name}"            # a calibration.cal file with parameters for the calibrated model
                                         # leave as "" if there is no file to be used.
 
 Calibrate               = False        # set to "True" to perform calibration, "False" to skip calibration
@@ -81,10 +83,10 @@ Calibration_Config_File = "calibration_config.csv"             #
 Number_of_Runs          =   0          # Set the number of runs for calibration
 Number_of_Processes     =   1          # Set the number of parallel processes to make calibration faster
 
-Make_Figures            = False         # set to "True" to create maps, "False" to skip map creation
+Make_Figures            = True         # set to "True" to create maps, "False" to skip map creation
 
 # Log progress or not? If yes, you will not see updates
-log                     = False        # True or False
+Keep_Log                = True        # True or False
 '''---------------------------  Settings End  -----------------------'''"""
 
 calibration_config_template = """Parameter,Minimum,Maximum,Change Type,

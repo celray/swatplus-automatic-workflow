@@ -8,6 +8,7 @@ path.insert(0, "C:/SWAT/SWATPlus/Workflow/packages")
 from helper_functions import read_from, copy_file, write_to, show_progress, list_files
 
 def convert_weather(weather_source, weather_data_dir, file_count=None):
+    print("")
     weather_dir = weather_source
     destination = weather_data_dir
     if not os.path.isdir(destination):
@@ -27,7 +28,7 @@ def convert_weather(weather_source, weather_data_dir, file_count=None):
                 if not file_count is None:
                     counting += 1
                     show_progress(counting, file_count,
-                                  string_before="\t  formating weather: ")
+                                  string_before="\t   formating weather: ")
                 filename = "{0}.{1}".format(
                     line.split(",")[1], fork_file.split(".")[0])
                 new_fork_string += "{0}\n".format(filename)
@@ -76,7 +77,7 @@ def convert_weather(weather_source, weather_data_dir, file_count=None):
         else:
             print("\t! could not find {0} in {1}".format(
                 fork_file, weather_dir))
-    print("\t> finished.")
+    print("\n\t   finished.\n")
 
 
 if __name__ == "__main__":

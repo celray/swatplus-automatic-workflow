@@ -45,10 +45,10 @@ class CreateProjectDb(ExecutableApi):
 		base_path = os.path.dirname(self.project_db)
 		rel_project_db = os.path.relpath(self.project_db, base_path)
 		rel_reference_db = os.path.relpath(self.reference_db, base_path)
-		print("project_db {}".format(self.project_db))
-		print("base_path {}".format(base_path))
-		print("rel_project_db {}".format(rel_project_db))
-		print("rel_reference_db {}".format(rel_reference_db))
+		print("\n\t> project_db\t\t: {}".format(self.project_db))
+		print("\t> base_path		: {}".format(base_path))
+		print("\t> rel_project_db	: {}".format(rel_project_db))
+		print("\t> rel_reference_db	: {}\n".format(rel_reference_db))
 		
 		Project_config.get_or_create_default(
 			editor_version=self.editor_version,

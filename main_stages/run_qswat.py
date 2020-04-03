@@ -42,6 +42,8 @@ from helper_functions import list_files
 import atexit
 import qswatplus
 import namelist
+from logger import log
+
 
 from qswatplus.QSWATPlus import QSWATPlus
 from qswatplus.delineation import Delineation
@@ -78,6 +80,9 @@ class DummyInterface(object):
 if namelist.Model_2_namelist:
     sys.exit(0)
 
+keep_log = True if namelist.Keep_Log else False
+log = log("{base}/swatplus_aw_log.txt".format(base = sys.argv[1]))
+
 iface = DummyInterface()
 
 
@@ -91,9 +96,11 @@ projDir = "{base}/{model_name}".format(base=base_dir,
 
 if not os.path.exists(projDir):
     QSWATUtils.error('Project directory {0} not found'.format(projDir), True)
+    log.error('project directory {0} was not found'.format(projDir), keep_log)
     sys.exit(1)
 
 # clean up before new files
+log.info("cleaning up files from 'Watershed\Shapes'", keep_log)
 Watershed_shapes = list_files(QSWATUtils.join(
     projDir, r'Watershed\Shapes'), "shp")
 delete_shapes = []
@@ -124,28 +131,35 @@ for delete_shape in delete_shapes:
 # announce
 print("\n     >> setting up model hrus")
 
+log.info("cleaning up files from 'Watershed\\Text'", keep_log)
 shutil.rmtree(QSWATUtils.join(projDir, r'Watershed\Text'), ignore_errors=True)
 
 projName = os.path.split(projDir)[1]
 projFile = "{dir}/{nm}.qgs".format(dir=projDir, nm=projName)
 shutil.rmtree(QSWATUtils.join(projDir, 'Scenarios'), ignore_errors=True)
 
+log.info("creating qgis project instance", keep_log)
 proj = QgsProject.instance()
 
-proj.read(projFile)
+log.info("reading qgis project", keep_log)
 proj.read(projFile)
 
+
+log.info("initialising qswatplus module", keep_log)
 plugin.setupProject(proj, True)
 
 
 if not (os.path.exists(plugin._gv.textDir) and os.path.exists(plugin._gv.landuseDir)):
+    log.error("cannot initialise qswatplus module", keep_log)
     QSWATUtils.error('Directories not created', True)
     sys.exit(1)
 
 if not dlg.delinButton.isEnabled():
+    log.error("cannot initialise qswatplus module", keep_log)
     QSWATUtils.error('Delineate button not enabled', True)
     sys.exit(1)
 
+log.info("initialising delineation", keep_log)
 delin = Delineation(plugin._gv, plugin._demIsProcessed)
 delin.init()
 
@@ -155,42 +169,48 @@ QSWATUtils.information(
 delin.addHillshade(plugin._gv.demFile, None, None, None)
 QSWATUtils.information(
     '\t - Inlets/outlets file: {0}'.format(os.path.split(plugin._gv.outletFile)[1]), True)
+
+log.info("running taudem", keep_log)
 delin.runTauDEM2()
+log.info("finishing delineation", keep_log)
 delin.finishDelineation()
 if not dlg.hrusButton.isEnabled():
+    log.error("could not initialise hru creation", keep_log)
     QSWATUtils.error('\t ! HRUs button not enabled', True)
     sys.exit(1)
 
 # ensure that HRUs runs 'from files' and not from 'saved from previous run'
+log.info("removing old gis data from 'BASINDATA' table in project database", keep_log)
 plugin._gv.db.clearTable('BASINSDATA')
 hrus = HRUs(plugin._gv, dlg.reportsBox)
 hrus.init()
 hrus.readFiles()
 if not os.path.exists(QSWATUtils.join(plugin._gv.textDir, Parameters._TOPOREPORT)):
+    log.error("error reading HRU data", keep_log)
     QSWATUtils.error('\t ! Elevation report not created', True)
     sys.exit(1)
 
-
 if not os.path.exists(QSWATUtils.join(plugin._gv.textDir, Parameters._BASINREPORT)):
+    log.error("error reading HRU data", keep_log)
     QSWATUtils.error('\t ! Landuse and soil report not created', True)
     sys.exit(1)
 
 hrus.calcHRUs()
 if not os.path.exists(QSWATUtils.join(plugin._gv.textDir, Parameters._HRUSREPORT)):
+    log.error("error creating HRUs", keep_log)
     QSWATUtils.error('\t ! HRUs report not created', True)
     sys.exit(1)
 
 
 if not os.path.exists(QSWATUtils.join(projDir, r'Watershed\Shapes\rivs1.shp')):
+    log.error("error creating HRUs", keep_log)
     QSWATUtils.error('\t ! Streams shapefile not created', True)
     sys.exit(1)
 
 
 if not os.path.exists(QSWATUtils.join(projDir, r'Watershed\Shapes\subs1.shp')):
+    log.error("error creating HRUs", keep_log)
     QSWATUtils.error('\t ! Subbasins shapefile not created', True)
     sys.exit(1)
 
-
-if os.path.isdir("{base}/__pycache__".format(base=sys.argv[1])):
-    shutil.rmtree("{base}/__pycache__".format(base=sys.argv[1]))
-
+log.info("finished creating HRUs\n", keep_log)

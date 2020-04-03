@@ -192,9 +192,12 @@ if __name__ == "__main__":
         sys.exit(0)
     if not namelist.Calibrate:
         sys.exit(0)
+    keep_log = True if namelist.Keep_Log else False
+    log = log("{base}/swatplus_aw_log.txt".format(base = sys.argv[1]))
 
     # announce
     print("\n     >> running calibration")
+    log.info("starting calibration", keep_log)
     start_time = time.time()
 
     # set variables
@@ -349,5 +352,5 @@ if __name__ == "__main__":
              new_calibration_cal)
     os.chdir("{base}/TxtInOut/".format(base=base))
     os.system(swat_exe)
-
+    log.info("finished running calibration", keep_log)
     sys.exit()

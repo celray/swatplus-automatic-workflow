@@ -1,4 +1,4 @@
-import json
+import json, sys
 
 class Unbuffered(object):
    def __init__(self, stream):
@@ -14,5 +14,6 @@ class Unbuffered(object):
 
 class ExecutableApi:
 	def emit_progress(self, percent, message):
-		print('\t - percent: {0} - {1}'.format(str(percent).rjust(3), message))
+		sys.stdout.write('\r\t-> percent: {0} - {1}              '.format(str(percent).rjust(3), message))
+		sys.stdout.flush()
 

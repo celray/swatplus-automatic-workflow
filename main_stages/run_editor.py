@@ -20,6 +20,8 @@ from sqlite_tools import sqlite_connection
 import model_options
 from editor_api.weather2012_to_weather import list_files, read_from, write_to, copy_file
 import namelist
+from logger import log
+
 
 base_dir = os.environ["BASE_DIR"]
 model_name = namelist.Project_Name
@@ -301,19 +303,32 @@ class swat_plus_editor:
 if __name__ == "__main__":
     if namelist.Model_2_namelist:
         sys.exit(0)
+                    
+    keep_log = True if namelist.Keep_Log else False
+    log = log("{base}/swatplus_aw_log.txt".format(base = sys.argv[1]))
     # announce
     print("\n     >> configuring model in editor")
+    log.info("running swatplus editor module", keep_log)
 
     editor = swat_plus_editor(base_dir, model_name)
+    log.info("initialising databases", keep_log)
     editor.initialise_databases()
+    log.info("setting up the project", keep_log)
     editor.setup_project()
+    log.info("setting simulation period and adding weather", keep_log)
     editor.set_printing_weather(namelist.Start_Year, namelist.End_Year)
+    log.info("configuring model run options", keep_log)
     editor.model_options()
+    log.info("writing files", keep_log)
     editor.write_files()
     print("")
     if not namelist.Calibrate:
-        if namelist.Executable_Type == 0:
+        log.info("model will not be calibrated", keep_log)
+        if namelist.Executable_Type == 1:
+            log.info("running model using release version", keep_log)
+            editor.run(namelist.Executable_Type)
+        if namelist.Executable_Type == 2:
+            log.info("running model using debug version", keep_log)
             editor.run(namelist.Executable_Type)
 
-    if os.path.isdir("{base}/__pycache__".format(base=sys.argv[1])):
-        shutil.rmtree("{base}/__pycache__".format(base=sys.argv[1]))
+    log.info("finnished running swatplus editor module", keep_log)
