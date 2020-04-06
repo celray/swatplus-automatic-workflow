@@ -10,6 +10,7 @@ set python_script_make_namelist=C:\SWAT\SWATPlus\Workflow\main_stages\generate_n
 set python_script_run_qswat=C:\SWAT\SWATPlus\Workflow\main_stages\run_qswat.py
 set python_script_run_editor=C:\SWAT\SWATPlus\Workflow\main_stages\run_editor.py
 set python_script_run_calibration=C:\SWAT\SWATPlus\Workflow\main_stages\run_calibration.py
+set python_script_make_figures=C:\SWAT\SWATPlus\Workflow\main_stages\run_make_figures.py
 set python_script_clean_up=C:\SWAT\SWATPlus\Workflow\main_stages\run_clean_up.py
 
 set BASE_DIR="%cd:\=\\%"
@@ -32,6 +33,7 @@ If %ERRORLEVEL% == 0 (
                 If %ERRORLEVEL% == 0 (
                         call python-qgis-ltr.bat %python_script_run_editor% %BASE_DIR%
                         call python-qgis-ltr.bat %python_script_run_calibration% %BASE_DIR%
+                        call python-qgis-ltr.bat %python_script_make_figures% %BASE_DIR%
                 ) else (Echo there was an error in running QSWAT+.)
         )
 ) else (Echo there was an error preparing the project file.)

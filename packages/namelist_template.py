@@ -8,7 +8,7 @@ licence     : MIT 2020
 '''
 
 namelist_string = """
-'''----------------- QSWAT+ Workflow v1.0 Settings File --------------'''
+'''----------------- QSWAT+ Workflow v1.0.2 Settings File --------------'''
 
 # Project Identification
 Project_Name          = "{prj_name}"

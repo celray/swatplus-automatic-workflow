@@ -10,6 +10,7 @@ licence     : MIT 2020
 import os
 import sys
 import shutil
+import subprocess
 
 # adding to path before importing custom modules
 sys.path.insert(0, os.path.join(os.environ["swatplus_wf_dir"], "packages"))
@@ -284,7 +285,38 @@ class swat_plus_editor:
                   "{txt_in_out_dir}/rev60.1_64rel.exe".format(txt_in_out_dir=self.txt_in_out_dir))
 
         if exe_type == 1:
-            os.system("rev60.1_64rel.exe")
+            print("\n     >> running SWAT+")
+            # os.system("rev60.1_64rel.exe")
+            sub_process = subprocess.Popen("rev60.1_64rel.exe", close_fds=True, shell=True,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            line = ""
+            while sub_process.poll() is None:
+                out = sub_process.stdout.read(1)
+                encoding = 'utf-8'
+                
+                out_string = str(out, encoding)
+                
+                if (not out_string.endswith("\n")) or (not out_string.endswith("\r")):
+                    line += out_string
+
+                if out_string.endswith("\n") or out_string.endswith("\r"):
+                    line = line.rstrip()
+                    if not line == "":
+                        line_parts = line.split()
+                        # print(line_parts)
+                        if line_parts[0] == "Original":
+                            sys.stdout.write("\r\t   simulating: {yr}/{mn}/{dy}{tb}".format(
+                                tb = " "*10, yr = line_parts[4], mn = line_parts[2], dy = line_parts[3]))
+                        else:
+                            if line_parts[0] == "Execution":
+                                sys.stdout.write("\r\t   finished running SWAT+    ")
+                            elif line_parts[0] == "Revision":
+                                print("\t   SWAT+ version: {0}".format(line_parts[-1]))
+                            elif line_parts[0] == "reading":
+                                sys.stdout.write("\r\t   reading {0}            ".format(" ".join(line_parts[2:-3])))
+                        sys.stdout.flush()
+                    line = ""
+
         elif exe_type == 2:
             os.system("rev60.1_64debug.exe")
 
@@ -331,4 +363,4 @@ if __name__ == "__main__":
             log.info("running model using debug version", keep_log)
             editor.run(namelist.Executable_Type)
 
-    log.info("finnished running swatplus editor module", keep_log)
+    log.info("finnished running swatplus editor module\n", keep_log)

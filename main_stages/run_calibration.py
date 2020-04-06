@@ -24,22 +24,13 @@ sys.path.insert(0, sys.argv[1])
 sys.argv[1] = sys.argv[1].replace("\\\\", "/")
 sys.argv[1] = sys.argv[1].replace("\\", "/")
 
-from helper_functions import read_from, write_to, copy_directory
+from helper_functions import read_from, write_to, copy_directory, clear_directory
 import pandas
 import pystran as py
 import namelist
 
 
 # functions
-
-def clear_directory(dir_path):
-    try:
-        if os.path.isdir(dir_path):
-            shutil.rmtree(dir_path)
-    except:
-        print("\t! workspace was not cleared.")
-
-
 def calculate_nse(observation_fn, simulated_fn, t_step=2):
     observed_df = pandas.read_csv(observation_fn)
     simulated_df = pandas.read_csv(simulated_fn)
@@ -234,7 +225,7 @@ if __name__ == "__main__":
         "\n{all_parms}"
 
     # prepare workspace
-    clear_directory(working_dir)
+    clear_directory(working_dir, "workspace was not cleared")
     if not os.path.isdir(working_dir):
         os.makedirs(working_dir)
 
@@ -352,5 +343,5 @@ if __name__ == "__main__":
              new_calibration_cal)
     os.chdir("{base}/TxtInOut/".format(base=base))
     os.system(swat_exe)
-    log.info("finished running calibration", keep_log)
-    sys.exit()
+    log.info("finished running calibration\n", keep_log)
+    sys.exit(0)

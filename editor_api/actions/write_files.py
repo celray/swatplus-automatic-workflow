@@ -180,7 +180,9 @@ class WriteFiles(ExecutableApi):
 			self.emit_progress(prog, "Copying weather file {}...".format(file_name))
 			copyfile(os.path.join(self.__weather_dir, file_name), os.path.join(self.__dir, file_name))
 		except IOError as err:
-			print(err)
+			print("\n\t   ! {0} was not copied\n\t     was {1}.txt in the data?".format(
+				os.path.basename(file_name), os.path.basename(file_name).split(".")[0]))
+			# print(err)
 
 	def write_simulation(self, start_prog, allocated_prog):
 		num_files = 4

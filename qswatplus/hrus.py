@@ -563,12 +563,13 @@ class HRUs(QObject):
                     self.completed = True
                     self._gv.writeProjectConfig(-1, 1)
                     self._dlg.readFromPrevious.setEnabled(True)
-                    msg = '\t - HRUs done: {0!s} HRUs formed with {1!s} channels in {2!s} subbasins.'.format(self.CreateHRUs.HRUNum, 
+                    msg = '\r\t - HRUs done: {0!s} HRUs formed with {1!s} channels in {2!s} subbasins.\n'.format(self.CreateHRUs.HRUNum, 
                                                                                                 self.CreateHRUs.countChannels(), 
                                                                                                 len(self._gv.topo.subbasinToSWATBasin))
                     self._iface.messageBar().pushMessage(msg, level=Qgis.Info, duration=10)
                     if self._gv.isBatch:
-                        print(msg)
+                        sys.stdout.write(msg)
+                        sys.stdout.flush()
         except Exception:
             QSWATUtils.exceptionError('Failed to create HRUs', self._gv.isBatch)
         finally:

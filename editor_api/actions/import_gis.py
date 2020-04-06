@@ -128,7 +128,7 @@ class GisImport(ExecutableApi):
 						self.emit_progress(90, "Importing connections from GIS...")
 						self.insert_connections()
 
-						self.emit_progress(95, "Creating default landscape units...")
+						self.emit_progress(95, "Creating default landscape units...                           ")
 						self.insert_lsus()
 
 						if climate.Weather_sta_cli.select().count() > 0:

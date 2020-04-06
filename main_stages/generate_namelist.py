@@ -97,7 +97,6 @@ if not specified_name:
 
         try:
             m_index = str(input("\n\t  > "))
-            print(m_index)
             if m_index == "E":
                 log.info("user has exited the workflow", keep_log)
                 sys.exit(1)
@@ -256,32 +255,29 @@ log.info("weatherfiles are in: {fn}".format(
         base = sys.argv[1], project_name = selected_model, weather_dir = weather_dir)),
     keep_log)
 
+pcp_cli_file = "{base}/{project_name}/Scenarios/Default/TxtInOut/{weather_dir}pcp.cli".format(
+        base = sys.argv[1], project_name = selected_model, weather_dir = weather_dir)
+
+slr_cli_file = "{base}/{project_name}/Scenarios/Default/TxtInOut/{weather_dir}slr.cli".format(
+        base = sys.argv[1], project_name = selected_model, weather_dir = weather_dir)
+
+hmd_cli_file = "{base}/{project_name}/Scenarios/Default/TxtInOut/{weather_dir}hmd.cli".format(
+        base = sys.argv[1], project_name = selected_model, weather_dir = weather_dir)
+
+tmp_cli_file = "{base}/{project_name}/Scenarios/Default/TxtInOut/{weather_dir}tmp.cli".format(
+        base = sys.argv[1], project_name = selected_model, weather_dir = weather_dir)
+
+wnd_cli_file = "{base}/{project_name}/Scenarios/Default/TxtInOut/{weather_dir}wnd.cli".format(
+        base = sys.argv[1], project_name = selected_model, weather_dir = weather_dir)
+
 if weather_dir is not None:
     log.info("getting list of stations", keep_log)
-    pcp_files = read_from(
-        "{base}/{project_name}/Scenarios/Default/TxtInOut/{weather_dir}pcp.cli".format(
-        base = sys.argv[1], project_name = selected_model, weather_dir = weather_dir)
-        )[2:]
-
-    slr_files = read_from(
-        "{base}/{project_name}/Scenarios/Default/TxtInOut/{weather_dir}slr.cli".format(
-        base = sys.argv[1], project_name = selected_model, weather_dir = weather_dir)
-        )[2:]
-
-    hmd_files = read_from(
-        "{base}/{project_name}/Scenarios/Default/TxtInOut/{weather_dir}hmd.cli".format(
-        base = sys.argv[1], project_name = selected_model, weather_dir = weather_dir)
-        )[2:]
-
-    tmp_files = read_from(
-        "{base}/{project_name}/Scenarios/Default/TxtInOut/{weather_dir}tmp.cli".format(
-        base = sys.argv[1], project_name = selected_model, weather_dir = weather_dir)
-        )[2:]
-
-    wnd_files = read_from(
-        "{base}/{project_name}/Scenarios/Default/TxtInOut/{weather_dir}wnd.cli".format(
-        base = sys.argv[1], project_name = selected_model, weather_dir = weather_dir)
-        )[2:]
+    
+    pcp_files = read_from(pcp_cli_file)[2:] if os.path.isfile(pcp_cli_file) else []
+    slr_files = read_from(slr_cli_file)[2:] if os.path.isfile(slr_cli_file) else []
+    hmd_files = read_from(hmd_cli_file)[2:] if os.path.isfile(hmd_cli_file) else []
+    tmp_files = read_from(tmp_cli_file)[2:] if os.path.isfile(tmp_cli_file) else []
+    wnd_files = read_from(wnd_cli_file)[2:] if os.path.isfile(wnd_cli_file) else []
 
     # get pcp
     pcp_stations = "ID,NAME,LAT,LONG,ELEVATION\n"
@@ -292,6 +288,9 @@ if weather_dir is not None:
 
     id_num = 1
     log.info(" - extracting pcp files", keep_log)
+    if len(pcp_files) < 1:
+        log.info("    > no precipitation files were found", keep_log)
+
     for w_file in pcp_files:
         f_content = read_from(
             "{base}/{project_name}/Scenarios/Default/TxtInOut/{weather_dir}{wf}".format(
@@ -318,6 +317,9 @@ if weather_dir is not None:
 
     id_num = 1
     log.info(" - extracting slr files", keep_log)
+    if len(slr_files) < 1:
+        log.info("    > no solar radiation files were found", keep_log)
+
     for w_file in slr_files:
         f_content = read_from(
             "{base}/{project_name}/Scenarios/Default/TxtInOut/{weather_dir}{wf}".format(
@@ -344,6 +346,9 @@ if weather_dir is not None:
 
     id_num = 1
     log.info(" - extracting wnd files", keep_log)
+    if len(wnd_files) < 1:
+        log.info("    > no wind files were found", keep_log)
+
     for w_file in wnd_files:
         f_content = read_from(
             "{base}/{project_name}/Scenarios/Default/TxtInOut/{weather_dir}{wf}".format(
@@ -370,6 +375,9 @@ if weather_dir is not None:
 
     id_num = 1
     log.info(" - extracting tmp files", keep_log)
+    if len(tmp_files) < 1:
+        log.info("    > no temperature files were found", keep_log)
+
     for w_file in tmp_files:
         f_content = read_from(
             "{base}/{project_name}/Scenarios/Default/TxtInOut/{weather_dir}{wf}".format(
@@ -396,6 +404,9 @@ if weather_dir is not None:
 
     id_num = 1
     log.info(" - extracting hmd files", keep_log)
+    if len(hmd_files) < 1:
+        log.info("    > no relative humidity files were found", keep_log)
+
     for w_file in hmd_files:
         f_content = read_from(
             "{base}/{project_name}/Scenarios/Default/TxtInOut/{weather_dir}{wf}".format(
@@ -419,45 +430,51 @@ if weather_dir is not None:
             fc_string
         )
         count += 1
-    log.info("writing pcp files", keep_log)
-    write_to(
-        "{base}/data/weather/pcp.txt".format(
-        base = sys.argv[1],
-        fname = w_file[:-5]),
-        pcp_stations
-    )
+    
+    if not pcp_stations == "ID,NAME,LAT,LONG,ELEVATION\n":
+        log.info("writing pcp files", keep_log)
+        write_to(
+            "{base}/data/weather/pcp.txt".format(
+            base = sys.argv[1],
+            fname = w_file[:-5]),
+            pcp_stations
+        )
 
-    log.info("writing tmp files", keep_log)
-    write_to(
-        "{base}/data/weather/tmp.txt".format(
-        base = sys.argv[1],
-        fname = w_file[:-5]),
-        tmp_stations
-    )
+    if not tmp_stations == "ID,NAME,LAT,LONG,ELEVATION\n":
+        log.info("writing tmp files", keep_log)
+        write_to(
+            "{base}/data/weather/tmp.txt".format(
+            base = sys.argv[1],
+            fname = w_file[:-5]),
+            tmp_stations
+        )
 
-    log.info("writing hmd files", keep_log)
-    write_to(
-        "{base}/data/weather/hmd.txt".format(
-        base = sys.argv[1],
-        fname = w_file[:-5]),
-        hmd_stations
-    )
+    if not hmd_stations == "ID,NAME,LAT,LONG,ELEVATION\n":
+        log.info("writing hmd files", keep_log)
+        write_to(
+            "{base}/data/weather/hmd.txt".format(
+            base = sys.argv[1],
+            fname = w_file[:-5]),
+            hmd_stations
+        )
 
-    log.info("writing slr files", keep_log)
-    write_to(
-        "{base}/data/weather/slr.txt".format(
-        base = sys.argv[1],
-        fname = w_file[:-5]),
-        slr_stations
-    )    
+    if not slr_stations == "ID,NAME,LAT,LONG,ELEVATION\n":
+        log.info("writing slr files", keep_log)
+        write_to(
+            "{base}/data/weather/slr.txt".format(
+            base = sys.argv[1],
+            fname = w_file[:-5]),
+            slr_stations
+        )    
 
-    log.info("writing wnd files", keep_log)
-    write_to(
-        "{base}/data/weather/wnd.txt".format(
-        base = sys.argv[1],
-        fname = w_file[:-5]),
-        wnd_stations
-    )
+    if not wnd_stations == "ID,NAME,LAT,LONG,ELEVATION\n":
+        log.info("writing wnd files", keep_log)
+        write_to(
+            "{base}/data/weather/wnd.txt".format(
+            base = sys.argv[1],
+            fname = w_file[:-5]),
+            wnd_stations
+        )
 
 # get model options and retrieve tables from database
 from sqlite_tools import sqlite_connection
@@ -601,8 +618,5 @@ write_to(
         calfile_name = calfile_name,
         )
     )
-
-if os.path.isdir("{base}/__pycache__".format(base = sys.argv[1])):
-    shutil.rmtree("{base}/__pycache__".format(base = sys.argv[1]))
-
+print("\t-> finnished generating namelist...\n")
 sys.exit(1)

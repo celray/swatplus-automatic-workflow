@@ -15,7 +15,9 @@ from shutil import copyfile, copytree
 import gdal
 import pickle
 import xml.etree.ElementTree as ET
-
+from osgeo import gdal
+from osgeo import ogr
+from osgeo import gdalconst
 
 def copy_directory(src, parent_dst, core_count):
     try:
@@ -105,6 +107,42 @@ def file_name(path_, extension=True):
         fn = os.path.basename(path_).split(".")[0]
     return(fn)
 
+def rasterise(shapefile, column, raster_template, destination):
+    '''
+    adapted from https://gis.stackexchange.com/questions/212795/rasterizing-shapefiles-with-gdal-and-python#212812
+
+    '''
+    data = gdal.Open(raster_template, gdalconst.GA_ReadOnly)
+    prj_wkt = data.GetProjection()
+    geo_transform = data.GetGeoTransform()
+    #source_layer = data.GetLayer()
+    x_min = geo_transform[0]
+    y_max = geo_transform[3]
+    x_max = x_min + geo_transform[1] * data.RasterXSize
+    y_min = y_max + geo_transform[5] * data.RasterYSize
+    x_res = data.RasterXSize
+    y_res = data.RasterYSize
+    polygon_data = ogr.Open(shapefile)
+    layer_data = polygon_data.GetLayer()
+    pixel_width = geo_transform[1]
+    target_ds = gdal.GetDriverByName('GTiff').Create(destination, x_res, y_res, 1, gdal.GDT_Float32)
+    target_ds.SetGeoTransform((x_min, pixel_width, 0, y_min, 0, pixel_width))
+    target_ds.SetProjection(prj_wkt)
+    band = target_ds.GetRasterBand(1)
+    NoData_value = -999
+    band.SetNoDataValue(NoData_value)
+    band.FlushCache()
+    gdal.RasterizeLayer(target_ds, [1], layer_data, options=["ATTRIBUTE={col}".format(col = column)])
+    target_ds = None
+    return True
+
+def clear_directory(dir_path, fail_message = "cannot delete folder"):
+    try:
+        if os.path.isdir(dir_path):
+            shutil.rmtree(dir_path)
+            os.makedirs(dir_path)
+    except:
+        print("\t! {fail_message}".format(fail_message = fail_message))
 
 def python_variable(filename):
 
@@ -127,7 +165,7 @@ def read_from(filename):
         g = open(filename, 'r')
     except:
         print(
-            "\t> error reading {0}, make sure the file exists".format(filename))
+            "\t ! error reading {0}, make sure the file exists".format(filename))
         return
     file_text = g.readlines()
     g.close

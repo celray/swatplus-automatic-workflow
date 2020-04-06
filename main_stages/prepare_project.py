@@ -45,11 +45,7 @@ if os.path.isfile("{base}/namelist.py".format(base=sys.argv[1])):
 
         sys.exit(0)
 else:
-    if namelist.Keep_Log == True:
-        keep_log = True
-        log.initialise()
-    else:
-        keep_log = False
+    log.initialise()
     
     log.info("namelist was not found in the current directory", keep_log)
     print("\t! namelist.py not found in current directory")
