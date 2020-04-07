@@ -78,6 +78,9 @@ class swat_plus_editor:
             "w_dat": self.weather_data_dir,
             "wgn_table": self.wgn_table_name,
             "wgn_db": self.wgn_db,
+            "model_dir": self.model_dir,
+            "base_directory": self.base_directory,
+            "selection": model_name
         }
 
     def initialise_databases(self):
@@ -164,7 +167,7 @@ class swat_plus_editor:
             config_info[index] = str(config_info[index])
 
         config_info[1] = self.model_name
-        config_info[3] = " api: auto-workflow"
+        config_info[3] = "1.2.3"
         config_info[6] = self.prj_database
         config_info[7] = self.ref_database
         config_info[8] = self.wgn_db
@@ -331,6 +334,18 @@ class swat_plus_editor:
 
         self.db.close_connection()
 
+    def create_project(self):
+        project_string = """{{\n"swatplus-project": {{
+		"version": "1.2.3",
+		"name": "{selection}",
+		"databases": {{
+			"project": "{selection}.sqlite",
+			"datasets": "swatplus_datasets.sqlite"
+		}},
+		"model": "SWAT+"\n	}}\n}}
+        """.format(**self.variables)
+        write_to("{model_dir}/{selection}.json".format(**self.variables), project_string)
+        
 
 if __name__ == "__main__":
     if namelist.Model_2_namelist:
@@ -341,10 +356,11 @@ if __name__ == "__main__":
     # announce
     print("\n     >> configuring model in editor")
     log.info("running swatplus editor module", keep_log)
-
     editor = swat_plus_editor(base_dir, model_name)
     log.info("initialising databases", keep_log)
     editor.initialise_databases()
+    log.info("creating editor project for GUI compatibility", keep_log)
+    editor.create_project()
     log.info("setting up the project", keep_log)
     editor.setup_project()
     log.info("setting simulation period and adding weather", keep_log)
