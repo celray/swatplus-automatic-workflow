@@ -23,9 +23,6 @@ from playhouse.migrate import *
 import datetime
 
 available_to_update = [
-	'1.2.3',
-	'1.2.2',
-	'1.2.1',
 	'1.2.0',
 	'1.1.2',
 	'1.1.1',
@@ -68,25 +65,18 @@ class UpdateProject(ExecutableApi):
 				sys.exit(err)
 			
 			did_update = False
-			if m.editor_version == '1.2.1' or m.editor_version == '1.2.2' or m.editor_version == '1.2.3':
-				self.updates_for_1_3_0(project_db, datasets_db, backup_db_file)
-				did_update = True
-				reimport_gis = False
 			if m.editor_version == '1.2.0':
 				self.updates_for_1_2_1(project_db, backup_db_file)
-				self.updates_for_1_3_0(project_db, datasets_db, backup_db_file)
 				did_update = True
 				reimport_gis = False
 			if m.editor_version == '1.1.0' or m.editor_version == '1.1.1' or m.editor_version == '1.1.2':
 				self.updates_for_1_2_0(project_db, update_project_values, backup_db_file)
 				self.updates_for_1_2_1(project_db, backup_db_file)
-				self.updates_for_1_3_0(project_db, datasets_db, backup_db_file)
 				did_update = True
 			elif m.editor_version == '1.0.0':
 				self.updates_for_1_1_0(project_db, datasets_db, backup_db_file)
 				self.updates_for_1_2_0(project_db, update_project_values, backup_db_file)
 				self.updates_for_1_2_1(project_db, backup_db_file)
-				self.updates_for_1_3_0(project_db, datasets_db, backup_db_file)
 				did_update = True
 			
 			m.editor_version = new_version
@@ -103,53 +93,6 @@ class UpdateProject(ExecutableApi):
 			sys.exit("Unable to update this project to {new_version}. Updates from {current_version} unavailable.".format(new_version=new_version, current_version=m.editor_version))
 			
 		return m
-
-	def updates_for_1_3_0(self, project_db, datasets_db, rollback_db):
-		try:
-			self.emit_progress(5, 'Running migrations...')
-			migrator = SqliteMigrator(SqliteDatabase(project_db))
-			migrate(
-				migrator.rename_column('codes_bsn', 'rte_pest', 'nostress'),
-				migrator.rename_column('aquifer_aqu', 'ptl_n', 'carbon'),
-				migrator.rename_column('aquifer_aqu', 'ptl_p', 'flo_dist'),
-				migrator.rename_column('parameters_bsn', 'cn_co', 'scoef'),
-				migrator.rename_column('hydrology_hyd', 'evap_pothole', 'cn3_swf'),
-				migrator.rename_column('hydrology_hyd', 'cn_plntet', 'latq_co'),
-				migrator.add_column('water_balance_sft_item', 'pet', DoubleField(default=0))
-			)
-
-			migrator = SqliteMigrator(SqliteDatabase(datasets_db))
-			migrate(
-				migrator.rename_column('codes_bsn', 'rte_pest', 'nostress'),
-				migrator.rename_column('parameters_bsn', 'cn_co', 'scoef')
-			)
-
-			self.emit_progress(10, 'Updating database...')
-			lum.Ovn_table_lum.update({
-				lum.Ovn_table_lum.ovn_mean: 0.011, 
-				lum.Ovn_table_lum.ovn_min: 0.011, 
-				lum.Ovn_table_lum.ovn_max: 0.011
-			}).where(lum.Ovn_table_lum.name == 'urban_asphalt').execute()
-
-			datasets_lum.Ovn_table_lum.update({
-				datasets_lum.Ovn_table_lum.ovn_mean: 0.011, 
-				datasets_lum.Ovn_table_lum.ovn_min: 0.011, 
-				datasets_lum.Ovn_table_lum.ovn_max: 0.011
-			}).where(datasets_lum.Ovn_table_lum.name == 'urban_asphalt').execute()
-
-			aquifer.Aquifer_aqu.update({
-				aquifer.Aquifer_aqu.carbon: 0.5,
-				aquifer.Aquifer_aqu.flo_dist: 50
-			}).execute()
-
-			basin.Parameters_bsn.update({basin.Parameters_bsn.scoef: 1}).execute()
-			datasets_basin.Parameters_bsn.update({datasets_basin.Parameters_bsn.scoef: 1}).execute()
-		except Exception as ex:
-			if rollback_db is not None:
-				self.emit_progress(50, "Error occurred. Rolling back database...")
-				SetupProjectDatabase.rollback(project_db, rollback_db)
-				self.emit_progress(100, "Error occurred.")
-			sys.exit(str(ex))
 
 	def updates_for_1_2_1(self, project_db, rollback_db):
 		try:
@@ -182,7 +125,7 @@ class UpdateProject(ExecutableApi):
 			if datasets_change.Cal_parms_cal.select().where(datasets_change.Cal_parms_cal.name == 'dep_bot').count() < 1:
 				datasets_change.Cal_parms_cal.insert(name='dep_bot', obj_typ='aqu', abs_min=0, abs_max=10, units='m').execute()
 
-			"""Var_range.update({Var_range.max_value: 2, Var_range.default_value: 0.05}).where((Var_range.table == 'aquifer_aqu') & (Var_range.variable == 'gw_flo')).execute()
+			Var_range.update({Var_range.max_value: 2, Var_range.default_value: 0.05}).where((Var_range.table == 'aquifer_aqu') & (Var_range.variable == 'gw_flo')).execute()
 			Var_range.update({Var_range.max_value: 10, Var_range.default_value: 10}).where((Var_range.table == 'aquifer_aqu') & (Var_range.variable == 'dep_wt')).execute()
 			Var_range.update({
 				Var_range.max_value: 10, 
@@ -198,7 +141,7 @@ class UpdateProject(ExecutableApi):
 			}).where((Var_range.table == 'aquifer_aqu') & (Var_range.variable == 'revap_min')).execute()
 			Var_range.update({
 				Var_range.description: 'Fraction of years to maturity'
-			}).where((Var_range.table == 'plant_ini') & (Var_range.variable == 'yrs_init')).execute()"""
+			}).where((Var_range.table == 'plant_ini') & (Var_range.variable == 'yrs_init')).execute()
 
 			datasets_init.Plant_ini_item.update({
 				datasets_init.Plant_ini_item.yrs_init: 1

@@ -3,24 +3,6 @@ from . import base
 from database import lib
 
 
-class Gis_aquifers(base.BaseModel):
-	category = IntegerField()
-	subbasin = IntegerField()
-	deep_aquifer = IntegerField()
-	area = DoubleField()
-	lat = DoubleField()
-	lon = DoubleField()
-	elev = DoubleField()
-
-
-class Gis_deep_aquifers(base.BaseModel):
-	subbasin = IntegerField()
-	area = DoubleField()
-	lat = DoubleField()
-	lon = DoubleField()
-	elev = DoubleField()
-
-
 class Gis_subbasins(base.BaseModel):
 	area = DoubleField()
 	slo1 = DoubleField()
@@ -31,21 +13,17 @@ class Gis_subbasins(base.BaseModel):
 	elev = DoubleField()
 	elevmin = DoubleField()
 	elevmax = DoubleField()
-	#waterid = IntegerField()
 
 
 class Gis_channels(base.BaseModel):
 	subbasin = IntegerField()
 	areac = DoubleField()
-	strahler = IntegerField()
 	len2 = DoubleField()
 	slo2 = DoubleField()
 	wid2 = DoubleField()
 	dep2 = DoubleField()
 	elevmin = DoubleField()
 	elevmax = DoubleField()
-	midlat = DoubleField()
-	midlon = DoubleField()
 
 
 class Gis_lsus(base.BaseModel):
@@ -53,7 +31,6 @@ class Gis_lsus(base.BaseModel):
 	channel = IntegerField()
 	area = DoubleField()
 	slope = DoubleField()
-	len1 = DoubleField()
 	csl = DoubleField()
 	wid1 = DoubleField()
 	dep1 = DoubleField()
@@ -66,7 +43,7 @@ class Gis_hrus(base.BaseModel):
 	lsu = IntegerField()
 	arsub = DoubleField()
 	arlsu = DoubleField()
-	landuse = CharField(null=True)
+	landuse = CharField()
 	arland = DoubleField()
 	soil = CharField()
 	arso = DoubleField()
@@ -83,8 +60,6 @@ class Gis_water(base.BaseModel):
 	lsu = IntegerField()
 	subbasin = IntegerField()
 	area = DoubleField()
-	xpr = DoubleField()
-	ypr = DoubleField()
 	lat = DoubleField()
 	lon = DoubleField()
 	elev = DoubleField()
@@ -103,7 +78,6 @@ class Gis_points(base.BaseModel):
 class Gis_routing(base.BaseModel):
 	sourceid = PrimaryKeyField()
 	sourcecat = CharField()
-	hyd_typ = CharField(null=True)
 	sinkid = IntegerField()
 	sinkcat = CharField()
 	percent = DoubleField()

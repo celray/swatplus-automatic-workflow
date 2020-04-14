@@ -11,6 +11,7 @@ from database.project.climate import Weather_sta_cli
 from database.project.config import Project_config
 
 from database.datasets.setup import SetupDatasetsDatabase
+from database.datasets.definitions import Var_range
 
 import os.path
 
@@ -33,7 +34,7 @@ def get_hyd_args():
 	parser.add_argument('lat_orgn', type=float, required=True, location='json')
 	parser.add_argument('lat_orgp', type=float, required=True, location='json')
 	parser.add_argument('harg_pet', type=float, required=True, location='json')
-	parser.add_argument('latq_co', type=float, required=True, location='json')
+	parser.add_argument('cn_plntet', type=float, required=True, location='json')
 	parser.add_argument('perco', type=float, required=True, location='json')
 	args = parser.parse_args(strict=True)
 	return args
@@ -48,12 +49,12 @@ def save_hyd(m, args):
 	m.epco = args['epco']
 	m.orgn_enrich = args['orgn_enrich']
 	m.orgp_enrich = args['orgp_enrich']
-	m.cn3_swf = args['cn3_swf']
+	m.evap_pothole = args['evap_pothole']
 	m.bio_mix = args['bio_mix']
 	m.lat_orgn = args['lat_orgn']
 	m.lat_orgp = args['lat_orgp']
 	m.harg_pet = args['harg_pet']
-	m.latq_co = args['latq_co']
+	m.cn_plntet = args['cn_plntet']
 	m.perco = args['perco']
 	return m.save()
 
