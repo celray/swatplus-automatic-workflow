@@ -8,7 +8,7 @@ licence     : MIT 2020
 '''
 
 namelist_string = """
-'''----------------- QSWAT+ Workflow v1.0.2 Settings File --------------'''
+'''----------------- QSWAT+ Workflow v1.0.3 Settings File --------------'''
 
 # Project Identification
 Project_Name          = "{prj_name}"
@@ -56,7 +56,7 @@ Target_Value          = {target_value}             # used if HRU_Filter_Method 4
 # Routing and ET and infiltration
 ET_Method             = {et_method}           # 1 = Priestley-Taylor, 2 = Penman-Monteith,
                                     # 3 = Hargreaves,      (4 = Observed - Not supported Currently)
-Routing_Method        = {routing_method}           # 1 = Muskingum,        2 = Variable Storage
+Routing_Method        = {routing_method}           # 1 = Variable Storage,        2 = Muskingum
 Routing_Timestep      = {routing_timestep}           # 1 = Daily Rainfall/routing, curve number
                                     # 2 = Sub-daily Rainfall/routing, Green & Ampt
 
@@ -76,14 +76,14 @@ Print_Objects         = {{           # 1 = daily, 2 = month, 3 = year, 4 = annua
 Executable_Type       = 0             # 1 = Release, 2 = Debug   0 = Don't run
 
 Cal_File              = "{calfile_name}"            # a calibration.cal file with parameters for the calibrated model
-                                        # leave as "" if there is no file to be used.
+                                      # leave as "" if there is no file to be used.
 
-Calibrate               = False        # set to "True" to perform calibration, "False" to skip calibration
+Calibrate               = False       # set to "True" to perform calibration, "False" to skip calibration
 Calibration_Config_File = "calibration_config.csv"             # 
-Number_of_Runs          =   0          # Set the number of runs for calibration
-Number_of_Processes     =   1          # Set the number of parallel processes to make calibration faster
+Number_of_Runs          =   10        # Set the number of runs for calibration
+Number_of_Processes     =   1         # Set the number of parallel processes to make calibration faster
 
-Make_Figures            = True         # set to "True" to create maps, "False" to skip map creation
+Make_Figures            = False       # set to "True" to create maps, "False" to skip map creation
 
 # Log progress or not? If yes, you will not see updates
 Keep_Log                = True        # True or False
