@@ -62,7 +62,7 @@ class swat_plus_editor:
 
         self.txt_in_out_dir = "{model_dir}/Scenarios/Default/TxtInOut".format(
             **self.variables)
-        self.weather_data_dir = "{model_dir}/Scenarios/Default/TxtInOut/weather".format(
+        self.weather_data_dir = "{model_dir}/Scenarios/Default/TxtInOut".format(
             **self.variables)
         self.wgn_db = "{api_dir}/swatplus_wgn.sqlite".format(
             api_dir=self.api_dir)
@@ -255,42 +255,42 @@ class swat_plus_editor:
             self.api, self.prj_database, self.txt_in_out_dir))
 
         # setting weather dir in cio
-        cio_content = read_from(
-            "{tio}/file.cio".format(tio=self.txt_in_out_dir))
-        new_cio = ""
+        # cio_content = read_from(
+        #     "{tio}/file.cio".format(tio=self.txt_in_out_dir))
+        # new_cio = ""
 
-        paths_to_set_for = ["pcp_path", "tmp_path",
-                            "slr_path", "hmd_path", "wnd_path"]
-        for line_ in cio_content:
-            if line_.split(" ")[0] in paths_to_set_for:
-                line_ = line_.replace("null", "weather\\\\")
-            new_cio += line_
+        # paths_to_set_for = ["pcp_path", "tmp_path",
+        #                     "slr_path", "hmd_path", "wnd_path"]
+        # for line_ in cio_content:
+        #     if line_.split(" ")[0] in paths_to_set_for:
+        #         line_ = line_.replace("null", "weather\\\\")
+        #     new_cio += line_
 
-        write_to("{tio}/file.cio".format(tio=self.txt_in_out_dir), new_cio)
+        # write_to("{tio}/file.cio".format(tio=self.txt_in_out_dir), new_cio)
 
-        # clean up weather
-        weather_files = list_files(self.txt_in_out_dir, "tmp")
-        weather_files += list_files(self.txt_in_out_dir, "hmd")
-        weather_files += list_files(self.txt_in_out_dir, "slr")
-        weather_files += list_files(self.txt_in_out_dir, "pcp")
-        weather_files += list_files(self.txt_in_out_dir, "wnd")
+        # # clean up weather
+        # weather_files = list_files(self.txt_in_out_dir, "tmp")
+        # weather_files += list_files(self.txt_in_out_dir, "hmd")
+        # weather_files += list_files(self.txt_in_out_dir, "slr")
+        # weather_files += list_files(self.txt_in_out_dir, "pcp")
+        # weather_files += list_files(self.txt_in_out_dir, "wnd")
 
-        for file in weather_files:
-            if os.path.isfile(file):
-                os.remove(file)
+        # for file in weather_files:
+        #     if os.path.isfile(file):
+        #         os.remove(file)
 
     def run(self, exe_type):
         os.chdir(self.txt_in_out_dir)
 
-        copy_file("{base}/editor_api/swat_exe/rev60.1_64debug.exe".format(base=self.scripts_dir),
-                  "{txt_in_out_dir}/rev60.1_64debug.exe".format(txt_in_out_dir=self.txt_in_out_dir))
-        copy_file("{base}/editor_api/swat_exe/rev60.1_64rel.exe".format(base=self.scripts_dir),
-                  "{txt_in_out_dir}/rev60.1_64rel.exe".format(txt_in_out_dir=self.txt_in_out_dir))
+        copy_file("{base}/editor_api/swat_exe/rev59.3_64debug.exe".format(base=self.scripts_dir),
+                  "{txt_in_out_dir}rev59.3_64debug.exe".format(txt_in_out_dir=self.txt_in_out_dir))
+        copy_file("{base}/editor_api/swat_exe/rev59.3_64rel.exe".format(base=self.scripts_dir),
+                  "{txt_in_out_dir}/rev59.3_64rel.exe".format(txt_in_out_dir=self.txt_in_out_dir))
 
         if exe_type == 1:
             print("\n     >> running SWAT+")
-            # os.system("rev60.1_64rel.exe")
-            sub_process = subprocess.Popen("rev60.1_64rel.exe", close_fds=True, shell=True,
+            # os.system("rev59.3_64rel.exe")
+            sub_process = subprocess.Popen("rev59.3_64rel.exe", close_fds=True, shell=True,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             line = ""
             while sub_process.poll() is None:
@@ -321,7 +321,7 @@ class swat_plus_editor:
                     line = ""
 
         elif exe_type == 2:
-            os.system("rev60.1_64debug.exe")
+            os.system("rev59.3_64debug.exe")
 
     def model_options(self):
         self.db.connect()

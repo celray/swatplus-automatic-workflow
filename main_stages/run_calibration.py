@@ -113,11 +113,11 @@ def run_parameter_set(parameter_set_list, core_number, chg_typ_dict, header, cal
         os.chdir("{working_dir}/{core}".format(
             working_dir=working_dir, core=core_number))
 
-        if not os.path.isfile("rev60.1_64rel.exe"):
-            shutil.copyfile(swat_exe, "rev60.1_64rel.exe")
+        if not os.path.isfile("rev59.3_64rel.exe"):
+            shutil.copyfile(swat_exe, "rev59.3_64rel.exe")
         print("\t> running SWAT+ in process {0}".format(core_number))
-        os.system("rev60.1_64rel.exe")
-        # subprocess.Popen('rev60.1_64rel.exe', stdout=subprocess.PIPE)
+        os.system("rev59.3_64rel.exe")
+        # subprocess.Popen('rev59.3_64rel.exe', stdout=subprocess.PIPE)
 
         # extract flow for specified unit at specified timestep
 
@@ -192,7 +192,7 @@ if __name__ == "__main__":
     start_time = time.time()
 
     # set variables
-    swat_exe = "C:/SWAT/SWATPlus/Workflow/editor_api/swat_exe/rev60.1_64rel.exe"
+    swat_exe = "C:/SWAT/SWATPlus/Workflow/editor_api/swat_exe/rev59.3_64rel.exe"
     base = "{0}/{1}/Scenarios/Default".format(
         sys.argv[1], namelist.Project_Name)
     working_dir = "{base_dir}/working".format(base_dir=base)
