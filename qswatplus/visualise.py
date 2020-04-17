@@ -41,14 +41,14 @@ import traceback
 # from collections import OrderedDict
 
 # Import the code for the dialog
-from .visualisedialog import VisualiseDialog
-from .QSWATUtils import QSWATUtils
-from .QSWATTopology import QSWATTopology
-from .swatgraph import SWATGraph
-from .parameters import Parameters
-from .jenks import jenks  # @UnresolvedImport
-# from .images2gif import writeGif
-from . import imageio
+from visualisedialog import VisualiseDialog
+from QSWATUtils import QSWATUtils
+from QSWATTopology import QSWATTopology
+from swatgraph import SWATGraph
+from parameters import Parameters
+from jenks import jenks  # @UnresolvedImport
+# from images2gif import writeGif
+from  import imageio
 
 class Visualise(QObject):
     """Support visualisation of SWAT outputs, using data in SWAT output database."""

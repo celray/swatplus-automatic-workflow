@@ -14,6 +14,7 @@ import numpy as np
 import numpy
 import time
 import subprocess
+import platform
 
 from itertools import product
 
@@ -28,6 +29,7 @@ from helper_functions import read_from, write_to, copy_directory, clear_director
 import pandas
 import pystran as py
 import namelist
+from logger import log
 
 
 # functions
@@ -114,9 +116,13 @@ def run_parameter_set(parameter_set_list, core_number, chg_typ_dict, header, cal
             working_dir=working_dir, core=core_number))
 
         if not os.path.isfile("rev59.3_64rel.exe"):
-            shutil.copyfile(swat_exe, "rev59.3_64rel.exe")
+            shutil.copyfile(executable_path, "rev59.3_64rel.exe")
         print("\t> running SWAT+ in process {0}".format(core_number))
-        os.system("rev59.3_64rel.exe")
+        if platform.system() == "Linux":
+            os.system("chmod 777 ./rev59.3_64rel.exe")
+            os.system("./rev59.3_64rel.exe")
+        else:
+            os.system("rev59.3_64rel.exe")
         # subprocess.Popen('rev59.3_64rel.exe', stdout=subprocess.PIPE)
 
         # extract flow for specified unit at specified timestep
@@ -192,7 +198,12 @@ if __name__ == "__main__":
     start_time = time.time()
 
     # set variables
-    swat_exe = "C:/SWAT/SWATPlus/Workflow/editor_api/swat_exe/rev59.3_64rel.exe"
+    variables = {
+        "swatplus_wf_dir": os.environ["swatplus_wf_dir"],
+        "swatplus_exe": "rev59.3_64rel.exe" if platform.system() == "Windows" else "swatplusrev59-static.exe"
+    }
+
+    executable_path = "{swatplus_wf_dir}editor_api/swat_exe/{swatplus_exe}".format(**variables)
     base = "{0}/{1}/Scenarios/Default".format(
         sys.argv[1], namelist.Project_Name)
     working_dir = "{base_dir}/working".format(base_dir=base)
@@ -342,6 +353,6 @@ if __name__ == "__main__":
     write_to("{base}/TxtInOut/calibration.cal".format(base=base),
              new_calibration_cal)
     os.chdir("{base}/TxtInOut/".format(base=base))
-    os.system(swat_exe)
+    os.system("{0}rev59.3_64rel.exe".format("./" if platform.system() == "Linux" else ""))
     log.info("finished running calibration\n", keep_log)
     sys.exit(0)

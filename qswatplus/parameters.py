@@ -26,8 +26,8 @@ from PyQt5.QtWidgets import * # @UnusedWildImport
 from qgis.core import * # @UnusedWildImport
 # Import the code for the dialog
 try:
-    from .parametersdialog import ParametersDialog
-    from .QSWATUtils import QSWATUtils
+    from parametersdialog import ParametersDialog
+    from QSWATUtils import QSWATUtils
 except:
     pass  # not needed by convertFromArc
 import os.path

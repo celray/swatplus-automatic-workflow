@@ -35,9 +35,9 @@ import re
 import traceback
 
 try:
-    from .QSWATUtils import QSWATUtils, FileTypes
-    from .dataInC import BasinData, CellData, LSUData, WaterBody  # @UnresolvedImport
-    from .parameters import Parameters
+    from QSWATUtils import QSWATUtils, FileTypes
+    from dataInC import BasinData, CellData, LSUData, WaterBody  # @UnresolvedImport
+    from parameters import Parameters
 except:
     # used by convertFromArc
     from QSWATUtils import QSWATUtils, FileTypes  # @UnresolvedImport

@@ -30,13 +30,13 @@ from osgeo import gdal
 # import numpy as np
 import math
 import time
-from .QSWATUtils import QSWATUtils, FileTypes  # fileWriter
-from .QSWATTopology import QSWATTopology
+from QSWATUtils import QSWATUtils, FileTypes  # fileWriter
+from QSWATTopology import QSWATTopology
 import numpy
 import traceback
 #from rasterint import RasterInt
 #from rasterfloat import RasterFloat
-from .raster import Raster
+from raster import Raster
 #from intraster import IntRaster
  
 class Floodplain(QObject):

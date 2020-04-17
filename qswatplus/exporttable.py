@@ -29,8 +29,8 @@ import sqlite3
 import csv
 
 # Import the code for the dialog
-from .exporttabledialog import ExportTableDialog
-from .QSWATUtils import QSWATUtils, FileTypes
+from exporttabledialog import ExportTableDialog
+from QSWATUtils import QSWATUtils, FileTypes
 
 class ExportTable():
     """Choose an sqlite database and a table and export table as csv file."""

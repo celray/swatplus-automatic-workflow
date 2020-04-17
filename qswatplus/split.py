@@ -25,9 +25,9 @@ from PyQt5.QtGui import * # @UnusedWildImport
 from PyQt5.QtWidgets import * # @UnusedWildImport
 from qgis.core import * # @UnusedWildImport
 # Import the code for the dialog
-from .splitdialog import SplitDialog
-from .selectlu import Selectlu
-from .QSWATUtils import QSWATUtils
+from splitdialog import SplitDialog
+from selectlu import Selectlu
+from QSWATUtils import QSWATUtils
 
 class Split:
     

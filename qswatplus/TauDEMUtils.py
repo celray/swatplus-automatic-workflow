@@ -27,8 +27,8 @@ import os.path
 import subprocess
 import webbrowser
 
-from .QSWATUtils import QSWATUtils
-from .parameters import Parameters
+from QSWATUtils import QSWATUtils
+from parameters import Parameters
 
 class TauDEMUtils:
     

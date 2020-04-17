@@ -28,12 +28,12 @@ import os.path
 # import xml.etree.ElementTree as ET
 from typing import Dict, List, Set  # @UnusedImport
 
-from .QSWATTopology import QSWATTopology
-from .QSWATUtils import QSWATUtils
-from .DBUtils import DBUtils
-from .TauDEMUtils import TauDEMUtils
-from .parameters import Parameters
-from .raster import Raster  # @UnusedImport
+from QSWATTopology import QSWATTopology
+from QSWATUtils import QSWATUtils
+from DBUtils import DBUtils
+from TauDEMUtils import TauDEMUtils
+from parameters import Parameters
+from raster import Raster  # @UnusedImport
 
 class GlobalVars:
     """Data used across across the plugin, and some utilities on it."""

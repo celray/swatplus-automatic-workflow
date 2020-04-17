@@ -31,11 +31,11 @@ import csv
 import traceback
 
 try:
-    from .QSWATUtils import QSWATUtils, FileTypes, ListFuns
-    from .DBUtils import DBUtils
-    from .parameters import Parameters
-    from .raster import Raster
-    from .dataInC import ReachData, MergedChannelData, LakeData  # @UnresolvedImport
+    from QSWATUtils import QSWATUtils, FileTypes, ListFuns
+    from DBUtils import DBUtils
+    from parameters import Parameters
+    from raster import Raster
+    from dataInC import ReachData, MergedChannelData, LakeData  # @UnresolvedImport
 except:
     # used by convertFromArc
     from QSWATUtils import QSWATUtils, FileTypes, ListFuns

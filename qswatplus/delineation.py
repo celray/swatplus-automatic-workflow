@@ -38,16 +38,16 @@ import traceback
 from typing import Optional, Tuple, Dict, Set
 
 # Import the code for the dialog
-from .delineationdialog import DelineationDialog
-from .TauDEMUtils import TauDEMUtils
-from .QSWATUtils import QSWATUtils, fileWriter, FileTypes, ListFuns, MapFuns
-from .QSWATTopology import QSWATTopology
-from .globals import GlobalVars
-from .landscape import Landscape
-from .outletsdialog import OutletsDialog
-from .selectsubs import SelectSubbasins
-from .parameters import Parameters
-from .polygonizeInC2 import Polygonize  # @UnresolvedImport
+from delineationdialog import DelineationDialog
+from TauDEMUtils import TauDEMUtils
+from QSWATUtils import QSWATUtils, fileWriter, FileTypes, ListFuns, MapFuns
+from QSWATTopology import QSWATTopology
+from globals import GlobalVars
+from landscape import Landscape
+from outletsdialog import OutletsDialog
+from selectsubs import SelectSubbasins
+from parameters import Parameters
+from polygonizeInC2 import Polygonize  # @UnresolvedImport
 
 ## type for geotransform
 Transform = Dict[int, float]

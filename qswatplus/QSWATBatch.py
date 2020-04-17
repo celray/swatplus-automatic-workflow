@@ -31,11 +31,11 @@ import os.path
 import shutil
 
 import atexit
-from .QSWATPlus import QSWATPlus
-from .delineation import Delineation
-from .hrus import HRUs
-from .QSWATUtils import QSWATUtils
-from .parameters import Parameters
+from QSWATPlus import QSWATPlus
+from delineation import Delineation
+from hrus import HRUs
+from QSWATUtils import QSWATUtils
+from parameters import Parameters
 
 osGeo4wRoot = os.getenv('OSGEO4W_ROOT')
 QgsApplication.setPrefixPath(osGeo4wRoot + r'\apps\qgis', True)

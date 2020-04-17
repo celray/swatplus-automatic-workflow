@@ -3,7 +3,7 @@ import datetime
 from sys import argv, stdout, path
 from shutil import copyfile
 
-path.insert(0, "C:/SWAT/SWATPlus/Workflow/packages")
+path.append(os.path.join(os.environ["swatplus_wf_dir"], "packages"))
 
 from helper_functions import read_from, copy_file, write_to, show_progress, list_files
 

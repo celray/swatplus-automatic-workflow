@@ -26,7 +26,7 @@ from matplotlib.backends.backend_qt4agg import (
     FigureCanvasQTAgg as FigureCanvas,
     NavigationToolbar2QT as NavigationToolbar)
 try:
-    from .graphdialog import GraphDialog
+    from graphdialog import GraphDialog
 except:
     # stand alone version
     from graphdialog1 import GraphDialog

@@ -36,22 +36,28 @@ import glob
 import subprocess
 
 import sys
-sys.path.append(os.environ["WF_QGIS"])
+import platform
+
+if platform.system() == "Windows":
+    sys.path.append(os.environ["WF_QGIS"])
+else:
+    sys.path.append('/usr/share/qgis/python/plugins') # Folder where Processing is located
+    
 import processing  # @UnresolvedImport
 
 # Import the code for the dialog
-from .hrusdialog import HrusDialog
-from .QSWATUtils import QSWATUtils, fileWriter, FileTypes, ListFuns
-from .QSWATTopology import QSWATTopology
-from .DBUtils import DBUtils
-from .parameters import Parameters
-#from .polygonize import Polygonize
-from .polygonizeInC2 import Polygonize  # @UnresolvedImport
-from .dataInC import CellData, BasinData, WaterBody  # @UnresolvedImport
-from .exempt import Exempt
-from .split import Split
-from .elevationbands import ElevationBands
-from .delineation import Delineation
+from hrusdialog import HrusDialog
+from QSWATUtils import QSWATUtils, fileWriter, FileTypes, ListFuns
+from QSWATTopology import QSWATTopology
+from DBUtils import DBUtils
+from parameters import Parameters
+#from polygonize import Polygonize
+from polygonizeInC2 import Polygonize  # @UnresolvedImport
+from dataInC import CellData, BasinData, WaterBody  # @UnresolvedImport
+from exempt import Exempt
+from split import Split
+from elevationbands import ElevationBands
+from delineation import Delineation
 
 class HRUs(QObject):
     

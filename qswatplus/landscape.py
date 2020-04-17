@@ -37,13 +37,13 @@ import subprocess
 import time
 from osgeo import gdal
 
-from .TauDEMUtils import TauDEMUtils
-from .QSWATTopology import QSWATTopology
-from .QSWATUtils import QSWATUtils, FileTypes
-from .landscapedialog import LandscapeDialog
-from .floodplain import Floodplain
-from .parameters import Parameters
-from .raster import Raster
+from TauDEMUtils import TauDEMUtils
+from QSWATTopology import QSWATTopology
+from QSWATUtils import QSWATUtils, FileTypes
+from landscapedialog import LandscapeDialog
+from floodplain import Floodplain
+from parameters import Parameters
+from raster import Raster
 
 
 class Landscape(QObject):

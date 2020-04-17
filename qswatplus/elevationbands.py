@@ -24,8 +24,8 @@ from PyQt5.QtCore import * # @UnusedWildImport
 from PyQt5.QtGui import * # @UnusedWildImport
 from qgis.core import * # @UnusedWildImport
 # Import the code for the dialog
-from .elevationbandsdialog import ElevatioBandsDialog
-from .QSWATUtils import QSWATUtils
+from elevationbandsdialog import ElevatioBandsDialog
+from QSWATUtils import QSWATUtils
 
 class ElevationBands:
     

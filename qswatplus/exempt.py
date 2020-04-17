@@ -24,8 +24,8 @@ from PyQt5.QtCore import * # @UnusedWildImport
 from PyQt5.QtGui import * # @UnusedWildImport
 from qgis.core import * # @UnusedWildImport
 # Import the code for the dialog
-from .exemptdialog import ExemptDialog
-from .QSWATUtils import ListFuns
+from exemptdialog import ExemptDialog
+from QSWATUtils import ListFuns
 from osgeo.gdalconst import * # @UnusedWildImport
 
 class Exempt:

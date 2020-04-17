@@ -35,6 +35,8 @@ class wb_result:
 
 if namelist.Model_2_namelist:
     sys.exit(0)
+if not namelist.Make_Figures:
+    sys.exit(0)
 
 base = sys.argv[1].replace("\\\\", "/")
 base = base.replace("\\", "/")

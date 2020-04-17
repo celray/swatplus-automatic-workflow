@@ -33,36 +33,36 @@ import traceback
 
 # Initialize Qt resources from file resources_rc.py
 try:
-    from .resources_rc import * # @UnusedWildImport
+    from resources_rc import * # @UnusedWildImport
 except:
     from resources_rc import *  # for convertFromArc @UnresolvedImport
 # Import the code for the dialog
 # allow this to fail so no exception when loaded in wrong architecture (32 or 64 bit)
 # QSWATUtils should have no further dependencies, especially in Cython modules
 try:
-    from .QSWATUtils import QSWATUtils, FileTypes  # @UnresolvedImport
+    from QSWATUtils import QSWATUtils, FileTypes  # @UnresolvedImport
 except:
     # for convertFromArc
     from QSWATUtils import QSWATUtils, FileTypes  # @UnresolvedImport
 try:
     txt = 'QSwatDialog'
-    from .qswatdialog import QSwatDialog
+    from qswatdialog import QSwatDialog
     txt = 'HRUs'
-    from .hrus import HRUs
+    from hrus import HRUs
     txt = 'QSWATTopology'
-    from .QSWATTopology import QSWATTopology
+    from QSWATTopology import QSWATTopology
     txt = 'GlobalVars'
-    from .globals import GlobalVars
+    from globals import GlobalVars
     txt = 'Delineation'
-    from .delineation import Delineation
+    from delineation import Delineation
     txt = 'Parameters'
-    from .parameters import Parameters
+    from parameters import Parameters
     txt = 'Visualise'
-    from .visualise import Visualise
+    from visualise import Visualise
     txt = 'AboutQSWAT'
-    from .about import AboutQSWAT
+    from about import AboutQSWAT
     txt = 'ExportTable'
-    from .exporttable import ExportTable
+    from exporttable import ExportTable
 except Exception:
     QSWATUtils.loginfo('QSWAT+ failed to import {0}: {1}'.format(txt, traceback.format_exc()))
 
@@ -81,7 +81,7 @@ class QSWATPlus(QObject):
         ## flag to show if init ran successfully
         self.loadFailed = False
         try:
-            from . import dataInC  # @UnusedImport
+            import dataInC  # @UnusedImport
         except Exception:
             QSWATUtils.loginfo('Failed to load Cython module: wrong architecture?: {0}'.format(traceback.format_exc()))
             self.loadFailed = True

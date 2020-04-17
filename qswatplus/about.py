@@ -26,9 +26,9 @@ from qgis.core import * # @UnusedWildImport
 import webbrowser
 
 # Import the code for the dialog
-from .aboutdialog import aboutDialog
-from .QSWATUtils import QSWATUtils
-from .globals import GlobalVars
+from aboutdialog import aboutDialog
+from QSWATUtils import QSWATUtils
+from globals import GlobalVars
 
 class AboutQSWAT:
     

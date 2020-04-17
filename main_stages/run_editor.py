@@ -11,6 +11,7 @@ import os
 import sys
 import shutil
 import subprocess
+import platform
 
 # adding to path before importing custom modules
 sys.path.insert(0, os.path.join(os.environ["swatplus_wf_dir"], "packages"))
@@ -66,11 +67,23 @@ class swat_plus_editor:
             **self.variables)
         self.wgn_db = "{api_dir}/swatplus_wgn.sqlite".format(
             api_dir=self.api_dir)
+        
+        if platform.system() == "Windows":
+            python_exe = "python"
+        else:
+            python_exe = "python3"
+
 
         self.variables = {
             "models_dir": self.model_dir,
             "scripts_dir": self.scripts_dir,
             "api": self.api,
+            "weather_format": "observed",
+            "txt_in_out_dir": self.txt_in_out_dir,
+            "swat_exe_release": "rev59.3_64rel.exe" if platform.system() == "Windows" else "./swatplusrev59-static.exe",
+            "swat_exe_debug": "rev59.3_64debug.exe" if platform.system() == "Windows" else "./swatplusrev59-static.exe",
+            "python_exe": python_exe,
+            "import_typ_wgn": "wgn",
             "api_dir": self.api_dir,
             "p_db": self.prj_database,
             "r_db": self.ref_database,
@@ -153,9 +166,9 @@ class swat_plus_editor:
         # import GIS
         os.chdir(self.api_dir)
         os.system(
-            'python {api} create_database --db_type=project --db_file="{p_db}" --db_file2="{r_db}"'.format(**self.variables))
+            '{python_exe} {api} create_database --db_type=project --db_file="{p_db}" --db_file2="{r_db}"'.format(**self.variables))
         os.system(
-            'python {api} import_gis --delete_existing=y --project_db_file="{p_db}"'.format(**self.variables))
+            '{python_exe} {api} import_gis --delete_existing=y --project_db_file="{p_db}"'.format(**self.variables))
 
     def setup_project(self):
         # specify project config info
@@ -232,12 +245,9 @@ class swat_plus_editor:
 
         # add weather
         os.chdir(self.api_dir)
-        os.system('python {api_d}/weather2012_to_weather.py "{ws}" "{wdd}" {wf}'.format(
-            ws=self.weather_source, wdd=self.weather_data_dir, wf="observed", api_d=self.api_dir))
-        os.system('python {api} import_weather --delete_existing=y --create_stations=n --import_type={imp_typ} --import_method=database --project_db_file="{p_db}"'.format(
-            api=self.api, p_db=self.prj_database, imp_typ="wgn"))
-        os.system('python {api} import_weather --delete_existing=y --create_stations=y --import_type={imp_typ} --project_db_file="{p_db}"'.format(
-            api=self.api, p_db=self.prj_database, imp_typ="observed"))
+        os.system('{python_exe} {api_dir}/weather2012_to_weather.py "{w_src}" "{w_dat}" {weather_format}'.format(**self.variables))
+        os.system('{python_exe} {api} import_weather --delete_existing=y --create_stations=n --import_type={import_typ_wgn} --import_method=database --project_db_file="{p_db}"'.format(**self.variables))
+        os.system('{python_exe} {api} import_weather --delete_existing=y --create_stations=y --import_type={weather_format} --project_db_file="{p_db}"'.format(**self.variables))
 
         # set simulation times
         time_sim_data = ["1", "0", str(Start_Year), "0", str(End_Year), "0"]
@@ -251,8 +261,7 @@ class swat_plus_editor:
 
         # write files
         os.chdir(self.api_dir)
-        os.system('python {0} write_files --output_files_dir="{2}" --project_db_file="{1}"'.format(
-            self.api, self.prj_database, self.txt_in_out_dir))
+        os.system('{python_exe} {api} write_files --output_files_dir="{txt_in_out_dir}" --project_db_file="{p_db}"'.format(**self.variables))
 
         # setting weather dir in cio
         # cio_content = read_from(
@@ -282,15 +291,18 @@ class swat_plus_editor:
     def run(self, exe_type):
         os.chdir(self.txt_in_out_dir)
 
-        copy_file("{base}/editor_api/swat_exe/rev59.3_64debug.exe".format(base=self.scripts_dir),
-                  "{txt_in_out_dir}rev59.3_64debug.exe".format(txt_in_out_dir=self.txt_in_out_dir))
-        copy_file("{base}/editor_api/swat_exe/rev59.3_64rel.exe".format(base=self.scripts_dir),
-                  "{txt_in_out_dir}/rev59.3_64rel.exe".format(txt_in_out_dir=self.txt_in_out_dir))
+        copy_file("{scripts_dir}/editor_api/swat_exe/{swat_exe_debug}".format(**self.variables),
+                  "{txt_in_out_dir}/{swat_exe_debug}".format(**self.variables))
+        copy_file("{scripts_dir}/editor_api/swat_exe/{swat_exe_release}".format(**self.variables),
+                  "{txt_in_out_dir}/{swat_exe_release}".format(**self.variables))
 
         if exe_type == 1:
             print("\n     >> running SWAT+")
-            # os.system("rev59.3_64rel.exe")
-            sub_process = subprocess.Popen("rev59.3_64rel.exe", close_fds=True, shell=True,
+            if platform.system() == "Linux":
+                os.system("chmod 777 {swat_exe_release}".format(**self.variables))
+
+            # os.system("{swat_exe_release}")
+            sub_process = subprocess.Popen("{swat_exe_release}".format(**self.variables), close_fds=True, shell=True,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             line = ""
             while sub_process.poll() is None:
@@ -321,7 +333,10 @@ class swat_plus_editor:
                     line = ""
 
         elif exe_type == 2:
-            os.system("rev59.3_64debug.exe")
+            if platform.system() == "Linux":
+                os.system("chmod 777 {swat_exe_release}".format(**self.variables))
+
+            os.system("{swat_exe_debug}".format(**self.variables))
 
     def model_options(self):
         self.db.connect()

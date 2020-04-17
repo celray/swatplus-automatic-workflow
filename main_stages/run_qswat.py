@@ -10,8 +10,12 @@ licence     : MIT 2020
 import os.path
 import shutil
 import sys
-
+import platform
 import warnings
+
+if platform.system() == "Linux":
+    import pyximport  # importing cython needs this on linux
+    pyximport.install()
 
 # skip deprecation warnings when importing PyQt5
 with warnings.catch_warnings():
@@ -25,15 +29,23 @@ with warnings.catch_warnings():
 qgs = QgsApplication([], True)
 qgs.initQgis()
 
-# Prepare processing framework 
-sys.path.append('{QGIS_Dir}/apps/qgis-ltr/python/plugins'.format(
-    QGIS_Dir = os.environ['QGIS_Dir'])) # Folder where Processing is located
-from processing.core.Processing import Processing
-Processing.initialize()
+# Prepare processing framework
+if platform.system() == "Windows":
+    sys.path.append('{QGIS_Dir}/apps/qgis-ltr/python/plugins'.format(
+        QGIS_Dir = os.environ['QGIS_Dir'])) # Folder where Processing is located
+else:
+    sys.path.append('/usr/share/qgis/python/plugins') # Folder where Processing is located
 
-import processing
+# skip syntax warnings on linux
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    from processing.core.Processing import Processing
+    Processing.initialize()
+
+    import processing
 
 sys.path.append(os.path.join(os.environ["swatplus_wf_dir"], "packages"))
+sys.path.append(os.path.join(os.environ["swatplus_wf_dir"], "qswatplus"))
 sys.path.append(os.path.join(os.environ["swatplus_wf_dir"]))
 sys.path.insert(0, sys.argv[1])
 
@@ -44,12 +56,13 @@ import qswatplus
 import namelist
 from logger import log
 
+os.chdir(os.path.join(os.environ["swatplus_wf_dir"], "qswatplus"))
 
-from qswatplus.QSWATPlus import QSWATPlus
-from qswatplus.delineation import Delineation
-from qswatplus.hrus import HRUs
-from qswatplus.QSWATUtils import QSWATUtils
-from qswatplus.parameters import Parameters
+from QSWATPlus import QSWATPlus
+from delineation import Delineation
+from hrus import HRUs
+from QSWATUtils import QSWATUtils
+from parameters import Parameters
 from glob import glob
 
 atexit.register(QgsApplication.exitQgis)
@@ -102,7 +115,7 @@ if not os.path.exists(projDir):
 # clean up before new files
 log.info("cleaning up files from 'Watershed\Shapes'", keep_log)
 Watershed_shapes = list_files(QSWATUtils.join(
-    projDir, r'Watershed\Shapes'), "shp")
+    projDir, r'Watershed/Shapes'), "shp")
 delete_shapes = []
 
 for Watershed_shape in Watershed_shapes:
@@ -132,7 +145,7 @@ for delete_shape in delete_shapes:
 print("\n     >> setting up model hrus")
 
 log.info("cleaning up files from 'Watershed\\Text'", keep_log)
-shutil.rmtree(QSWATUtils.join(projDir, r'Watershed\Text'), ignore_errors=True)
+shutil.rmtree(QSWATUtils.join(projDir, r'Watershed/Text'), ignore_errors=True)
 
 projName = os.path.split(projDir)[1]
 projFile = "{dir}/{nm}.qgs".format(dir=projDir, nm=projName)
@@ -202,13 +215,13 @@ if not os.path.exists(QSWATUtils.join(plugin._gv.textDir, Parameters._HRUSREPORT
     sys.exit(1)
 
 
-if not os.path.exists(QSWATUtils.join(projDir, r'Watershed\Shapes\rivs1.shp')):
+if not os.path.exists(QSWATUtils.join(projDir, r'Watershed/Shapes/rivs1.shp')):
     log.error("error creating HRUs", keep_log)
     QSWATUtils.error('\t ! Streams shapefile not created', True)
     sys.exit(1)
 
 
-if not os.path.exists(QSWATUtils.join(projDir, r'Watershed\Shapes\subs1.shp')):
+if not os.path.exists(QSWATUtils.join(projDir, r'Watershed/Shapes/subs1.shp')):
     log.error("error creating HRUs", keep_log)
     QSWATUtils.error('\t ! Subbasins shapefile not created', True)
     sys.exit(1)

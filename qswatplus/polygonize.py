@@ -26,7 +26,7 @@ from qgis.core import * # @UnusedWildImport
 from qgis.gui import * # @UnusedWildImport
 # from multiprocessing import Pool
 import time
-from .QSWATUtils import QSWATUtils
+from QSWATUtils import QSWATUtils
 
 
     
