@@ -67,12 +67,11 @@ class swat_plus_editor:
             **self.variables)
         self.wgn_db = "{api_dir}/swatplus_wgn.sqlite".format(
             api_dir=self.api_dir)
-        
+
         if platform.system() == "Windows":
             python_exe = "python"
         else:
             python_exe = "python3"
-
 
         self.variables = {
             "models_dir": self.model_dir,
@@ -95,6 +94,7 @@ class swat_plus_editor:
             "base_directory": self.base_directory,
             "selection": model_name
         }
+        self.db = sqlite_connection(self.prj_database)
 
     def initialise_databases(self):
         "correct bug in plants_plt days_mat"
@@ -165,10 +165,8 @@ class swat_plus_editor:
 
         # import GIS
         os.chdir(self.api_dir)
-        os.system(
-            '{python_exe} {api} create_database --db_type=project --db_file="{p_db}" --db_file2="{r_db}"'.format(**self.variables))
-        os.system(
-            '{python_exe} {api} import_gis --delete_existing=y --project_db_file="{p_db}"'.format(**self.variables))
+        os.system('{python_exe} {api} create_database --db_type=project --db_file="{p_db}" --db_file2="{r_db}"'.format(**self.variables))
+        os.system('{python_exe} {api} import_gis --delete_existing=y --project_db_file="{p_db}"'.format(**self.variables))
 
     def setup_project(self):
         # specify project config info
@@ -217,34 +215,33 @@ class swat_plus_editor:
 
         for print_object in namelist.Print_Objects:
             self.db.update_value("print_prt_object", "daily", "0",
-                                 "id", model_options.print_obj_lookup[print_object])
+                "id", model_options.print_obj_lookup[print_object])
             self.db.update_value("print_prt_object", "monthly", "0",
-                                 "id", model_options.print_obj_lookup[print_object])
+                "id", model_options.print_obj_lookup[print_object])
             self.db.update_value("print_prt_object", "yearly", "0",
-                                 "id", model_options.print_obj_lookup[print_object])
+                "id", model_options.print_obj_lookup[print_object])
             self.db.update_value("print_prt_object", "avann", "0",
-                                 "id", model_options.print_obj_lookup[print_object])
+                "id", model_options.print_obj_lookup[print_object])
 
             if 1 in namelist.Print_Objects[print_object]:
                 self.db.update_value("print_prt_object", "daily", "1",
-                                     "id", model_options.print_obj_lookup[print_object])
+                    "id", model_options.print_obj_lookup[print_object])
 
             if 2 in namelist.Print_Objects[print_object]:
                 self.db.update_value("print_prt_object", "monthly", "1",
-                                     "id", model_options.print_obj_lookup[print_object])
+                    "id", model_options.print_obj_lookup[print_object])
 
             if 3 in namelist.Print_Objects[print_object]:
                 self.db.update_value("print_prt_object", "yearly", "1",
-                                     "id", model_options.print_obj_lookup[print_object])
+                    "id", model_options.print_obj_lookup[print_object])
 
             if 4 in namelist.Print_Objects[print_object]:
                 self.db.update_value("print_prt_object", "avann", "1",
-                                     "id", model_options.print_obj_lookup[print_object])
+                    "id", model_options.print_obj_lookup[print_object])
 
         self.db.close_connection()
 
         # add weather
-        os.chdir(self.api_dir)
         os.system('{python_exe} {api_dir}/weather2012_to_weather.py "{w_src}" "{w_dat}" {weather_format}'.format(**self.variables))
         os.system('{python_exe} {api} import_weather --delete_existing=y --create_stations=n --import_type={import_typ_wgn} --import_method=database --project_db_file="{p_db}"'.format(**self.variables))
         os.system('{python_exe} {api} import_weather --delete_existing=y --create_stations=y --import_type={weather_format} --project_db_file="{p_db}"'.format(**self.variables))
@@ -261,7 +258,8 @@ class swat_plus_editor:
 
         # write files
         os.chdir(self.api_dir)
-        os.system('{python_exe} {api} write_files --output_files_dir="{txt_in_out_dir}" --project_db_file="{p_db}"'.format(**self.variables))
+        os.system(
+            '{python_exe} {api} write_files --output_files_dir="{txt_in_out_dir}" --project_db_file="{p_db}"'.format(**self.variables))
 
         # setting weather dir in cio
         # cio_content = read_from(
@@ -299,18 +297,19 @@ class swat_plus_editor:
         if exe_type == 1:
             print("\n     >> running SWAT+")
             if platform.system() == "Linux":
-                os.system("chmod 777 {swat_exe_release}".format(**self.variables))
+                os.system("chmod 777 {swat_exe_release}".format(
+                    **self.variables))
 
             # os.system("{swat_exe_release}")
             sub_process = subprocess.Popen("{swat_exe_release}".format(**self.variables), close_fds=True, shell=True,
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             line = ""
             while sub_process.poll() is None:
                 out = sub_process.stdout.read(1)
                 encoding = 'utf-8'
-                
+
                 out_string = str(out, encoding)
-                
+
                 if (not out_string.endswith("\n")) or (not out_string.endswith("\r")):
                     line += out_string
 
@@ -321,25 +320,327 @@ class swat_plus_editor:
                         # print(line_parts)
                         if line_parts[0] == "Original":
                             sys.stdout.write("\r\t   simulating: {yr}/{mn}/{dy}{tb}".format(
-                                tb = " "*10, yr = line_parts[4], mn = line_parts[2], dy = line_parts[3]))
+                                tb=" "*10, yr=line_parts[4], mn=line_parts[2], dy=line_parts[3]))
                         else:
                             if line_parts[0] == "Execution":
-                                sys.stdout.write("\r\t   finished running SWAT+    ")
+                                sys.stdout.write(
+                                    "\r\t   finished running SWAT+    ")
                             elif line_parts[0] == "Revision":
-                                print("\t   SWAT+ version: {0}".format(line_parts[-1]))
+                                print(
+                                    "\t   SWAT+ version: {0}".format(line_parts[-1]))
                             elif line_parts[0] == "reading":
-                                sys.stdout.write("\r\t   reading {0}            ".format(" ".join(line_parts[2:-3])))
+                                sys.stdout.write("\r\t   reading {0}            ".format(
+                                    " ".join(line_parts[2:-3])))
                         sys.stdout.flush()
                     line = ""
 
         elif exe_type == 2:
             if platform.system() == "Linux":
-                os.system("chmod 777 {swat_exe_release}".format(**self.variables))
+                os.system("chmod 777 {swat_exe_release}".format(
+                    **self.variables))
 
             os.system("{swat_exe_debug}".format(**self.variables))
 
-    def model_options(self):
+    def landuse_management(self, launduse_management_settings):
         self.db.connect()
+
+        if self.db.table_exists("landuse_lum"):
+            mgt_sch_id_lookup = {sch_name[1]: str(
+                sch_name[0]) for sch_name in self.db.read_table_columns("management_sch")}
+            dtl_id_lookup = {dtl_name[1]: str(
+                dtl_name[0]) for dtl_name in self.db.read_table_columns("d_table_dtl")}
+            lum_mgtid_lookup = {dtl_name[1]: str(
+                dtl_name[4]) for dtl_name in self.db.read_table_columns("landuse_lum")}
+        else:
+            print("\n\t> databases have not been configured")
+            sys.exit(1)
+
+        if len(launduse_management_settings) > 0:
+
+            print("\n\t>  setting up land management options")
+
+            for management_setting in launduse_management_settings:
+                if management_setting["mgt_sch"] in mgt_sch_id_lookup:
+                    self.db.delete_rows("management_sch_auto", col_where="management_sch_id",
+                                        col_where_value=mgt_sch_id_lookup[management_setting["mgt_sch"]])
+                    for auto_sch in management_setting:
+                        if auto_sch.startswith("auto_sch"):
+                            # get current id for management_sch_auto table
+                            try:
+                                maximum_mgt_sch_auto_id = max(int(auto_sch_row[0]) \
+                                    for auto_sch_row in self.db.read_table_columns("management_sch_auto"))  # re-read incase of a changes
+                            except ValueError:
+                                maximum_mgt_sch_auto_id = 0
+
+                            self.db.insert_row("management_sch_auto", [
+                                str(maximum_mgt_sch_auto_id + 1),
+                                str(mgt_sch_id_lookup[management_setting["mgt_sch"]]),
+                                str(dtl_id_lookup[management_setting[auto_sch]]),
+                            ]
+                            )
+
+                    self.db.delete_rows("management_sch_op", col_where="management_sch_id",
+                                        col_where_value=mgt_sch_id_lookup[management_setting["mgt_sch"]])
+                    for op_sch in management_setting:
+                        if op_sch.startswith("op_sch"):
+                            # get current id for management_sch_op table
+                            try:
+                                maximum_mgt_sch_op_id = max(int(op_sch_row[0]) for op_sch_row
+                                                            in self.db.read_table_columns("management_sch_op"))  # re-read incase of a changes
+                            except ValueError:
+                                maximum_mgt_sch_op_id = 0
+
+                            self.db.insert_row("management_sch_op", [
+                                str(maximum_mgt_sch_op_id + 1),
+                                str(mgt_sch_id_lookup[management_setting["mgt_sch"]]),
+                                management_setting[op_sch]["op_typ"],
+                                str(int(
+                                    management_setting[op_sch]["date"].split("/")[1])),
+                                str(int(
+                                    management_setting[op_sch]["date"].split("/")[0])),
+                                "0",
+                                management_setting["landuse"].lower(),
+                                "-",
+                                str(management_setting[op_sch]
+                                    ["date"].split("/")[0]),
+                                "-",
+                                str(management_setting[op_sch]["rot_year"])
+                            ]
+                            )
+
+                            if management_setting[op_sch]["harvest_part"] is None:
+                                self.db.update_value(
+                                    "management_sch_op", "op_data2", None, "id", str(maximum_mgt_sch_op_id + 1))
+                            else:
+                                self.db.update_value("management_sch_op", "op_data2", 
+                                    management_setting[op_sch]["harvest_part"], "id", str(maximum_mgt_sch_op_id + 1))
+                            self.db.update_value(
+                                "management_sch_op", "description", None, "id", str(maximum_mgt_sch_op_id + 1))
+
+                else:
+                    # get current id for management_sch_auto table
+                    try:
+                        maximum_mgt_sch_id = max(int(auto_sch_row[0]) for auto_sch_row
+                                                 in self.db.read_table_columns("management_sch"))  # re-read incase of a changes
+                    except ValueError:
+                        maximum_mgt_sch_id = 0
+
+                    self.db.insert_row("management_sch", [
+                        str(maximum_mgt_sch_id + 1),
+                        management_setting["mgt_sch"],
+                    ])
+
+                    mgt_sch_id_lookup = {sch_name[1]: str(sch_name[0])
+                                         for sch_name in self.db.read_table_columns("management_sch")}  # re-read
+                    lum_id_lookup = {lum_name[1]: str(lum_name[0])
+                                     for lum_name in self.db.read_table_columns("landuse_lum")}  # re-read
+
+                    self.db.update_value("landuse_lum", "mgt_id", mgt_sch_id_lookup[management_setting["mgt_sch"]],
+                                         "id", lum_id_lookup["{0}_lum".format(management_setting["landuse"].lower())])
+
+                    self.db.delete_rows("management_sch_auto", col_where="management_sch_id",
+                                        col_where_value=mgt_sch_id_lookup[management_setting["mgt_sch"]])
+                    for auto_sch in management_setting:
+                        if auto_sch.startswith("auto_sch"):
+                            # get current id for management_sch_auto table
+                            try:
+                                maximum_mgt_sch_auto_id = max(int(auto_sch_row[0]) for auto_sch_row
+                                                              in self.db.read_table_columns("management_sch_auto"))  # re-read incase of a changes
+                            except ValueError:
+                                maximum_mgt_sch_auto_id = 0
+
+                            self.db.insert_row("management_sch_auto", [
+                                str(maximum_mgt_sch_auto_id + 1),
+                                str(mgt_sch_id_lookup[management_setting["mgt_sch"]]),
+                                str(dtl_id_lookup[management_setting[auto_sch]]),
+                            ]
+                            )
+
+                    self.db.delete_rows("management_sch_op", col_where="management_sch_id",
+                                        col_where_value=mgt_sch_id_lookup[management_setting["mgt_sch"]])
+                    for op_sch in management_setting:
+                        if op_sch.startswith("op_sch"):
+                            # get current id for management_sch_op table
+                            try:
+                                maximum_mgt_sch_op_id = max(int(op_sch_row[0]) for op_sch_row
+                                                            in self.db.read_table_columns("management_sch_op"))  # re-read incase of a changes
+                            except ValueError:
+                                maximum_mgt_sch_op_id = 0
+
+                            self.db.insert_row("management_sch_op", [
+                                str(maximum_mgt_sch_op_id + 1),
+                                str(mgt_sch_id_lookup[management_setting["mgt_sch"]]),
+                                management_setting[op_sch]["op_typ"],
+                                str(int(
+                                    management_setting[op_sch]["date"].split("/")[1])),
+                                str(int(
+                                    management_setting[op_sch]["date"].split("/")[0])),
+                                "0",
+                                management_setting["landuse"],
+                                "-",
+                                str(management_setting[op_sch]
+                                    ["date"].split("/")[0]),
+                                "-",
+                                str(management_setting[op_sch]["rot_year"])
+                            ]
+                            )
+
+                            if management_setting[op_sch]["harvest_part"] is None:
+                                self.db.update_value(
+                                    "management_sch_op", "op_data2", None, "id", str(maximum_mgt_sch_op_id + 1))
+                            else:
+                                self.db.update_value("management_sch_op", "op_data2",
+                                    management_setting[op_sch]["harvest_part"], "id", str(maximum_mgt_sch_op_id + 1))
+                            self.db.update_value(
+                                "management_sch_op", "description", None, "id", str(maximum_mgt_sch_op_id + 1))
+
+    def reservoir_management(self, reservoir_management_settings):
+        if self.db.table_exists("d_table_dtl"):
+            d_table_dtl = self.db.read_table_columns("d_table_dtl")
+            dtl_id_lookup = {dtl_name[1]: str(
+                dtl_name[0]) for dtl_name in d_table_dtl}
+        else:
+            print("databases have not been configured")
+            sys.exit(1)
+
+        if len(reservoir_management_settings) > 0:
+            print("\n\t>  setting up reservoir management options")
+
+            for reservoir_setting in reservoir_management_settings:
+                reservoir_setting["id"] = str(reservoir_setting["id"])
+                reservoir_setting["principal_area"] = \
+                    str(float(reservoir_setting["principal_area"])/10000)
+                reservoir_setting["emergency_area"] = \
+                    str(float(reservoir_setting["emergency_area"])/10000)
+                reservoir_setting["principal_volume"] = \
+                    str(float(reservoir_setting["principal_volume"])/10000)
+                reservoir_setting["emergency_volume"] = \
+                    str(float(reservoir_setting["emergency_volume"])/10000)
+
+                if reservoir_setting["dtl_name"] in dtl_id_lookup:
+                    # add/update hydrology properties for existing management
+                    self.db.update_value("reservoir_res", "rel_id",
+                        dtl_id_lookup[reservoir_setting["dtl_name"]], "id", reservoir_setting["id"])
+                    self.db.update_value("reservoir_res", "name",
+                        reservoir_setting["set_res_name"], "id", reservoir_setting["id"])
+                    self.db.update_value("reservoir_con", "name",
+                        reservoir_setting["set_res_name"], "id", reservoir_setting["id"])
+                    self.db.update_value("hydrology_res", "name",
+                        reservoir_setting["set_res_name"], "id", reservoir_setting["id"])
+                    self.db.update_value("hydrology_res", "Yr_op", reservoir_setting["date_operational"].split(
+                        "/")[2], "id", reservoir_setting["id"])
+                    self.db.update_value("hydrology_res", "Mon_op", reservoir_setting["date_operational"].split(
+                        "/")[1], "id", reservoir_setting["id"])
+                    self.db.update_value("hydrology_res", "Area_ps",
+                        reservoir_setting["principal_area"], "id", reservoir_setting["id"])
+                    self.db.update_value("hydrology_res", "Area_es",
+                        reservoir_setting["emergency_area"], "id", reservoir_setting["id"])
+                    self.db.update_value("hydrology_res", "Vol_ps",
+                        reservoir_setting["principal_volume"], "id", reservoir_setting["id"])
+                    self.db.update_value("hydrology_res", "Vol_es",
+                        reservoir_setting["emergency_volume"], "id", reservoir_setting["id"])
+
+                else:
+                    maximum_dtl_id = max(
+                        int(dtl_name[0]) for dtl_name in d_table_dtl)
+
+                    self.db.insert_row("d_table_dtl", [str(
+                        maximum_dtl_id + 1), reservoir_setting["dtl_name"], "res_rel.dtl"])
+
+                    d_table_dtl = self.db.read_table_columns("d_table_dtl")
+                    dtl_id_lookup = {dtl_name[1]: str(dtl_name[0])
+                                     for dtl_name in d_table_dtl}
+
+                    # add/update hydrology properties for new management
+                    self.db.update_value("reservoir_res", "rel_id",
+                        dtl_id_lookup[reservoir_setting["dtl_name"]], "id", reservoir_setting["id"])
+                    self.db.update_value("reservoir_res", "name",
+                        reservoir_setting["set_res_name"], "id", reservoir_setting["id"])
+                    self.db.update_value("reservoir_con", "name",
+                        reservoir_setting["set_res_name"], "id", reservoir_setting["id"])
+                    self.db.update_value("hydrology_res", "name",
+                        reservoir_setting["set_res_name"], "id", reservoir_setting["id"])
+                    self.db.update_value("hydrology_res", "Yr_op", reservoir_setting["date_operational"].split(
+                        "/")[2], "id", reservoir_setting["id"])
+                    self.db.update_value("hydrology_res", "Mon_op", reservoir_setting["date_operational"].split(
+                        "/")[1], "id", reservoir_setting["id"])
+                    self.db.update_value("hydrology_res", "Area_ps",
+                        reservoir_setting["principal_area"], "id", reservoir_setting["id"])
+                    self.db.update_value("hydrology_res", "Area_es",
+                        reservoir_setting["emergency_area"], "id", reservoir_setting["id"])
+                    self.db.update_value("hydrology_res", "Vol_ps",
+                        reservoir_setting["principal_volume"], "id", reservoir_setting["id"])
+                    self.db.update_value("hydrology_res", "Vol_es",
+                        reservoir_setting["emergency_volume"], "id", reservoir_setting["id"])
+
+                    # add conditions for decision table management
+                    for setting in reservoir_setting:
+                        if setting.startswith("cond"):
+                            d_table_dtl_conds = self.db.read_table_columns(
+                                "d_table_dtl_cond")
+                            maximum_dtl_cond_id = max(int(cond_row[0])
+                                                      for cond_row in d_table_dtl_conds)
+
+                            self.db.insert_row("d_table_dtl_cond", [
+                                str(maximum_dtl_cond_id + 1),
+                                dtl_id_lookup[reservoir_setting["dtl_name"]],
+                                reservoir_setting[setting]["main_variable"], "res", "0",
+                                reservoir_setting[setting]["limiting_var"],
+                                reservoir_setting[setting]["limit_operator"],
+                                reservoir_setting[setting]["constraint"],
+                            ])
+
+                            # set condition aternatives
+                            dtl_conds_id_lookup = {str(cond_row[1]): str(cond_row[0])
+                                                   for cond_row in self.db.read_table_columns("d_table_dtl_cond")}  # re-read after changes
+
+                            for cond_setting in reservoir_setting[setting]["alts"]:
+                                maximum_dtl_cond_alt_id = max(int(cond_row[0])
+                                                              for cond_row in self.db.read_table_columns("d_table_dtl_cond_alt"))
+
+                                self.db.insert_row("d_table_dtl_cond_alt", [
+                                    str(maximum_dtl_cond_alt_id + 1),
+                                    dtl_conds_id_lookup[dtl_id_lookup[reservoir_setting["dtl_name"]]],
+                                    cond_setting
+                                ])
+
+                    # add actions for decision table management
+                    alt_count = 0  # keep track of number of aternative to throw an error if different between conditions
+                    for setting in reservoir_setting:
+                        if setting.startswith("act"):
+                            d_table_dtl_act = self.db.read_table_columns(
+                                "d_table_dtl_act")
+                            maximum_dtl_act_id = max(
+                                int(act_row[0]) for act_row in d_table_dtl_act)
+
+                            self.db.insert_row("d_table_dtl_act", [
+                                str(maximum_dtl_act_id + 1),
+                                dtl_id_lookup[reservoir_setting["dtl_name"]],
+                                reservoir_setting[setting]["action_type"], "res", "0",
+                                reservoir_setting[setting]["name"],
+                                reservoir_setting[setting]["action_option"],
+                                reservoir_setting[setting]["const1"],
+                                reservoir_setting[setting]["const2"],
+                                reservoir_setting[setting]["fp"],
+                            ])
+
+                            # set output switches
+                            d_table_act_out_id_lookup = {str(conds_row[1]): str(conds_row[0]) for conds_row
+                                                         in self.db.read_table_columns("d_table_dtl_act")}
+
+                            for cond_setting in reservoir_setting[setting]["out_switches"]:
+                                maximum_dtl_act_out_alt_id = max(int(cond_row[0]) for \
+                                    cond_row in self.db.read_table_columns("d_table_dtl_act_out"))  # re-read after changes
+
+                                self.db.insert_row("d_table_dtl_act_out", [
+                                    str(maximum_dtl_act_out_alt_id + 1),
+                                    d_table_act_out_id_lookup[dtl_id_lookup[reservoir_setting["dtl_name"]]],
+                                    "1" if cond_setting.lower() == "y" else "0"
+                                ])
+
+
+    def model_options(self):
+        # self.db.connect()
         self.db.update_value("codes_bsn", "pet", str(
             namelist.ET_Method - 1), "id", "1")
         self.db.update_value("codes_bsn", "rte_cha", str(
@@ -359,39 +660,99 @@ class swat_plus_editor:
 		}},
 		"model": "SWAT+"\n	}}\n}}
         """.format(**self.variables)
-        write_to("{model_dir}/{selection}.json".format(**self.variables), project_string)
-        
+        write_to("{model_dir}/{selection}.json".format(**
+                                                       self.variables), project_string)
+
 
 if __name__ == "__main__":
     if namelist.Model_2_namelist:
         sys.exit(0)
-                    
+
+    sp_api_mode = False
+    setup_editor_project = False
+    configure_model_options = False
+    setup_management = False
+    write_files = False
+    run_swatplus = False
+
+    try:
+        if sys.argv[2] == "setup_editor_project":
+            sp_api_mode = True
+            setup_editor_project = True
+            print("\n     >> creating SWATPlus editor compatible project")
+
+        if sys.argv[2] == "configure_model_options":
+            sp_api_mode = True
+            configure_model_options = True
+            print("\n     >> configuring model options")
+
+        if sys.argv[2] == "setup_management":
+            sp_api_mode = True
+            setup_management = True
+            print("\n     >> setting up management")
+
+        if sys.argv[2] == "write_files":
+            sp_api_mode = True
+            write_files = True
+            print("\n     >> writing SWAT+ files")
+
+        if sys.argv[2] == "run_swatplus":
+            sp_api_mode = True
+            run_swatplus = True
+
+    except:
+        pass
+
+    if not sp_api_mode:
+        print("\n     >> configuring model in editor")
+
     keep_log = True if namelist.Keep_Log else False
-    log = log("{base}/swatplus_aw_log.txt".format(base = sys.argv[1]))
+    log = log("{base}/swatplus_aw_log.txt".format(base=sys.argv[1]))
     # announce
-    print("\n     >> configuring model in editor")
     log.info("running swatplus editor module", keep_log)
     editor = swat_plus_editor(base_dir, model_name)
-    log.info("initialising databases", keep_log)
-    editor.initialise_databases()
-    log.info("creating editor project for GUI compatibility", keep_log)
-    editor.create_project()
-    log.info("setting up the project", keep_log)
-    editor.setup_project()
-    log.info("setting simulation period and adding weather", keep_log)
-    editor.set_printing_weather(namelist.Start_Year, namelist.End_Year)
-    log.info("configuring model run options", keep_log)
-    editor.model_options()
-    log.info("writing files", keep_log)
-    editor.write_files()
-    print("")
-    if not namelist.Calibrate:
-        log.info("model will not be calibrated", keep_log)
-        if namelist.Executable_Type == 1:
-            log.info("running model using release version", keep_log)
-            editor.run(namelist.Executable_Type)
-        if namelist.Executable_Type == 2:
-            log.info("running model using debug version", keep_log)
-            editor.run(namelist.Executable_Type)
 
-    log.info("finnished running swatplus editor module\n", keep_log)
+    if (sp_api_mode and setup_editor_project) or (not sp_api_mode):
+        editor.db.connect(report_ = False)
+        log.info("initialising databases", keep_log)
+        editor.initialise_databases()
+        log.info("creating editor project for GUI compatibility", keep_log)
+        editor.create_project()
+        log.info("setting up the project", keep_log)
+        editor.setup_project()
+
+    if (sp_api_mode and configure_model_options) or (not sp_api_mode):
+        editor.initialise_databases()
+        log.info("setting simulation period and adding weather", keep_log)
+        editor.set_printing_weather(namelist.Start_Year, namelist.End_Year)
+    
+    if (sp_api_mode and setup_management) or (not sp_api_mode):
+        editor.db.connect(report_ = False)
+        log.info("setting up management options for landuse", keep_log)
+        editor.landuse_management(namelist.launduse_management_settings)
+        log.info("setting up management options for reservoirs", keep_log)
+        editor.reservoir_management(namelist.reservoir_management_settings)
+
+    if (sp_api_mode and configure_model_options) or (not sp_api_mode):
+        editor.db.connect(report_ = False)
+        log.info("configuring model run options", keep_log)
+        editor.model_options()
+
+    if (sp_api_mode and write_files) or (not sp_api_mode):
+        editor.db.connect(report_ = False)
+        log.info("writing files", keep_log)
+        editor.write_files()
+        print("")
+
+    if (sp_api_mode and run_swatplus) or (not sp_api_mode):
+        editor.db.connect(report_ = False)
+        if not namelist.Calibrate:
+            log.info("model will not be calibrated", keep_log)
+            if namelist.Executable_Type == 1:
+                log.info("running model using release version", keep_log)
+                editor.run(namelist.Executable_Type)
+            if namelist.Executable_Type == 2:
+                log.info("running model using debug version", keep_log)
+                editor.run(namelist.Executable_Type)
+
+        log.info("finnished running swatplus editor module\n", keep_log)

@@ -60,6 +60,44 @@ Routing_Method        = {routing_method}           # 1 = Variable Storage,      
 Routing_Timestep      = {routing_timestep}           # 1 = Daily Rainfall/routing, curve number
                                     # 2 = Sub-daily Rainfall/routing, Green & Ampt
 
+# management of reservoirs and landuse
+launduse_management_settings = [
+    # This entry is an example. Remove the '#' at the begining of each line to activate. Repeat the block to add more
+
+    # {{
+    #     "landuse": "agrl",
+    #     "mgt_sch": "agric_lu",
+    #     "auto_sch1": "fert_rot_1",
+
+    #     "op_sch1": {{"op_typ": "plnt", "date": "29/01", "harvest_part": None, "op_data3": 0, "rot_year": 1}},
+    #     "op_sch2": {{"op_typ": "harv", "date": "09/05", "harvest_part": "grain", "op_data3": 0, "rot_year": 1}},
+    # }}
+]
+
+reservoir_management_settings = [
+    # This entry is an example. Remove the '#' at the begining of each line to activate. Repeat the block to add more
+
+    #{{ 
+    #     "id": 1,
+    #     "set_res_name": "test_reservoir",
+    #     "principal_area": 1547,  # m2
+    #     "emergency_area": 1747,  # m2
+    #     "principal_volume": 1547,  # m3
+    #     "emergency_volume": 1847,  # m3
+    #     "dtl_name": "my_dtl",
+        
+    #     # dd/mm/yyyy (the date when the reservoir became operational)
+    #     "date_operational": "01/01/1993",
+
+    #     "cond1": {{"main_variable": "vol", "limiting_var": "e-pv", "limit_operator": "=", "alts": ["=", "-"], "constraint": "-14.93"}},
+    #     "cond2": {{"main_variable": "vol", "limiting_var": "e-pv", "limit_operator": "<", "alts": [">", "<"], "constraint": "5.93"}},
+
+    #     "act1": {{"name": "over_prin", "action_type": "release", "action_option": "days",  "fp": "cond1", "const1": "1.777", "const2": "1.777", "out_switches": ["y", "y"]}},
+    #     "act2": {{"name": "over_emergency", "action_type": "release", "action_option": "days",  "fp": "cond1", "const1": "1.777", "const2": "1.777", "out_switches": ["n", "y"]}},
+    #     "act3": {{"name": "flood", "action_type": "release", "action_option": "days",  "fp": "cond1", "const1": "1.777", "const2": "1.777", "out_switches": ["y", "n"]}},
+    # }}
+]
+
 # model run settings
 Start_Year            = {start_year}
 End_Year              = {end_year}
@@ -73,7 +111,7 @@ Print_Objects         = {{           # 1 = daily, 2 = month, 3 = year, 4 = annua
 {print_objects}
                         }}
 
-Executable_Type       = 0             # 1 = Release, 2 = Debug   0 = Don't run
+Executable_Type       = 1             # 1 = Release, 2 = Debug   0 = Don't run
 
 Cal_File              = "{calfile_name}"            # a calibration.cal file with parameters for the calibrated model
                                       # leave as "" if there is no file to be used.

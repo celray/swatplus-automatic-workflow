@@ -1,7 +1,12 @@
-"""
-This is a database class created by Celray James CHAWANDA for his SWAT+ adaptations
-use it in accordance with the MIT licence
-"""
+'''
+date        : 31/03/2020
+description : this module contains a class for managing sqlite databases
+              easily
+
+author      : Celray James CHAWANDA
+contact     : celray.chawanda@outlook.com
+licence     : MIT 2020
+'''
 
 import sqlite3
 import sys
@@ -14,18 +19,22 @@ class sqlite_connection:
         self.connection = None
         self.cursor = None
 
-    def connect(self):
+    def connect(self, report_ = False):
         self.connection = None
         self.connection = sqlite3.connect(self.db_name)
         self.cursor = self.connection.cursor()
-        report("\t-> connection to " + self.db_name + " established...")
+        if report_:
+            report("\t-> connection to " + self.db_name + " established...")
     
     def update_value(self, table_name, col_name, new_value, col_where1, val_1, report_ = False):
         """
         does not work yet!
         """
-        # sql_str = "UPDATE {tbl} SET {col} = '{new_val}' WHERE {wh_col} = '{val_1_}';".format(tbl = table_name, col = col_name, new_val = new_value, wh_col = col_where1, val_1_ = val_1)
-        self.cursor.execute("UPDATE " + table_name + " SET " + col_name + " = '" + new_value + "' WHERE " + col_where1 + " = " + val_1 + ";")
+        if not new_value is None:
+            new_value = str(new_value)
+            self.cursor.execute("UPDATE " + table_name + " SET " + col_name + " = '" + new_value + "' WHERE " + col_where1 + " = " + val_1 + ";")
+        if new_value is None:
+            self.cursor.execute("UPDATE " + table_name + " SET " + col_name + " = ? " + " WHERE " + col_where1 + " = ?", (new_value, val_1))
         # self.cursor.execute(sql_str)
         if report_:
             report("\t -> updated {1} value in {0}".format(self.db_name.split("/")[-1].split("\\")[-1], table_name))
@@ -55,12 +64,22 @@ class sqlite_connection:
         else:
             return False
 
-    def delete_rows(self, table_to_clean):
+    def delete_rows(self, table_to_clean, col_where = None, col_where_value = None, report_ = False):
         """
 
         """
-        self.connection.execute("DELETE FROM " + table_to_clean)
-        report("\t-> removed all rows from " + table_to_clean)
+
+        if (col_where is None) and (col_where_value is None):
+            self.connection.execute("DELETE FROM " + table_to_clean)
+
+        elif (not col_where is None) and (not col_where_value is None):
+            self.connection.execute("DELETE FROM " + table_to_clean + " WHERE " + col_where + " = " + col_where_value + ";")
+
+        else:
+            raise ("\t! not all arguments were provided for selective row deletion")
+
+        if report_:
+            report("\t-> removed all rows from " + table_to_clean)
 
     def delete_table(self, table_name):
         """
@@ -78,7 +97,7 @@ class sqlite_connection:
         self.connection.rollback()
         self.commit_changes()
 
-    def read_table_columns(self, table_name, column_list, report_ = False):
+    def read_table_columns(self, table_name, column_list = "all", report_ = False):
         """
         this function takes a list to be a string separated by commmas and
         a table and puts the columns in the table into a variable
@@ -97,7 +116,7 @@ class sqlite_connection:
         if report_:
             report("\t-> read selected table columns from " + table_name)
         return list_of_tuples
-
+        
     def insert_field(self, table_name, field_name, data_type, to_new_line = False, messages = True):
         """
         This will insert a new field into your sqlite database
@@ -113,7 +132,7 @@ class sqlite_connection:
             else:
                 sys.stdout.write("\r\t-> inserted into table {0} field {1}            ".format(table_name, field_name))
                 sys.stdout.flush()
-    
+
     def insert_row(self, table_name, ordered_content_list, messages = False):
         """
         ordered_list such as ['ha','he','hi']
@@ -135,16 +154,16 @@ class sqlite_connection:
         if messages:
             report("\t-> inserted roes into " + table_name)
 
-    def dump_csv(self, table_name, file_name, report = False):
+    def dump_csv(self, table_name, file_name):
         '''
         save table to csv
         '''
         tmp_conn = sqlite3.connect(self.db_name)
         df = pandas.read_sql_query("SELECT * FROM {tn}".format(tn = table_name), tmp_conn)
-        df = df.replace('\n','', regex=True)
-        df.to_csv(file_name, index = False)
-        if report:
-            report("\t-> dumped table {0} to {1}".format(table_name, file_name))
+        df.to_csv(file_name)
+        report("\t-> dumped table {0} to {1}".format(table_name, file_name))
+
+
 
     def commit_changes(self):
 
