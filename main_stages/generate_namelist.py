@@ -142,27 +142,57 @@ landuse_data = xml_children_attributes(xml_fn, "./properties/{s}/landuse".format
 soil_data = xml_children_attributes(xml_fn, "./properties/{s}/soil".format(s = selected_model))
 
 # get rasters
+soil_name = file_name(soil_data["file"])
+landuse_name = file_name(landuse_data["file"])
 log.info("extracting soil raster file: {fn}".format(fn =  file_name(soil_data["file"])), keep_log)
-shutil.copyfile(    # get soil file
-    "{base}/{project_name}/Watershed/Rasters/Soil/{soil_name}".format(
-        base = sys.argv[1], project_name = selected_model,
-        soil_name = file_name(soil_data["file"])
-        ),
-    "{base}/data/rasters/{soil_name}".format(
-        base = sys.argv[1],
-        soil_name = file_name(soil_data["file"])
-        ))
+if not file_name(soil_data["file"]) == "hdr.adf":
+    shutil.copyfile(    # get soil file
+        "{base}/{project_name}/Watershed/Rasters/Soil/{soil_name}".format(
+            base = sys.argv[1], project_name = selected_model,
+            soil_name = file_name(soil_data["file"])
+            ),
+        "{base}/data/rasters/{soil_name}".format(
+            base = sys.argv[1],
+            soil_name = file_name(soil_data["file"])
+            ))
+else:
+    for dir_name in os.listdir("{base}/{project_name}/Watershed/Rasters/Soil/".format(
+        base = sys.argv[1], project_name = selected_model)):
+        if os.path.isfile("{base}/{project_name}/Watershed/Rasters/Soil/{dirname}/hdr.adf".format(
+            dirname = dir_name, base = sys.argv[1], project_name = selected_model)):
+                shutil.copytree("{base}/{project_name}/Watershed/Rasters/Soil/{dirname}".format(
+                    dirname = dir_name, base = sys.argv[1], project_name = selected_model),
+                    "{base}/data/rasters/{soil_name}".format(
+                    base = sys.argv[1],
+                    soil_name = dir_name
+                    ))
+                soil_name = dir_name
+                break
 
 log.info("extracting landuse raster file: {fn}".format(fn =  file_name(landuse_data["file"])), keep_log)
-shutil.copyfile(    # get landuse file
-    "{base}/{project_name}/Watershed/Rasters/Landuse/{landuse_name}".format(
-        base = sys.argv[1], project_name = selected_model,
-        landuse_name = file_name(landuse_data["file"])
-        ),
-    "{base}/data/rasters/{landuse_name}".format(
-        base = sys.argv[1],
-        landuse_name = file_name(landuse_data["file"])
-        ))
+if not file_name(landuse_data["file"]) == "hdr.adf":
+    shutil.copyfile(    # get landuse file
+        "{base}/{project_name}/Watershed/Rasters/Landuse/{landuse_name}".format(
+            base = sys.argv[1], project_name = selected_model,
+            landuse_name = file_name(landuse_data["file"])
+            ),
+        "{base}/data/rasters/{landuse_name}".format(
+            base = sys.argv[1],
+            landuse_name = file_name(landuse_data["file"])
+            ))
+else:
+    for dir_name in os.listdir("{base}/{project_name}/Watershed/Rasters/Landuse/".format(
+        base = sys.argv[1], project_name = selected_model)):
+        if os.path.isfile("{base}/{project_name}/Watershed/Rasters/Landuse/{dirname}/hdr.adf".format(
+            dirname = dir_name, base = sys.argv[1], project_name = selected_model)):
+                shutil.copytree("{base}/{project_name}/Watershed/Rasters/Landuse/{dirname}".format(
+                    dirname = dir_name, base = sys.argv[1], project_name = selected_model),
+                    "{base}/data/rasters/{landuse_name}".format(
+                    base = sys.argv[1],
+                    landuse_name = dir_name
+                    ))
+                landuse_name = dir_name
+                break
 
 log.info("extracting digital elevation model raster file: {fn}".format(fn = file_name(delin_data["DEM"])), keep_log)
 shutil.copyfile(    # get dem file
@@ -592,8 +622,8 @@ write_to(
     namelist_string.format(
         prj_name = selected_model,
         dem_fn = file_name(delin_data["DEM"]),
-        soil_fn = file_name(soil_data["file"]),
-        landuse_fn = file_name(landuse_data["file"]),
+        soil_fn = soil_name,
+        landuse_fn = landuse_name,
         soillookup_fn = "{0}.csv".format(soil_data["table"]),
         landuselookup_fn = "{0}.csv".format(landuse_data["table"]),
         usersoil_fn = "{0}.csv".format(soil_data["databaseTable"]),

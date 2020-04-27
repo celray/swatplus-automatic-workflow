@@ -23,7 +23,7 @@ sys.path.append(os.path.join(os.environ["swatplus_wf_dir"]))
 sys.path.insert(0, sys.argv[1])
 
 from helper_functions import (read_from, write_to, raster_statistics,
-    list_files, copy_file, file_name, python_variable, get_extents)
+    list_files, copy_file, copytree, file_name, python_variable, get_extents)
 from projection_lookup import epsg_lookup_dictionary
 from qgs_project_template import template
 from sqlite_tools import sqlite_connection
@@ -74,12 +74,16 @@ thresholdCh = namelist.Channel_Threshold
 thresholdSt = namelist.Stream_Threshold
 burn_name = namelist.Burn_In_Shape
 
-dem_name = namelist.Topography if ".tif" in namelist.Topography.lower(
-) else "{dem}.tif".format(dem=namelist.Topography)
-landuse_name = namelist.Land_Use if ".tif" in namelist.Land_Use.lower(
-) else "{land}.tif".format(land=namelist.Land_Use)
-soil_name = namelist.Soils if ".tif" in namelist.Soils.lower(
-) else "{soil}.tif".format(soil=namelist.Soils)
+dem_name = namelist.Topography
+landuse_name = namelist.Land_Use 
+soil_name = namelist.Soils 
+
+dem_file_name_ = namelist.Topography if ".tif" in namelist.Topography.lower()\
+    else "{dem}.tif".format(dem=namelist.Topography)
+landuse_file_name_ = namelist.Land_Use if ".tif" in namelist.Land_Use.lower()\
+    else "{land}/hdr.adf".format(land=namelist.Land_Use)
+soil_file_name_ = namelist.Soils if ".tif" in namelist.Soils.lower()\
+    else "{soil}/hdr.adf".format(soil=namelist.Soils)
 
 extension_suffix = ".tif"
 
@@ -126,17 +130,19 @@ log.info("extracting DEM to {0}".format(
 ), keep_log)
 if namelist.Topography.lower().endswith(".tif"):
     copy_file(dem_fn, '{base}/{project_name}/Watershed/Rasters/DEM/{dem_name}'.format(
-        base=sys.argv[1], project_name=project_name, dem_name=dem_name))
+        base=sys.argv[1], project_name=project_name, dem_name=dem_file_name_))
     copy_file(dem_fn, '{base}/{project_name}/Watershed/Rasters/DEM/{dem_name}slp_bands.tif'.format(
-        base=sys.argv[1], project_name=project_name, dem_name=dem_name[:-4]))
+        base=sys.argv[1], project_name=project_name, dem_name=dem_file_name_[:-4]))
 else:
+    # copytree(dem_fn, '{base}/{project_name}/Watershed/Rasters/DEM/{dem_name}'.format(
+    #     base=sys.argv[1], project_name=project_name, dem_name=dem_name))
     src_ds = gdal.Open(dem_fn)
     ds = gdal.Translate('{base}/{project_name}/Watershed/Rasters/DEM/{dem_name}'.format(
-        base=sys.argv[1], project_name=project_name, dem_name=dem_name), src_ds, format='GTiff')
+        base=sys.argv[1], project_name=project_name, dem_name=dem_file_name_), src_ds, format='GTiff')
     ds = gdal.Translate('{base}/{project_name}/Watershed/Rasters/DEM/{dem_name}slp_bands.tif'.format(
-        base=sys.argv[1], project_name=project_name, dem_name=dem_name[:-4]), src_ds, format='GTiff')
+        base=sys.argv[1], project_name=project_name, dem_name=dem_file_name_[:-4]), src_ds, format='GTiff')
 
-log.info("extracting DEM to {0}".format(
+log.info("extracting landuse to {0}".format(
     '{base}/{project_name}/Watershed/Rasters/Landuse/{landuse_name}'.format(
         base=sys.argv[1], project_name=project_name, landuse_name=landuse_name)
 ), keep_log)
@@ -144,11 +150,13 @@ if namelist.Land_Use.lower().endswith(".tif"):
     copy_file(landuse_fn, '{base}/{project_name}/Watershed/Rasters/Landuse/{landuse_name}'.format(
         base=sys.argv[1], project_name=project_name, landuse_name=landuse_name))
 else:
-    src_ds = gdal.Open(landuse_fn)
-    ds = gdal.Translate('{base}/{project_name}/Watershed/Rasters/Landuse/{landuse_name}'.format(
-        base=sys.argv[1], project_name=project_name, landuse_name=landuse_name), src_ds, format='GTiff')
+    copytree(landuse_fn, '{base}/{project_name}/Watershed/Rasters/Landuse/{landuse_name}'.format(
+        base=sys.argv[1], project_name=project_name, landuse_name=landuse_name))
+    # src_ds = gdal.Open(landuse_fn)
+    # ds = gdal.Translate('{base}/{project_name}/Watershed/Rasters/Landuse/{landuse_name}'.format(
+    #     base=sys.argv[1], project_name=project_name, landuse_name=landuse_name), src_ds, format='GTiff')
 
-log.info("extracting DEM to {0}".format(
+log.info("extracting soil to {0}".format(
     '{base}/{project_name}/Watershed/Rasters/Soil/{soil_name}'.format(
         base=sys.argv[1], project_name=project_name, soil_name=soil_name)
 ), keep_log)
@@ -156,13 +164,15 @@ if namelist.Soils.lower().endswith(".tif"):
     copy_file(soil_fn, '{base}/{project_name}/Watershed/Rasters/Soil/{soil_name}'.format(
         base=sys.argv[1], project_name=project_name, soil_name=soil_name))
 else:
-    src_ds = gdal.Open(soil_fn)
-    ds = gdal.Translate('{base}/{project_name}/Watershed/Rasters/Soil/{soil_name}'.format(
-        base=sys.argv[1], project_name=project_name, soil_name=soil_name), src_ds, format='GTiff')
+    copytree(soil_fn, '{base}/{project_name}/Watershed/Rasters/Soil/{soil_name}'.format(
+        base=sys.argv[1], project_name=project_name, soil_name=soil_name))
+    # src_ds = gdal.Open(soil_fn)
+    # ds = gdal.Translate('{base}/{project_name}/Watershed/Rasters/Soil/{soil_name}'.format(
+    #     base=sys.argv[1], project_name=project_name, soil_name=soil_name), src_ds, format='GTiff')
 
 log.info("getting dem projection information", keep_log)
 dataset = gdal.Open('{base}/{project_name}/Watershed/Rasters/DEM/{dem_name}'.format(
-    base=sys.argv[1], project_name=project_name, dem_name=dem_name))
+    base=sys.argv[1], project_name=project_name, dem_name=dem_file_name_))
 
 formated_projcs = gdal.Info(dataset).split("Data axis")[
     0].split("System is:\n")[-1]
@@ -286,13 +296,16 @@ project_string = template.format(
     upper_third=upper_third,
     mid_thirds=round((upper_third + lower_third)/2, 0),
 
-    dem_name=dem_name[:-4],
+    dem_name=dem_file_name_[:-4],
     landuse_name=landuse_name[:-4],
     extension_suffix=extension_suffix,
     soil_name=soil_name[:-4],
-    extent_xmin=extent_xmin,
+    dem_file_name=dem_file_name_,
+    landuse_file_name=landuse_file_name_,
+    soil_file_name=soil_file_name_,
     soil_lookup=soil_lookup,
     land_lookup=land_lookup,
+    extent_xmin=extent_xmin,
     extent_ymin=extent_ymin,
     extent_xmax=extent_xmax,
     extent_ymax=extent_ymax,
@@ -331,10 +344,10 @@ write_to("{base}/{project_name}/{project_name}.qgs".format(
 
 log.info("creating hillshade for DEM", keep_log)
 hillshade_name = '{base}/{project_name}/Watershed/Rasters/DEM/{dem_name}hillshade.tif'.format(
-    base=sys.argv[1], project_name=project_name, dem_name=dem_name[:-4])
+    base=sys.argv[1], project_name=project_name, dem_name=dem_file_name_[:-4])
 src_ds = gdal.Open('{base}/{project_name}/Watershed/Rasters/DEM/{dem_name}'.format(
-    base=sys.argv[1], project_name=project_name, dem_name=dem_name))
-ds = gdal.DEMProcessing(hillshade_name, src_ds, 'hillshade', zFactor=45)
+    base=sys.argv[1], project_name=project_name, dem_name=dem_file_name_))
+ds = gdal.DEMProcessing(hillshade_name, src_ds, 'hillshade', zFactor=30)
 
 # copy shapefile
 shapes_dir = '{base}/{project_name}/Watershed/Shapes/'.format(

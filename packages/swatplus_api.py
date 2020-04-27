@@ -29,63 +29,67 @@ class swatplus_api:
         if not has_argument:
             print("\n\t! no option was selected, please use one of the following")
             for available_option in self.options:
-                print(f"\t  - {available_option}")
+                print(f'\t  - {available_option}')
 
             print("\t> usage: swatplus_api [option]\n")
             return False
 
         if (not option in self.options):
-            print(
-                f"\n\t! the selected option, '{option}', was not found, please use one of the following")
+            print(f'\n\t! the selected option, "{option}", was not found, please use one of the following')
             for available_option in self.options:
-                print(f"\t  - {available_option}")
+                print(f'\t  - {available_option}')
             print("\t> usage: swatplus_api [option]\n")
             return False
 
         if option == "prepare_project":
             wf_path = os.environ["swatplus_wf_dir"]
             if platform.system() == "Windows":
-                os.system(f"python-qgis-ltr.bat {wf_path}/main_stages/prepare_project.py {sys.argv[1]}")
+                os.system(f'python-qgis-ltr.bat {wf_path}/main_stages/prepare_project.py "{sys.argv[1]}"')
 
         if option == "delineate_watershed":
             wf_path = os.environ["swatplus_wf_dir"]
             if platform.system() == "Windows":
-                os.system(f"python-qgis-ltr.bat {wf_path}/main_stages/run_qswat.py {sys.argv[1]} watershed")
+                os.system(f'python-qgis-ltr.bat {wf_path}/main_stages/run_qswat.py "{sys.argv[1]}" watershed')
 
         if option == "create_hrus":
             wf_path = os.environ["swatplus_wf_dir"]
             if platform.system() == "Windows":
-                os.system(f"python-qgis-ltr.bat {wf_path}/main_stages/run_qswat.py {sys.argv[1]} hrus")
+                os.system(f'python-qgis-ltr.bat {wf_path}/main_stages/run_qswat.py "{sys.argv[1]}" hrus')
 
         if option == "setup_editor_project":
             wf_path = os.environ["swatplus_wf_dir"]
             if platform.system() == "Windows":
-                os.system(f"python-qgis-ltr.bat {wf_path}/main_stages/run_editor.py {sys.argv[1]} setup_editor_project")
+                os.system(f'python-qgis-ltr.bat {wf_path}/main_stages/run_editor.py "{sys.argv[1]}" setup_editor_project')
 
         if option == "configure_model_options":
             wf_path = os.environ["swatplus_wf_dir"]
             if platform.system() == "Windows":
-                os.system(f"python-qgis-ltr.bat {wf_path}/main_stages/run_editor.py {sys.argv[1]} configure_model_options")
+                os.system(f'python-qgis-ltr.bat {wf_path}/main_stages/run_editor.py "{sys.argv[1]}" configure_model_options')
 
         if option == "setup_management":
             wf_path = os.environ["swatplus_wf_dir"]
             if platform.system() == "Windows":
-                os.system(f"python-qgis-ltr.bat {wf_path}/main_stages/run_editor.py {sys.argv[1]} setup_management")
+                os.system(f'python-qgis-ltr.bat {wf_path}/main_stages/run_editor.py "{sys.argv[1]}" setup_management')
 
         if option == "write_files":
             wf_path = os.environ["swatplus_wf_dir"]
             if platform.system() == "Windows":
-                os.system(f"python-qgis-ltr.bat {wf_path}/main_stages/run_editor.py {sys.argv[1]} write_files")
+                os.system(f'python-qgis-ltr.bat {wf_path}/main_stages/run_editor.py "{sys.argv[1]}" write_files')
+
+        if option == "run_swatplus":
+            wf_path = os.environ["swatplus_wf_dir"]
+            if platform.system() == "Windows":
+                os.system(f'python-qgis-ltr.bat {wf_path}/main_stages/run_editor.py "{sys.argv[1]}" run_swatplus')
 
         if option == "make_figures":
             wf_path = os.environ["swatplus_wf_dir"]
             if platform.system() == "Windows":
-                os.system(f"python-qgis-ltr.bat {wf_path}/main_stages/run_make_figures.py {sys.argv[1]}")
+                os.system(f'python-qgis-ltr.bat {wf_path}/main_stages/run_make_figures.py "{sys.argv[1]}"')
 
         if option == "calibrate":
             wf_path = os.environ["swatplus_wf_dir"]
             if platform.system() == "Windows":
-                os.system(f"python-qgis-ltr.bat {wf_path}/main_stages/run_calibration.py {sys.argv[1]}")
+                os.system(f'python-qgis-ltr.bat {wf_path}/main_stages/run_calibration.py "{sys.argv[1]}"')
 
 # check number of arguments incase user did not provide
 num_args = len(sys.argv)

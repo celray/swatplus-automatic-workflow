@@ -154,25 +154,27 @@ class sqlite_connection:
         if messages:
             report("\t-> inserted roes into " + table_name)
 
-    def dump_csv(self, table_name, file_name):
+    def dump_csv(self, table_name, file_name, index = False, report_ = False):
         '''
         save table to csv
         '''
         tmp_conn = sqlite3.connect(self.db_name)
         df = pandas.read_sql_query("SELECT * FROM {tn}".format(tn = table_name), tmp_conn)
-        df.to_csv(file_name)
-        report("\t-> dumped table {0} to {1}".format(table_name, file_name))
+        df = df.replace('\n','',regex=True)
+        df.to_csv(file_name) if index else df.to_csv(file_name, index = False)
+        
+        if report_:
+            report("\t-> dumped table {0} to {1}".format(table_name, file_name))
 
-
-
-    def commit_changes(self):
+    def commit_changes(self, report_ = False):
 
         '''
         save changes to the database.
         '''
         self.connection.commit()
         number_of_changes = self.connection.total_changes
-        report("\t-> saved {0} changes to ".format(number_of_changes) + self.db_name)
+        if report_:
+            report("\t-> saved {0} changes to ".format(number_of_changes) + self.db_name)
 
     def close_connection(self, commit = True):
         '''

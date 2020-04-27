@@ -74,19 +74,19 @@ template = '''<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
       <layer-tree-layer id="Hillshade__{dem_name}hillshade__a6f33483_65e8_4cde_a966_948ff13f0c2a" source="./Watershed/Rasters/DEM/{dem_name}hillshade.tif" checked="Qt::Checked" expanded="0" providerKey="gdal" name="Hillshade ({dem_name}hillshade)">
         <customproperties/>
       </layer-tree-layer>
-      <layer-tree-layer id="DEM__{dem_name}__f751ab49_fdac_4766_be7f_300fbfe6adf2" source="./Watershed/Rasters/DEM/{dem_name}.tif" checked="Qt::Checked" expanded="1" providerKey="gdal" name="DEM ({dem_name})">
+      <layer-tree-layer id="DEM__{dem_name}__f751ab49_fdac_4766_be7f_300fbfe6adf2" source="./Watershed/Rasters/DEM/{dem_file_name}" checked="Qt::Checked" expanded="1" providerKey="gdal" name="DEM ({dem_name})">
         <customproperties/>
       </layer-tree-layer>
     </layer-tree-group>
     <layer-tree-group checked="Qt::Checked" expanded="1" name="Landuse">
       <customproperties/>
-      <layer-tree-layer id="Landuses__{landuse_name}__f7ec5ca9_3dce_4d3e_8def_9e31ecc6c163" source="./Watershed/Rasters/Landuse/{landuse_name}.tif" checked="Qt::Checked" expanded="1" providerKey="gdal" name="Landuses ({landuse_name})">
+      <layer-tree-layer id="Landuses__{landuse_name}__f7ec5ca9_3dce_4d3e_8def_9e31ecc6c163" source="./Watershed/Rasters/Landuse/{landuse_file_name}" checked="Qt::Checked" expanded="1" providerKey="gdal" name="Landuses ({landuse_name})">
         <customproperties/>
       </layer-tree-layer>
     </layer-tree-group>
     <layer-tree-group checked="Qt::Checked" expanded="1" name="Soil">
       <customproperties/>
-      <layer-tree-layer id="Soils__{soil_name}_tif__2cd25288_d1b5_4e76_83af_39034c9f7ffd" source="./Watershed/Rasters/Soil/{soil_name}.tif" checked="Qt::Checked" expanded="1" providerKey="gdal" name="Soils ({soil_name}.tif)">
+      <layer-tree-layer id="Soils__{soil_name}_tif__2cd25288_d1b5_4e76_83af_39034c9f7ffd" source="./Watershed/Rasters/Soil/{soil_file_name}" checked="Qt::Checked" expanded="1" providerKey="gdal" name="Soils ({soil_name})">
         <customproperties/>
       </layer-tree-layer>
     </layer-tree-group>
@@ -235,7 +235,7 @@ template = '''<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
       </legendlayer>
     </legendgroup>
     <legendgroup checked="Qt::Checked" open="true" name="Soil">
-      <legendlayer checked="Qt::Checked" open="true" showFeatureCount="0" drawingOrder="-1" name="Soils ({soil_name}.tif)">
+      <legendlayer checked="Qt::Checked" open="true" showFeatureCount="0" drawingOrder="-1" name="Soils ({soil_name})">
         <filegroup open="true" hidden="false">
           <legendlayerfile visible="1" isInOverview="0" layerid="Soils__{soil_name}_tif__2cd25288_d1b5_4e76_83af_39034c9f7ffd"/>
         </filegroup>
@@ -1366,7 +1366,7 @@ def my_form_open(dialog, layer, feature):
         <ymax>1293509.26022111857309937</ymax>
       </extent>
       <id>DEM__{dem_name}__f751ab49_fdac_4766_be7f_300fbfe6adf2</id>
-      <datasource>./Watershed/Rasters/DEM/{dem_name}.tif</datasource>
+      <datasource>./Watershed/Rasters/DEM/{dem_file_name}</datasource>
       <keywordList>
         <value></value>
       </keywordList>
@@ -2793,13 +2793,13 @@ def my_form_open(dialog, layer, feature):
     </maplayer>
     <maplayer hasScaleBasedVisibilityFlag="0" styleCategories="AllStyleCategories" refreshOnNotifyEnabled="0" autoRefreshTime="0" minScale="1e+08" refreshOnNotifyMessage="" type="raster" autoRefreshEnabled="0" maxScale="0">
       <extent>
-        <xmin>327715.88264695438556373</xmin>
-        <ymin>1281539.26022111834026873</ymin>
-        <xmax>341335.88264695438556373</xmax>
-        <ymax>1295309.26022111834026873</ymax>
+        <xmin>{extent_xmin}</xmin>
+        <ymin>{extent_ymin}</ymin>
+        <xmax>{extent_xmax}</xmax>
+        <ymax>{extent_ymax}</ymax>
       </extent>
       <id>Landuses__{landuse_name}__f7ec5ca9_3dce_4d3e_8def_9e31ecc6c163</id>
-      <datasource>./Watershed/Rasters/Landuse/{landuse_name}.tif</datasource>
+      <datasource>./Watershed/Rasters/Landuse/{landuse_file_name}</datasource>
       <keywordList>
         <value></value>
       </keywordList>
@@ -3626,11 +3626,11 @@ def my_form_open(dialog, layer, feature):
         <ymax>1293574.11281835869885981</ymax>
       </extent>
       <id>Soils__{soil_name}_tif__2cd25288_d1b5_4e76_83af_39034c9f7ffd</id>
-      <datasource>./Watershed/Rasters/Soil/{soil_name}.tif</datasource>
+      <datasource>./Watershed/Rasters/Soil/{soil_file_name}</datasource>
       <keywordList>
         <value></value>
       </keywordList>
-      <layername>Soils ({soil_name}.tif)</layername>
+      <layername>Soils ({soil_name})</layername>
       <srs>
         <spatialrefsys>
            <wkt>{prjcrs}</wkt>
@@ -4431,7 +4431,7 @@ def my_form_open(dialog, layer, feature):
     </SpatialRefSys>
     <{project_name}>
       <delin>
-        <DEM type="QString">./Watershed/Rasters/DEM/{dem_name}.tif</DEM>
+        <DEM type="QString">./Watershed/Rasters/DEM/{dem_file_name}</DEM>
         <burn type="QString"></burn>
         <channels type="QString">./Watershed/Shapes/{dem_name}channel.shp</channels>
         <delinNet type="QString">./Watershed/Shapes/{dem_name}stream.shp</delinNet>
@@ -4473,7 +4473,7 @@ def my_form_open(dialog, layer, feature):
         <useArea type="int">{use_area}</useArea>
       </hru>
       <landuse>
-        <file type="QString">./Watershed/Rasters/Landuse/{landuse_name}.tif</file>
+        <file type="QString">./Watershed/Rasters/Landuse/{landuse_file_name}</file>
         <plant type="QString">plant</plant>
         <table type="QString">{land_lookup}</table>
         <urban type="QString">urban</urban>
@@ -4490,7 +4490,7 @@ def my_form_open(dialog, layer, feature):
       <soil>
         <database type="QString">./{project_name}.sqlite</database>
         <databaseTable type="QString">{usersoil}</databaseTable>
-        <file type="QString">./Watershed/Rasters/Soil/{soil_name}.tif</file>
+        <file type="QString">./Watershed/Rasters/Soil/{soil_file_name}</file>
         <table type="QString">{soil_lookup}</table>
         <useSSURGO type="int">0</useSSURGO>
         <useSTATSGO type="int">0</useSTATSGO>

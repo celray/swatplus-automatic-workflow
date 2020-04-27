@@ -7,8 +7,7 @@ contact     : celray.chawanda@outlook.com
 licence     : MIT 2020
 '''
 
-namelist_string = """
-'''----------------- QSWAT+ Workflow v1.0.3 Settings File --------------'''
+namelist_string = """'''----------------- QSWAT+ Workflow v1.0.3 Settings File --------------'''
 
 # Project Identification
 Project_Name          = "{prj_name}"
@@ -106,7 +105,7 @@ Warm_Up_Period        = {warm_up}           # the number of years for running th
 Print_CSV             = 1           # 0 = no, 1 = yes, selection to output csv files
 
 Print_Objects         = {{           # 1 = daily, 2 = month, 3 = year, 4 = annual average
-                                    # default prints yearly results if not specified
+                                    # default prints yearly results if not specified or if object is not in the list
 
 {print_objects}
                         }}
@@ -117,7 +116,7 @@ Cal_File              = "{calfile_name}"            # a calibration.cal file wit
                                       # leave as "" if there is no file to be used.
 
 Calibrate               = False       # set to "True" to perform calibration, "False" to skip calibration
-Calibration_Config_File = "calibration_config.csv"             # 
+Calibration_Config_File = "calibration_config.csv"             # not used if Calibrate is set to False 
 Number_of_Runs          =   10        # Set the number of runs for calibration
 Number_of_Processes     =   1         # Set the number of parallel processes to make calibration faster
 

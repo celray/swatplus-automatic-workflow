@@ -172,10 +172,15 @@ class swat_plus_editor:
         # specify project config info
 
         config_info = self.db.read_table_columns("project_config", "all")
+
+
+
+
         config_info = list(config_info[-1])
 
         for index in range(0, len(config_info)):
             config_info[index] = str(config_info[index])
+
 
         config_info[1] = self.model_name
         config_info[3] = "1.2.3"
@@ -190,6 +195,8 @@ class swat_plus_editor:
         print(" ")
         self.db.delete_rows("project_config")
         self.db.insert_row("project_config", config_info)
+        self.db.commit_changes()
+
 
     def set_printing_weather(self, Start_Year, End_Year):
 
@@ -723,6 +730,7 @@ if __name__ == "__main__":
 
     if (sp_api_mode and configure_model_options) or (not sp_api_mode):
         editor.initialise_databases()
+        editor.setup_project()
         log.info("setting simulation period and adding weather", keep_log)
         editor.set_printing_weather(namelist.Start_Year, namelist.End_Year)
     
