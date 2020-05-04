@@ -28,7 +28,7 @@ sys.argv[1] = sys.argv[1].replace("\\", "/")
 from helper_functions import read_from, write_to, copy_directory, clear_directory
 import pandas
 import pystran as py
-import namelist
+import config
 from logger import log
 
 
@@ -185,11 +185,11 @@ def run_parameter_set(parameter_set_list, core_number, chg_typ_dict, header, cal
 if __name__ == "__main__":
 
 
-    if namelist.Model_2_namelist:
+    if config.Model_2_config:
         sys.exit(0)
-    if not namelist.Calibrate:
+    if not config.Calibrate:
         sys.exit(0)
-    keep_log = True if namelist.Keep_Log else False
+    keep_log = True if config.Keep_Log else False
     log = log("{base}/swatplus_aw_log.txt".format(base = sys.argv[1]))
 
     # announce
@@ -205,11 +205,11 @@ if __name__ == "__main__":
 
     executable_path = "{swatplus_wf_dir}editor_api/swat_exe/{swatplus_exe}".format(**variables)
     base = "{0}/{1}/Scenarios/Default".format(
-        sys.argv[1], namelist.Project_Name)
+        sys.argv[1], config.Project_Name)
     working_dir = "{base_dir}/working".format(base_dir=base)
-    runs = namelist.Number_of_Runs
+    runs = config.Number_of_Runs
     output_dir = working_dir + "/output/"
-    config_file_name = namelist.Calibration_Config_File
+    config_file_name = config.Calibration_Config_File
     home_dir = sys.argv[1]
     config_file_path = "{home_dir}/data/calibration/{config_file}".format(
         config_file=config_file_name, home_dir=home_dir)
@@ -226,7 +226,7 @@ if __name__ == "__main__":
     calibration_time_step = read_from(config_file_path)[4].split(",")[2]
     calibration_variable = read_from(config_file_path)[5].split(",")[2]
 
-    core_count = namelist.Number_of_Processes
+    core_count = config.Number_of_Processes
     pool_cores = multiprocessing.Pool(core_count)
     file_cio = read_from("{base}/TxtInOut/file.cio".format(base=base))
 

@@ -6,7 +6,7 @@ REM set ERRORLEVEL=0
 
 REM set variables for project initialisation
 set python_script_prepare_qswat=C:\SWAT\SWATPlus\Workflow\main_stages\prepare_project.py
-set python_script_make_namelist=C:\SWAT\SWATPlus\Workflow\main_stages\generate_namelist.py
+set python_script_make_config=C:\SWAT\SWATPlus\Workflow\main_stages\generate_config.py
 set python_script_run_qswat=C:\SWAT\SWATPlus\Workflow\main_stages\run_qswat.py
 set python_script_run_editor=C:\SWAT\SWATPlus\Workflow\main_stages\run_editor.py
 set python_script_run_calibration=C:\SWAT\SWATPlus\Workflow\main_stages\run_calibration.py
@@ -27,7 +27,7 @@ REM start runing the workflow using PyQGIS
 call python-qgis-ltr.bat %python_script_prepare_qswat% %BASE_DIR%
 
 If %ERRORLEVEL% == 0 (
-        call python-qgis-ltr.bat %python_script_make_namelist% %BASE_DIR%   
+        call python-qgis-ltr.bat %python_script_make_config% %BASE_DIR%   
         If %ERRORLEVEL% == 0 (
                 call python-qgis-ltr.bat %python_script_run_qswat% %BASE_DIR%
                 If %ERRORLEVEL% == 0 (

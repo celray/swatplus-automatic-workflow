@@ -53,7 +53,7 @@ from helper_functions import list_files
 
 import atexit
 import qswatplus
-import namelist
+import config
 from logger import log
 
 os.chdir(os.path.join(os.environ["swatplus_wf_dir"], "qswatplus"))
@@ -90,7 +90,7 @@ class DummyInterface(object):
         return list(QgsProject.instance().mapLayers().values())
 
 
-if namelist.Model_2_namelist:
+if config.Model_2_config:
     sys.exit(0)
 
 sp_api_mode = False
@@ -114,7 +114,7 @@ if not sp_api_mode:
     # announce
     print(f"\n     >> setting up model hrus")
 
-keep_log = True if namelist.Keep_Log else False
+keep_log = True if config.Keep_Log else False
 log = log("{base}/swatplus_aw_log.txt".format(base = sys.argv[1]))
 
 iface = DummyInterface()
@@ -125,7 +125,7 @@ dlg = plugin._odlg  # useful shorthand for later
 
 base_dir = sys.argv[1]
 projDir = "{base}/{model_name}".format(base=base_dir,
-                                       model_name=namelist.Project_Name)
+                                       model_name=config.Project_Name)
 
 if not os.path.exists(projDir):
     QSWATUtils.error('Project directory {0} not found'.format(projDir), True)

@@ -1,6 +1,6 @@
 '''
 date        : 05/04/2020
-description : this module creates figures specified in namelist
+description : this module creates figures specified in config
 
 author      : Celray James CHAWANDA
 contact     : celray.chawanda@outlook.com
@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.join(os.environ["swatplus_wf_dir"], "packages"))
 sys.path.insert(0, sys.argv[1])
 
 import geopandas
-import namelist
+import config
 from logger import log
 from helper_functions import read_from, clear_directory, rasterise, show_progress
 
@@ -33,9 +33,9 @@ class wb_result:
         self.pet = wb_parts[23]
 
 
-if namelist.Model_2_namelist:
+if config.Model_2_config:
     sys.exit(0)
-if not namelist.Make_Figures:
+if not config.Make_Figures:
     sys.exit(0)
 
 base = sys.argv[1].replace("\\\\", "/")
@@ -44,7 +44,7 @@ base = base.replace("\\", "/")
 log = log("{base}/swatplus_aw_log.txt".format(base=base))
 
 keep_log = False
-if namelist.Keep_Log:
+if config.Keep_Log:
         keep_log = True
 
 log.info("preparing to create figures", keep_log)
@@ -53,13 +53,13 @@ print("\n\n     >> preparing to create figures")
 # check available shapefiles
 ## set variables
 lsus_shapefile = "{base}/{model_name}/Watershed/Shapes/lsus2.shp".format(
-    base=base, model_name=namelist.Project_Name)
+    base=base, model_name=config.Project_Name)
 hrus_shapefile = "{base}/{model_name}/Watershed/Shapes/hrus2.shp".format(
-    base=base, model_name=namelist.Project_Name)
+    base=base, model_name=config.Project_Name)
 aa_lsu_wb_file = "{base}/{model_name}/Scenarios/Default/TxtInOut/lsunit_wb_aa.txt".format(
-    base=base, model_name=namelist.Project_Name)
+    base=base, model_name=config.Project_Name)
 yr_lsu_wb_file = "{base}/{model_name}/Scenarios/Default/TxtInOut/lsunit_wb_yr.txt".format(
-    base=base, model_name=namelist.Project_Name)
+    base=base, model_name=config.Project_Name)
 
 
 # lsunit
@@ -125,16 +125,16 @@ if os.path.isfile(lsus_shapefile):
         new_lsu_shapefile_gpd.to_file(os.path.join(
             os.environ["swatplus_wf_dir"], "temp", "tmp.shp"))
         if not os.path.isdir("{base}/{model_name}/Scenarios/Default/Figures".format(
-                base=base, model_name=namelist.Project_Name)):
+                base=base, model_name=config.Project_Name)):
             os.makedirs("{base}/{model_name}/Scenarios/Default/Figures/annual_average_maps".format(
-                base=base, model_name=namelist.Project_Name))
+                base=base, model_name=config.Project_Name))
 
         for map_category in output_map_categories:
             log.info(
                 "  - creating {cat} map in {out}".format(
                     cat=map_category,
                     out="{base}/{model_name}/Scenarios/Default/Figures/annual_average_maps".format(
-                        base=base, model_name=namelist.Project_Name)
+                        base=base, model_name=config.Project_Name)
                 ),
                 keep_log)
 
@@ -142,11 +142,11 @@ if os.path.isfile(lsus_shapefile):
                 os.path.join(os.environ["swatplus_wf_dir"], "temp", "tmp.shp"),
                 map_category,
                 "{base}/{model_name}/Watershed/Rasters/DEM/{dem}".format(
-                    base=base, model_name=namelist.Project_Name,
-                    dem=namelist.Topography if namelist.Topography.endswith(".tif") else \
-                            namelist.Topography + ".tif"),
+                    base=base, model_name=config.Project_Name,
+                    dem=config.Topography if config.Topography.endswith(".tif") else \
+                            config.Topography + ".tif"),
                 "{base}/{model_name}/Scenarios/Default/Figures/annual_average_maps/{cat}.tif".format(
-                    base=base, model_name=namelist.Project_Name, cat=map_category))
+                    base=base, model_name=config.Project_Name, cat=map_category))
         wb_aa_data_list = None
 
     if os.path.isfile(yr_lsu_wb_file):
@@ -215,9 +215,9 @@ if os.path.isfile(lsus_shapefile):
             new_lsu_shapefile_gpd.to_file(os.path.join(
                 os.environ["swatplus_wf_dir"], "temp", "tmp.shp"))
             if not os.path.isdir("{base}/{model_name}/Scenarios/Default/Figures/yearly_maps".format(
-                    base=base, model_name=namelist.Project_Name)):
+                    base=base, model_name=config.Project_Name)):
                 os.makedirs("{base}/{model_name}/Scenarios/Default/Figures/yearly_maps".format(
-                    base=base, model_name=namelist.Project_Name))
+                    base=base, model_name=config.Project_Name))
 
             for map_category in output_map_categories:
                 log.info(
@@ -225,19 +225,19 @@ if os.path.isfile(lsus_shapefile):
                         cat=map_category,
                         yr=results_year,
                         out="{base}/{model_name}/Scenarios/Default/Figures/yearly_maps".format(
-                            base=base, model_name=namelist.Project_Name)),
+                            base=base, model_name=config.Project_Name)),
                     keep_log)
                 rasterise(
                     os.path.join(os.environ["swatplus_wf_dir"], "temp", "tmp.shp"),
                     map_category,
                     "{base}/{model_name}/Watershed/Rasters/DEM/{dem}".format(
                         base=base,
-                        model_name=namelist.Project_Name,
-                        dem=namelist.Topography if namelist.Topography.endswith(".tif") else \
-                            namelist.Topography + ".tif"),
+                        model_name=config.Project_Name,
+                        dem=config.Topography if config.Topography.endswith(".tif") else \
+                            config.Topography + ".tif"),
                     "{base}/{model_name}/Scenarios/Default/Figures/yearly_maps/{cat}_{yr}.tif".format(
                         base=base,
-                        model_name=namelist.Project_Name,
+                        model_name=config.Project_Name,
                         cat=map_category,
                         yr=results_year)
                     )

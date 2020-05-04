@@ -33,22 +33,22 @@ log = log("{base}/swatplus_aw_log.txt".format(base = sys.argv[1]))
 keep_log = True
 
 # check if there is need to prepare project
-if os.path.isfile("{base}/namelist.py".format(base=sys.argv[1])):
-    import namelist
-    if namelist.Keep_Log == True:
+if os.path.isfile("{base}/config.py".format(base=sys.argv[1])):
+    import config
+    if config.Keep_Log == True:
         keep_log = True
         log.initialise()
     else:
         keep_log = False
-    if namelist.Model_2_namelist == True:
-        log.info("namelist creation is required; 'Model_2_namelist' is set to 'True'", keep_log)
+    if config.Model_2_config == True:
+        log.info("config creation is required; 'Model_2_config' is set to 'True'", keep_log)
 
         sys.exit(0)
 else:
     log.initialise()
     
-    log.info("namelist was not found in the current directory", keep_log)
-    print("\t! namelist.py not found in current directory")
+    log.info("config was not found in the current directory", keep_log)
+    print("\t! config.py not found in current directory")
     sys.exit(0)
 
 
@@ -65,39 +65,39 @@ print("\n     >> preparing project")
 log.info("preparing the qgis project", keep_log)
 
 # set importane variables
-project_name = namelist.Project_Name
-outlet_name = namelist.Outlets.split(".")[0]
-soil_lookup = namelist.Soil_Lookup.split(".")[0]
-land_lookup = namelist.Landuse_Lookup.split(".")[0]
-usersoil = namelist.Usersoil.split(".")[0]
-thresholdCh = namelist.Channel_Threshold
-thresholdSt = namelist.Stream_Threshold
-burn_name = namelist.Burn_In_Shape
+project_name = config.Project_Name
+outlet_name = config.Outlets.split(".")[0]
+soil_lookup = config.Soil_Lookup.split(".")[0]
+land_lookup = config.Landuse_Lookup.split(".")[0]
+usersoil = config.Usersoil.split(".")[0]
+thresholdCh = config.Channel_Threshold
+thresholdSt = config.Stream_Threshold
+burn_name = config.Burn_In_Shape
 
-dem_name = namelist.Topography
-landuse_name = namelist.Land_Use 
-soil_name = namelist.Soils 
+dem_name = config.Topography
+landuse_name = config.Land_Use 
+soil_name = config.Soils 
 
-dem_file_name_ = namelist.Topography if ".tif" in namelist.Topography.lower()\
-    else "{dem}.tif".format(dem=namelist.Topography)
-landuse_file_name_ = namelist.Land_Use if ".tif" in namelist.Land_Use.lower()\
-    else "{land}/hdr.adf".format(land=namelist.Land_Use)
-soil_file_name_ = namelist.Soils if ".tif" in namelist.Soils.lower()\
-    else "{soil}/hdr.adf".format(soil=namelist.Soils)
+dem_file_name_ = config.Topography if ".tif" in config.Topography.lower()\
+    else "{dem}.tif".format(dem=config.Topography)
+landuse_file_name_ = config.Land_Use if ".tif" in config.Land_Use.lower()\
+    else "{land}/hdr.adf".format(land=config.Land_Use)
+soil_file_name_ = config.Soils if ".tif" in config.Soils.lower()\
+    else "{soil}/hdr.adf".format(soil=config.Soils)
 
 extension_suffix = ".tif"
 
 # prepare rasters
 log.info("preparing raster files", keep_log)
 dem_fn = "{base_dir}/data/rasters/{dem_file}".format(
-    base_dir=sys.argv[1], dem_file=namelist.Topography)
-log.info(" - dem file: {0}".format(namelist.Topography), keep_log)
+    base_dir=sys.argv[1], dem_file=config.Topography)
+log.info(" - dem file: {0}".format(config.Topography), keep_log)
 soil_fn = "{base_dir}/data/rasters/{dem_file}".format(
-    base_dir=sys.argv[1], dem_file=namelist.Soils)
-log.info(" - soils file: {0}".format(namelist.Soils), keep_log)
+    base_dir=sys.argv[1], dem_file=config.Soils)
+log.info(" - soils file: {0}".format(config.Soils), keep_log)
 landuse_fn = "{base_dir}/data/rasters/{dem_file}".format(
-    base_dir=sys.argv[1], dem_file=namelist.Land_Use)
-log.info(" - soils file: {0}".format(namelist.Land_Use), keep_log)
+    base_dir=sys.argv[1], dem_file=config.Land_Use)
+log.info(" - soils file: {0}".format(config.Land_Use), keep_log)
 
 
 dem_dirname = '{base}/{project_name}/Watershed/Rasters/DEM/'.format(
@@ -128,7 +128,7 @@ log.info("extracting DEM to {0}".format(
     '{base}/{project_name}/Watershed/Rasters/DEM/{dem_name}'.format(
         base=sys.argv[1], project_name=project_name, dem_name=dem_name)
 ), keep_log)
-if namelist.Topography.lower().endswith(".tif"):
+if config.Topography.lower().endswith(".tif"):
     copy_file(dem_fn, '{base}/{project_name}/Watershed/Rasters/DEM/{dem_name}'.format(
         base=sys.argv[1], project_name=project_name, dem_name=dem_file_name_))
     copy_file(dem_fn, '{base}/{project_name}/Watershed/Rasters/DEM/{dem_name}slp_bands.tif'.format(
@@ -146,7 +146,7 @@ log.info("extracting landuse to {0}".format(
     '{base}/{project_name}/Watershed/Rasters/Landuse/{landuse_name}'.format(
         base=sys.argv[1], project_name=project_name, landuse_name=landuse_name)
 ), keep_log)
-if namelist.Land_Use.lower().endswith(".tif"):
+if config.Land_Use.lower().endswith(".tif"):
     copy_file(landuse_fn, '{base}/{project_name}/Watershed/Rasters/Landuse/{landuse_name}'.format(
         base=sys.argv[1], project_name=project_name, landuse_name=landuse_name))
 else:
@@ -160,7 +160,7 @@ log.info("extracting soil to {0}".format(
     '{base}/{project_name}/Watershed/Rasters/Soil/{soil_name}'.format(
         base=sys.argv[1], project_name=project_name, soil_name=soil_name)
 ), keep_log)
-if namelist.Soils.lower().endswith(".tif"):
+if config.Soils.lower().endswith(".tif"):
     copy_file(soil_fn, '{base}/{project_name}/Watershed/Rasters/Soil/{soil_name}'.format(
         base=sys.argv[1], project_name=project_name, soil_name=soil_name))
 else:
@@ -210,41 +210,41 @@ hru_land_thres, hru_soil_thres, hru_slope_thres = "", "", ""
 area_val = 0      # value for area if option 3 for HRU Filter Method is selected
 target_val = 0    # value for area if option 4 for HRU Filter Method is selected
 is_area = 0
-use_area = 1 if namelist.HRU_Thresholds_Type == 1 else 0
+use_area = 1 if config.HRU_Thresholds_Type == 1 else 0
 is_dominant_hru = 0
 is_multiple = 0
 is_target = 0
 
-if namelist.HRU_Filter_Method == 1:
+if config.HRU_Filter_Method == 1:
     log.info("> filter method is dominant landuse, soil, slope", keep_log)
     is_dominant_hru = 1
 
-if namelist.HRU_Filter_Method == 2:
+if config.HRU_Filter_Method == 2:
     log.info("> filter method is dominant hrus", keep_log)
     is_dominant_hru = 1
 
-if namelist.HRU_Filter_Method == 3:
+if config.HRU_Filter_Method == 3:
     log.info("> filter method is target area", keep_log)
-    area_val = namelist.Target_Area
+    area_val = config.Target_Area
     log.info("  - target area = {0}".format(area_val), keep_log)
     is_multiple = 1
     is_area = 1
 
-if namelist.HRU_Filter_Method == 4:
+if config.HRU_Filter_Method == 4:
     log.info("> filter method is target area", keep_log)
-    target_val = namelist.Target_Value
+    target_val = config.Target_Value
     log.info("  - target value = {0}".format(target_val), keep_log)
     is_multiple = 1
     is_target = 1
 
-if namelist.HRU_Filter_Method == 5:
+if config.HRU_Filter_Method == 5:
     log.info("> filter method is filter by landuse, soil, slope", keep_log)
-    log.info("  - thresholds = {0}".format(namelist.Land_Soil_Slope_Thres), keep_log)
-    if len(namelist.Land_Soil_Slope_Thres.split(",")) != 3:
-        print('\t! Provide thresholds in the namelist with the correct format\n\t - e.g. Land_Soil_Slope_Thres = "12, 10, 7"')
+    log.info("  - thresholds = {0}".format(config.Land_Soil_Slope_Thres), keep_log)
+    if len(config.Land_Soil_Slope_Thres.split(",")) != 3:
+        print('\t! Provide thresholds in the config with the correct format\n\t - e.g. Land_Soil_Slope_Thres = "12, 10, 7"')
         sys.exit(1)
     else:
-        hru_land_thres, hru_soil_thres, hru_slope_thres = namelist.Land_Soil_Slope_Thres.replace(
+        hru_land_thres, hru_soil_thres, hru_slope_thres = config.Land_Soil_Slope_Thres.replace(
             " ", "").split(",")
         is_multiple = 1
 
@@ -272,9 +272,9 @@ project_string = template.format(
     geogcs=geogcs,
     project_name=project_name,
 
-    snap_threshold=namelist.Out_Snap_Threshold,
-    channel_threshold=namelist.Channel_Threshold,
-    stream_threshold=namelist.Stream_Threshold,
+    snap_threshold=config.Out_Snap_Threshold,
+    channel_threshold=config.Channel_Threshold,
+    stream_threshold=config.Stream_Threshold,
 
     hru_land_thres=hru_land_thres,
     hru_slope_thres=hru_slope_thres,
@@ -312,7 +312,7 @@ project_string = template.format(
     thresholdCh=thresholdCh,
     thresholdSt=thresholdSt,
     usersoil=usersoil,
-    slope_classes=namelist.Slope_Classes,
+    slope_classes=config.Slope_Classes,
     srsid=srsid,
     srid=srid,
     srs_description=srs_description,
@@ -407,7 +407,7 @@ if project_database.table_exists("{usersoil}".format(usersoil=usersoil)):
 # - get_data into database
 # - - usersoil
 usersoil_rows = read_from("{base_dir}/data/tables/{usersoil_file}".format(
-    base_dir=sys.argv[1], usersoil_file=namelist.Usersoil))
+    base_dir=sys.argv[1], usersoil_file=config.Usersoil))
 
 column_types_usersoil = {
     "OBJECTID": 'INTEGER',
@@ -448,7 +448,7 @@ print("")
 # - - soil lookup
 log.info("importing soil lookup into project database", keep_log)
 soillookup_rows = read_from("{base_dir}/data/tables/{soil_lookup}".format(
-    base_dir=sys.argv[1], soil_lookup=namelist.Soil_Lookup))
+    base_dir=sys.argv[1], soil_lookup=config.Soil_Lookup))
 
 if project_database.table_exists(soil_lookup):
     project_database.delete_table(soil_lookup)
@@ -473,7 +473,7 @@ for line in soillookup_rows[1:]:
 # - - landuse lookup
 log.info("importing landuse lookup into project database", keep_log)
 landuselookup_rows = read_from("{base_dir}/data/tables/{landuse_file}".format(
-    base_dir=sys.argv[1], landuse_file=namelist.Landuse_Lookup))
+    base_dir=sys.argv[1], landuse_file=config.Landuse_Lookup))
 
 project_database.create_table(
     "{land_lookup}".format(land_lookup=land_lookup),

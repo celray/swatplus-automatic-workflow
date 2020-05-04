@@ -21,12 +21,12 @@ sys.path.insert(0, sys.argv[1])
 from sqlite_tools import sqlite_connection
 import model_options
 from editor_api.weather2012_to_weather import list_files, read_from, write_to, copy_file
-import namelist
+import config
 from logger import log
 
 
 base_dir = os.environ["BASE_DIR"]
-model_name = namelist.Project_Name
+model_name = config.Project_Name
 
 
 class swat_plus_editor:
@@ -216,11 +216,11 @@ class swat_plus_editor:
             self.db.insert_row("print_prt_object", new_row)
 
         self.db.update_value("print_prt", "nyskip", str(
-            namelist.Warm_Up_Period), "id", "1")
+            config.Warm_Up_Period), "id", "1")
         self.db.update_value("print_prt", "csvout",
-                             str(namelist.Print_CSV), "id", "1")
+                             str(config.Print_CSV), "id", "1")
 
-        for print_object in namelist.Print_Objects:
+        for print_object in config.Print_Objects:
             self.db.update_value("print_prt_object", "daily", "0",
                 "id", model_options.print_obj_lookup[print_object])
             self.db.update_value("print_prt_object", "monthly", "0",
@@ -230,19 +230,19 @@ class swat_plus_editor:
             self.db.update_value("print_prt_object", "avann", "0",
                 "id", model_options.print_obj_lookup[print_object])
 
-            if 1 in namelist.Print_Objects[print_object]:
+            if 1 in config.Print_Objects[print_object]:
                 self.db.update_value("print_prt_object", "daily", "1",
                     "id", model_options.print_obj_lookup[print_object])
 
-            if 2 in namelist.Print_Objects[print_object]:
+            if 2 in config.Print_Objects[print_object]:
                 self.db.update_value("print_prt_object", "monthly", "1",
                     "id", model_options.print_obj_lookup[print_object])
 
-            if 3 in namelist.Print_Objects[print_object]:
+            if 3 in config.Print_Objects[print_object]:
                 self.db.update_value("print_prt_object", "yearly", "1",
                     "id", model_options.print_obj_lookup[print_object])
 
-            if 4 in namelist.Print_Objects[print_object]:
+            if 4 in config.Print_Objects[print_object]:
                 self.db.update_value("print_prt_object", "avann", "1",
                     "id", model_options.print_obj_lookup[print_object])
 
@@ -649,11 +649,11 @@ class swat_plus_editor:
     def model_options(self):
         # self.db.connect()
         self.db.update_value("codes_bsn", "pet", str(
-            namelist.ET_Method - 1), "id", "1")
+            config.ET_Method - 1), "id", "1")
         self.db.update_value("codes_bsn", "rte_cha", str(
-            namelist.Routing_Method - 1), "id", "1")
+            config.Routing_Method - 1), "id", "1")
         self.db.update_value("codes_bsn", "event", str(
-            namelist.Routing_Timestep - 1), "id", "1")
+            config.Routing_Timestep - 1), "id", "1")
 
         self.db.close_connection()
 
@@ -672,7 +672,7 @@ class swat_plus_editor:
 
 
 if __name__ == "__main__":
-    if namelist.Model_2_namelist:
+    if config.Model_2_config:
         sys.exit(0)
 
     sp_api_mode = False
@@ -713,7 +713,7 @@ if __name__ == "__main__":
     if not sp_api_mode:
         print("\n     >> configuring model in editor")
 
-    keep_log = True if namelist.Keep_Log else False
+    keep_log = True if config.Keep_Log else False
     log = log("{base}/swatplus_aw_log.txt".format(base=sys.argv[1]))
     # announce
     log.info("running swatplus editor module", keep_log)
@@ -732,14 +732,14 @@ if __name__ == "__main__":
         editor.initialise_databases()
         editor.setup_project()
         log.info("setting simulation period and adding weather", keep_log)
-        editor.set_printing_weather(namelist.Start_Year, namelist.End_Year)
+        editor.set_printing_weather(config.Start_Year, config.End_Year)
     
     if (sp_api_mode and setup_management) or (not sp_api_mode):
         editor.db.connect(report_ = False)
         log.info("setting up management options for landuse", keep_log)
-        editor.landuse_management(namelist.launduse_management_settings)
+        editor.landuse_management(config.launduse_management_settings)
         log.info("setting up management options for reservoirs", keep_log)
-        editor.reservoir_management(namelist.reservoir_management_settings)
+        editor.reservoir_management(config.reservoir_management_settings)
 
     if (sp_api_mode and configure_model_options) or (not sp_api_mode):
         editor.db.connect(report_ = False)
@@ -754,13 +754,13 @@ if __name__ == "__main__":
 
     if (sp_api_mode and run_swatplus) or (not sp_api_mode):
         editor.db.connect(report_ = False)
-        if not namelist.Calibrate:
+        if not config.Calibrate:
             log.info("model will not be calibrated", keep_log)
-            if namelist.Executable_Type == 1:
+            if config.Executable_Type == 1:
                 log.info("running model using release version", keep_log)
-                editor.run(namelist.Executable_Type)
-            if namelist.Executable_Type == 2:
+                editor.run(config.Executable_Type)
+            if config.Executable_Type == 2:
                 log.info("running model using debug version", keep_log)
-                editor.run(namelist.Executable_Type)
+                editor.run(config.Executable_Type)
 
         log.info("finnished running swatplus editor module\n", keep_log)
