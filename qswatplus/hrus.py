@@ -334,7 +334,7 @@ class HRUs(QObject):
         self._db._undefinedLanduseIds = []
         self._gv._undefinedSoilIds = []
         self._dlg.slopeGroup.setEnabled(False)
-        self._dlg.generateFullHRUs.setEnabled(False)
+        self._dlg.generateFullHRUs.setEnabled(True)
         self._dlg.elevBandsButton.setEnabled(False)
         if not os.path.exists(self.landuseFile):
             QSWATUtils.error('\t ! Please select a landuse file', self._gv.isBatch)
@@ -405,23 +405,23 @@ class HRUs(QObject):
             root = QgsProject.instance().layerTreeRoot()
             QSWATUtils.tryRemoveLayerAndFiles(self._gv.fullLSUsFile, root)
             QSWATUtils.tryRemoveLayerAndFiles(self._gv.actLSUsFile, root)
-            if self._dlg.generateFullHRUs.isChecked():
-                self.CreateHRUs.fullHRUsWanted = True
-                QSWATUtils.tryRemoveLayerAndFiles(self._gv.fullHRUsFile, root)
-                QSWATUtils.tryRemoveLayerAndFiles(self._gv.actHRUsFile, root)
-            else:
-                # remove any full and actual HRUs layers and files
-                self.CreateHRUs.fullHRUsWanted = False
-                treeLayer = QSWATUtils.getLayerByLegend(QSWATUtils._FULLHRUSLEGEND, root.findLayers())
-                if treeLayer is not None:
-                    fullHRUsLayer = treeLayer.layer()
-                    fullHRUsFile = QSWATUtils.layerFileInfo(fullHRUsLayer).absoluteFilePath()
-                    QSWATUtils.tryRemoveLayerAndFiles(fullHRUsFile, root)
-                    treeLayer = QSWATUtils.getLayerByLegend(QSWATUtils._ACTHRUSLEGEND, root.findLayers())
-                    if treeLayer is not None:
-                        actHRUsLayer = treeLayer.layer()
-                        actHRUsFile = QSWATUtils.layerFileInfo(actHRUsLayer).absoluteFilePath()
-                        QSWATUtils.removeLayerAndFiles(actHRUsFile, root)
+            # if self._dlg.generateFullHRUs.isChecked():
+            self.CreateHRUs.fullHRUsWanted = True
+            QSWATUtils.tryRemoveLayerAndFiles(self._gv.fullHRUsFile, root)
+            QSWATUtils.tryRemoveLayerAndFiles(self._gv.actHRUsFile, root)
+            # else:
+            #     # remove any full and actual HRUs layers and files
+            #     self.CreateHRUs.fullHRUsWanted = False
+            #     treeLayer = QSWATUtils.getLayerByLegend(QSWATUtils._FULLHRUSLEGEND, root.findLayers())
+            #     if treeLayer is not None:
+            #         fullHRUsLayer = treeLayer.layer()
+            #         fullHRUsFile = QSWATUtils.layerFileInfo(fullHRUsLayer).absoluteFilePath()
+            #         QSWATUtils.tryRemoveLayerAndFiles(fullHRUsFile, root)
+            #         treeLayer = QSWATUtils.getLayerByLegend(QSWATUtils._ACTHRUSLEGEND, root.findLayers())
+            #         if treeLayer is not None:
+            #             actHRUsLayer = treeLayer.layer()
+            #             actHRUsFile = QSWATUtils.layerFileInfo(actHRUsLayer).absoluteFilePath()
+            #             QSWATUtils.removeLayerAndFiles(actHRUsFile, root)
             time1 = time.process_time()
             OK = self.CreateHRUs.generateBasins(self._dlg.progressBar, root)
             time2 = time.process_time()
@@ -692,7 +692,7 @@ class HRUs(QObject):
                 self._dlg.floodplainCombo.setEnabled(True)
         else:
             self._dlg.slopeGroup.setEnabled(False)
-            self._dlg.generateFullHRUs.setEnabled(False)
+            self._dlg.generateFullHRUs.setEnabled(True)
             self._dlg.elevBandsButton.setEnabled(False)
             self._dlg.floodplainCombo.setEnabled(False)
         self._dlg.splitButton.setEnabled(False)
