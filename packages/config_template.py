@@ -7,11 +7,11 @@ contact     : celray.chawanda@outlook.com
 licence     : MIT 2020
 '''
 
-config_string = """'''----------------- QSWAT+ Workflow v1.0.3 Settings File --------------'''
+config_string = """'''----------------- QSWAT+ Workflow v1.0.4 Settings File --------------'''
 
 # Project Identification
 Project_Name          = "{prj_name}"
-Model_2_config      = True        # True = get settings from existing model 
+Model_2_config        = True        # True = get settings from existing model 
                                     # False = get model from current settings
 
 '''---------------------------- File Names ---------------------------'''

@@ -1,7 +1,7 @@
 # SWATPlus Automatic Workflow (SWAT+ AW)
 
 Automated Workflow for setting up the SWAT+ Model. 
-## Find instructions in the [User Mannual for SWAT+ AW](./SWATPlus_AW_User_Instructions.pdf)
+## Find instructions in the [User Mannual for SWAT+ AW](https://celray.github.io/docs/swatplus_aw/introduction.html)
 
 ## Authors
 Celray James CHAWANDA   

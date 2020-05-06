@@ -1,5 +1,5 @@
 # set version to download
-version="1.0.3"
+version="1.0.4"
 
 rm -r "$HOME/.SWAT/SWATPlus"
 rm -r "$HOME/.local/share/SWATPlus"
