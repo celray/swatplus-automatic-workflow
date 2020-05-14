@@ -31,7 +31,7 @@ class wb_result:
         self.et = wb_parts[14]
         self.cn = wb_parts[19]
         self.pet = wb_parts[23]
-        self.irr = wb_parts[27]
+        self.irr = wb_parts[25]
 
 
 if config.Model_2_config:
