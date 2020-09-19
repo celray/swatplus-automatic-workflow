@@ -20,7 +20,7 @@ sys.path.insert(0, "{0}/packages".format(os.environ["swatplus_wf_dir"]))
 sys.path.append(os.path.join(os.environ["swatplus_wf_dir"]))
 sys.path.insert(0, sys.argv[1])
 
-from namelist_template import namelist_string, calibration_config_template
+from config_template import config_string, calibration_config_template
 from helper_functions import file_name, list_folders, read_from, xml_children_attributes, write_to
 from logger import log
 
@@ -619,7 +619,7 @@ calfile_name = file_cio[21].split()[2] if not file_cio[21].split()[2] == \
 log.info("writing namelist file", keep_log)
 write_to(
     "{base}/namelist.py".format(base = sys.argv[1]),
-    namelist_string.format(
+    config_string.format(
         prj_name = selected_model,
         dem_fn = file_name(delin_data["DEM"]),
         soil_fn = soil_name,
