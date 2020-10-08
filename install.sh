@@ -1,3 +1,10 @@
+#!/bin/bash
+# Before launching this script make sure that the following packages have been installed
+# 
+# For Ubuntu 20.04
+# sudo apt install qgis python3-pip mpich
+# pip3 install geopandas peewee cython scipy
+#
 # set version to download
 version="1.0.4"
 
