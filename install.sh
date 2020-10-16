@@ -1,9 +1,13 @@
 #!/bin/bash
+
+# To isolate this from other Python projects, create a specific user on your machine
+# and install libraries at user level, excepted qgis, python3-pip and mpich packages.
+#
 # Before launching this script make sure that the following packages have been installed
 # 
 # For Ubuntu 20.04
 # sudo apt install qgis python3-pip mpich
-# pip3 install geopandas peewee cython scipy
+# pip3 install --user geopandas peewee cython scipy
 #
 # set version to download
 version="1.0.4"
@@ -16,7 +20,8 @@ mkdir -p "$HOME/.local/share/swatplus"
 
 wget -c "https://github.com/celray/swatplus-automatic-workflow/archive/v$version.zip"
 wget -c "https://github.com/celray/swatplus-automatic-workflow/releases/download/v$version/TauDEM5Bin_Linux.zip"
-wget -c "https://github.com/celray/swatplus-automatic-workflow/raw/master/editor_api/swatplus_wgn.sqlite"
+# wget -c "https://github.com/celray/swatplus-automatic-workflow/raw/master/editor_api/swatplus_wgn.sqlite"
+wget -c "https://bitbucket.org/swatplus/swatplus.editor/downloads/swatplus_wgn.sqlite"
 
 unzip "./v$version.zip"
 unzip "./TauDEM5Bin_Linux.zip"
