@@ -12,7 +12,7 @@
 # set version to download
 version="1.0.4"
 # set swat home
-export SWAT_HOME="/home/jph/dev/conda/pesteaux_conda/swat_tools"
+export SWAT_HOME="~/dev/conda/pesteaux_conda/swat_tools"
 
 rm -r "$SWAT_HOME/.SWAT/SWATPlus"
 rm -r "$SWAT_HOME/.local/share/swatplus"
