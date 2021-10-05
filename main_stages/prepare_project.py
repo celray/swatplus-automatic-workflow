@@ -15,8 +15,8 @@ import zipfile
 from glob import glob
 from shutil import copyfile, rmtree
 
-import gdal
-import osr
+from osgeo import gdal
+from osgeo import osr
 
 sys.path.insert(0, os.path.join(os.environ["swatplus_wf_dir"], "packages"))
 sys.path.append(os.path.join(os.environ["swatplus_wf_dir"]))
