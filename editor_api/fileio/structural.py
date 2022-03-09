@@ -9,9 +9,10 @@ from database import lib as db_lib
 
 
 class Septic_str(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database ='project'):
 		"""
@@ -71,9 +72,10 @@ class Septic_str(BaseFileModel):
 
 
 class Bmpuser_str(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database ='project'):
 		"""
@@ -113,9 +115,10 @@ class Bmpuser_str(BaseFileModel):
 
 
 class Filterstrip_str(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database ='project'):
 		"""
@@ -153,9 +156,10 @@ class Filterstrip_str(BaseFileModel):
 
 
 class Grassedww_str(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database ='project'):
 		"""
@@ -196,9 +200,10 @@ class Grassedww_str(BaseFileModel):
 
 
 class Tiledrain_str(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database ='project'):
 		"""

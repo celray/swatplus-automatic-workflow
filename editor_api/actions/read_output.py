@@ -9,13 +9,18 @@ from database.output.nutbal import *
 from database.output.plantwx import *
 from database.output.reservoir import *
 from database.output.waterbal import *
-from database.output import base
+from database.output.pest import *
+from database.output import base, data
 from database import lib as db_lib
+from database.project.setup import SetupProjectDatabase
+from database.project.connect import Rout_unit_con
 
+from datetime import datetime
 import sys
 import argparse
 import os, os.path
 import csv
+import re
 
 default_start_line = 4
 default_units_column_index = 7
@@ -37,6 +42,7 @@ special_start_lines = {
 
 ignore_units = [
 	'crop_yld',
+	'basin_crop_yld',
 	'soil_nutcarb_out',
 	'flow_duration_curve',
 	'hru_pest',
@@ -135,7 +141,7 @@ time_series_labels = {
 
 
 class ReadOutput(ExecutableApi):
-	def __init__(self, output_files_dir, db_file):
+	def __init__(self, output_files_dir, db_file, swat_version, editor_version, project_name):
 		self.__abort = False
 		try:
 			os.remove(db_file)
@@ -144,8 +150,11 @@ class ReadOutput(ExecutableApi):
 
 		SetupOutputDatabase.init(db_file.replace("\\","/"))
 		self.output_files_dir = output_files_dir.replace("\\","/")
+		self.swat_version = swat_version
+		self.editor_version = editor_version
+		self.project_name = project_name
 
-	def read(self):
+	def read(self):		
 		self.setup_meta_tables()
 		files_out_file = os.path.join(self.output_files_dir, 'files_out.out')
 		dot_out_files_to_read = [
@@ -170,7 +179,7 @@ class ReadOutput(ExecutableApi):
 
 					i += 1
 		except FileNotFoundError:
-			sys.exit('Could not find file, {}'.format(files_out_file))
+			pass #sys.exit('Could not find file, {}'.format(files_out_file))
 		except ValueError as ve:
 			sys.exit(ve)
 
@@ -180,29 +189,34 @@ class ReadOutput(ExecutableApi):
 			name = file[:-4].replace('hru-lte', 'hru_lte')
 			table_name = name[:1].upper() + name[1:]
 			try:
-				self.emit_progress(prog, 'Importing {}...'.format(file))
+				existing = base.Table_description.get_or_none(base.Table_description.table_name == name)
+				if existing is None:
+					self.emit_progress(prog, 'Importing {}...'.format(file))
 
-				desc_key = name
-				time_series_key = ''
-				for key in time_series_labels:
-					desc_key = desc_key.replace('_{}'.format(key), '')
-					if key in name:
-						time_series_key = key
+					desc_key = name
+					time_series_key = ''
+					for key in time_series_labels:
+						desc_key = desc_key.replace('_{}'.format(key), '')
+						if key in name:
+							time_series_key = key
 
-				description = '{ts} {n}'.format(ts=time_series_labels.get(time_series_key, ''), n=table_labels.get(desc_key, name))
-				base.Table_description.insert(table_name=name, description=description).execute()
+					description = '{ts} {n}'.format(ts=time_series_labels.get(time_series_key, ''), n=table_labels.get(desc_key, name))
+					base.Table_description.insert(table_name=name, description=description).execute()
 
-				table_class = globals()[table_name]
-				base.db.create_tables([table_class])
-				table_class.delete().execute()
+					table_class = globals()[table_name]
+					base.db.create_tables([table_class])
+					table_class.delete().execute()
 
-				file_path = os.path.join(self.output_files_dir, file)
-				self.read_default_table(file_path, name, table_class, base.db, start_line=special_start_lines.get(desc_key, default_start_line), desc_key=desc_key)
+					file_path = os.path.join(self.output_files_dir, file)
+					self.read_default_table(file_path, name, table_class, base.db, start_line=special_start_lines.get(desc_key, default_start_line), desc_key=desc_key)
 				prog += prog_step
 			except KeyError as e:
-				sys.exit('Table {table} does not exist: {e}'.format(table=table_name, e=e))
+				pass
+				#sys.exit('Table {table} does not exist: {e}'.format(table=table_name, e=e))
 			except ValueError as e:
 				sys.exit('Error importing {file}: {e}'.format(file=file, e=e))
+
+		base.Project_config.create(project_name=self.project_name, editor_version=self.editor_version, swat_version=self.swat_version, output_import_time=datetime.now())
 
 	def read_default_table(self, file_name, name, table, db, start_line, ignore_id_col=True, desc_key=''):
 		file = open(file_name, 'r')
@@ -221,15 +235,28 @@ class ReadOutput(ExecutableApi):
 				ui = units_start_column_index.get(desc_key, default_units_column_index)
 				reverse_index = True if desc_key in reversed_unit_lines else False
 				col_descs = []
+				null_skip = 0
 				for x in range(0, len(units)):					
 					try:
 						column_name_val = file_fields[x] if reverse_index else file_fields[ui + x]
-						units_val = units[ui + x] if reverse_index else units[x]
+						if column_name_val == 'null':
+							units_val = ''
+							null_skip += 1
+						else:
+							units_val = units[ui + x - null_skip] if reverse_index else units[x - null_skip]
+
+						col_desc_text = None
+						table_cat = data.table_categories.get(desc_key, None)
+						if table_cat is not None:
+							cat_cols = data.category_descriptions.get(table_cat, None)
+							if cat_cols is not None:
+								col_desc_text = cat_cols.get(column_name_val, None)
 
 						col_desc = {
 							'table_name': name,
 							'column_name': column_name_val,
-							'units': units_val
+							'units': units_val, 
+							'description': col_desc_text
 						}
 						col_descs.append(col_desc)
 					except IndexError:
@@ -251,6 +278,11 @@ class ReadOutput(ExecutableApi):
 						except IndexError:
 							pass
 						j += 1
+
+				if 'gis_id' in row.keys() and int(row['gis_id']) == 0:
+					subbed = re.sub('[^0-9]','', row['name'])
+					row['gis_id'] = int(subbed)
+
 				rows.append(row)
 
 				if len(rows) == 1000:
@@ -262,11 +294,12 @@ class ReadOutput(ExecutableApi):
 
 	def setup_meta_tables(self):
 		base.db.create_tables([
-			base.Table_description, base.Column_description
+			base.Table_description, base.Column_description, base.Project_config
 		])
 
 		base.Table_description.delete().execute()
 		base.Column_description.delete().execute()
+		base.Project_config.delete().execute()
 
 
 if __name__ == '__main__':
@@ -274,7 +307,10 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Create the SWAT+ output database')
 	parser.add_argument('output_files_dir', type=str, help='full path of output files directory')
 	parser.add_argument('db_file', type=str, help='full path of output SQLite database file')
+	parser.add_argument("--project_name", type=str, help="project name", nargs="?")
+	parser.add_argument("--editor_version", type=str, help="editor version", nargs="?")
+	parser.add_argument("--swat_version", type=str, help="editor version", nargs="?")
 	args = parser.parse_args()
 
-	api = ReadOutput(args.output_files_dir, args.db_file)
+	api = ReadOutput(args.output_files_dir, args.db_file, args.swat_version, args.editor_version, args.project_name)
 	api.read()

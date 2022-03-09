@@ -13,132 +13,59 @@ from database.project.decision_table import D_table_dtl
 invalid_name_msg = 'Invalid name {name}. Please ensure the value exists in your database.'
 
 
-def get_con_args():
-	parser = reqparse.RequestParser()
-	parser.add_argument('id', type=int, required=False, location='json')
-	parser.add_argument('name', type=str, required=True, location='json')
-	parser.add_argument('gis_id', type=int, required=False, location='json')
-	parser.add_argument('area', type=float, required=True, location='json')
-	parser.add_argument('lat', type=float, required=True, location='json')
-	parser.add_argument('lon', type=float, required=True, location='json')
-	parser.add_argument('elev', type=float, required=False, location='json')
-	parser.add_argument('wst', type=int, required=False, location='json')
-	parser.add_argument('wst_name', type=str, required=False, location='json')
-	parser.add_argument('cst', type=int, required=False, location='json')
-	parser.add_argument('ovfl', type=int, required=False, location='json')
-	parser.add_argument('rule', type=int, required=False, location='json')
-	parser.add_argument('res', type=int, required=False, location='json')
-	parser.add_argument('res_name', type=str, required=False, location='json')
-	args = parser.parse_args(strict=True)
-	return args
-
-
 class ReservoirConApi(BaseRestModel):
 	def get(self, project_db, id):
 		return self.base_get(project_db, id, Reservoir_con, 'Reservoir', True)
 
 	def delete(self, project_db, id):
-		return self.base_delete(project_db, id, Reservoir_con, 'Reservoir')
+		return self.base_delete(project_db, id, Reservoir_con, 'Reservoir', 'res', Reservoir_res)
 
 	def put(self, project_db, id):
-		args = get_con_args()
-		try:
-			SetupProjectDatabase.init(project_db)
-			m = Reservoir_con.get(Reservoir_con.id == id)
-			m.name = args['name']
-			m.area = args['area']
-			m.lat = args['lat']
-			m.lon = args['lon']
-			m.elev = args['elev']
-
-			if args['res_name'] is not None:
-				m.res_id = self.get_id_from_name(Reservoir_res, args['res_name'])
-
-			if args['wst_name'] is not None:
-				m.wst_id = self.get_id_from_name(Weather_sta_cli, args['wst_name'])
-
-			result = m.save()
-
-			if result > 0:
-				return 200
-
-			abort(400, message='Unable to update Reservoir {id}.'.format(id=id))
-		except IntegrityError:
-			abort(400, message='Reservoir name must be unique.')
-		except Reservoir_con.DoesNotExist:
-			abort(404, message='Reservoir {id} does not exist'.format(id=id))
-		except Reservoir_res.DoesNotExist:
-			abort(400, message=invalid_name_msg.format(name=args['res_name']))
-		except Weather_sta_cli.DoesNotExist:
-			abort(400, message=invalid_name_msg.format(name=args['wst_name']))
-		except Exception as ex:
-			abort(400, message="Unexpected error {ex}".format(ex=ex))
+		return self.put_con(project_db, id, 'res', Reservoir_con, Reservoir_res)
 
 
 class ReservoirConPostApi(BaseRestModel):
 	def post(self, project_db):
-		args = get_con_args()
-		SetupProjectDatabase.init(project_db)
-
-		try:
-			e = Reservoir_con.get(Reservoir_con.name == args['name'])
-			abort(400, message='Reservoir name must be unique.  Reservoir with this name already exists.')
-		except Reservoir_con.DoesNotExist:
-			try:
-				m = Reservoir_con()
-				m.name = args['name']
-				m.area = args['area']
-				m.lat = args['lat']
-				m.lon = args['lon']
-				m.elev = args['elev']
-				m.ovfl = 0
-				m.rule = 0
-
-				if args['res_name'] is not None:
-					m.res_id = self.get_id_from_name(Reservoir_res, args['res_name'])
-
-				if args['wst_name'] is not None:
-					m.wst_id = self.get_id_from_name(Weather_sta_cli, args['wst_name'])
-
-				result = m.save()
-
-				if result > 0:
-					return model_to_dict(m), 201
-
-				abort(400, message='Unable to create Reservoir.')
-			except IntegrityError:
-				abort(400, message='Reservoir name must be unique.')
-			except Reservoir_res.DoesNotExist:
-				abort(400, message=invalid_name_msg.format(name=args['res_name']))
-			except Weather_sta_cli.DoesNotExist:
-				abort(400, message=invalid_name_msg.format(name=args['wst_name']))
-			except Exception as ex:
-				abort(400, message="Unexpected error {ex}".format(ex=ex))
+		return self.post_con(project_db, 'res', Reservoir_con, Reservoir_res)
 
 
 class ReservoirConListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Reservoir_con
-		list_name = 'reservoirs'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name, True)
+		prop_table = Reservoir_res
+		filter_cols = [table.name, table.wst, prop_table.init, prop_table.hyd, prop_table.rel, prop_table.sed, prop_table.nut]
+		table_lookups = {
+			table.wst: Weather_sta_cli
+		}
+		props_lookups = {
+			prop_table.init: Initial_res,
+			prop_table.hyd: Hydrology_res,
+			prop_table.rel: D_table_dtl,
+			prop_table.sed: Sediment_res,
+			prop_table.nut: Nutrients_res
+		}
+
+		items = self.base_connect_paged_items(project_db, table, prop_table, filter_cols, table_lookups, props_lookups)
+		ml = []
+		for v in items['model']:
+			d = self.base_get_con_item_dict(v)
+			d['init'] = self.base_get_prop_dict(v.res.init)
+			d['hyd'] = self.base_get_prop_dict(v.res.hyd)
+			d['rel'] = self.base_get_prop_dict(v.res.rel)
+			d['sed'] = self.base_get_prop_dict(v.res.sed)
+			d['nut'] = self.base_get_prop_dict(v.res.nut)
+			ml.append(d)
+		
+		return {
+			'total': items['total'],
+			'matches': items['matches'],
+			'items': ml
+		}
 
 
 class ReservoirConMapApi(BaseRestModel):
 	def get(self, project_db):
 		return self.get_con_map(project_db, Reservoir_con)
-
-
-def get_con_out_args():
-	parser = reqparse.RequestParser()
-	parser.add_argument('id', type=int, required=False, location='json')
-	parser.add_argument('order', type=int, required=True, location='json')
-	parser.add_argument('obj_typ', type=str, required=True, location='json')
-	parser.add_argument('obj_id', type=int, required=True, location='json')
-	parser.add_argument('hyd_typ', type=str, required=True, location='json')
-	parser.add_argument('frac', type=float, required=True, location='json')
-	parser.add_argument('reservoir_con_id', type=int, required=False, location='json')
-	args = parser.parse_args(strict=True)
-	return args
 
 
 class ReservoirConOutApi(BaseRestModel):
@@ -149,51 +76,12 @@ class ReservoirConOutApi(BaseRestModel):
 		return self.base_delete(project_db, id, Reservoir_con_out, 'Outflow')
 
 	def put(self, project_db, id):
-		try:
-			args = get_con_out_args()
-			SetupProjectDatabase.init(project_db)
-
-			m = Reservoir_con_out.get(Reservoir_con_out.id == id)
-			m.order = args['order']
-			m.obj_typ = args['obj_typ']
-			m.obj_id = args['obj_id']
-			m.hyd_typ = args['hyd_typ']
-			m.frac = args['frac']
-
-			result = m.save()
-
-			if result > 0:
-				return 200
-
-			abort(400, message='Unable to update reservoir outflow {id}.'.format(id=id))
-		except Reservoir_con_out.DoesNotExist:
-			abort(404, message='Reservoir outflow {id} does not exist'.format(id=id))
-		except Exception as ex:
-			abort(400, message="Unexpected error {ex}".format(ex=ex))
+		return self.put_con_out(project_db, id, 'reservoir_con', Reservoir_con_out)
 
 
 class ReservoirConOutPostApi(BaseRestModel):
 	def post(self, project_db):
-		args = get_con_out_args()
-		SetupProjectDatabase.init(project_db)
-
-		try:
-			m = Reservoir_con_out()
-			m.order = args['order']
-			m.obj_typ = args['obj_typ']
-			m.obj_id = args['obj_id']
-			m.hyd_typ = args['hyd_typ']
-			m.frac = args['frac']
-			m.reservoir_con_id = args['reservoir_con_id']
-
-			result = m.save()
-
-			if result > 0:
-				return model_to_dict(m), 201
-
-			abort(400, message='Unable to create reservoir outflow.')
-		except Exception as ex:
-			abort(400, message="Unexpected error {ex}".format(ex=ex))
+		return self.post_con_out(project_db, 'reservoir_con', Reservoir_con_out)
 
 
 def get_res_args(get_selected_ids=False):
@@ -201,25 +89,27 @@ def get_res_args(get_selected_ids=False):
 	
 	if get_selected_ids:
 		parser.add_argument('selected_ids', type=int, action='append', required=False, location='json')
+		parser.add_argument('elev', type=float, required=False, location='json')
+		parser.add_argument('wst_name', type=str, required=False, location='json')
 	else:
 		parser.add_argument('id', type=int, required=False, location='json')
 		parser.add_argument('name', type=str, required=True, location='json')
 		parser.add_argument('description', type=str, required=False, location='json')
 		
-	parser.add_argument('init_name', type=str, required=True, location='json')
-	parser.add_argument('rel_name', type=str, required=True, location='json')
-	parser.add_argument('hyd_name', type=str, required=True, location='json')
-	parser.add_argument('sed_name', type=str, required=True, location='json')
-	parser.add_argument('nut_name', type=str, required=True, location='json')
-	args = parser.parse_args(strict=True)
+	parser.add_argument('init_name', type=str, required=False, location='json')
+	parser.add_argument('rel_name', type=str, required=False, location='json')
+	parser.add_argument('hyd_name', type=str, required=False, location='json')
+	parser.add_argument('sed_name', type=str, required=False, location='json')
+	parser.add_argument('nut_name', type=str, required=False, location='json')
+	args = parser.parse_args(strict=False)
 	return args
 
 
 class ReservoirResListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Reservoir_res
-		list_name = 'reservoirs'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name, True)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols, True)
 
 
 class ReservoirResApi(BaseRestModel):
@@ -288,9 +178,11 @@ class ReservoirResUpdateManyApi(BaseRestModel):
 			if args['nut_name'] is not None:
 				param_dict['nut_id'] = self.get_id_from_name(Nutrients_res, args['nut_name'])
 
-			query = Reservoir_res.update(param_dict).where(Reservoir_res.id.in_(args['selected_ids']))
-			result = query.execute()
+			con_table = Reservoir_con
+			con_prop_field = Reservoir_con.res_id
+			prop_table = Reservoir_res
 
+			result = self.base_put_many_con(args, param_dict, con_table, con_prop_field, prop_table)
 			if result > 0:
 				return 200
 
@@ -327,7 +219,7 @@ class ReservoirResPostApi(BaseRestModel):
 			result = m.save()
 
 			if result > 0:
-				return 200
+				return {'id': m.id }, 200
 
 			abort(400, message='Unable to update reservoir properties {id}.'.format(id=id))
 		except IntegrityError as e:
@@ -347,10 +239,10 @@ class ReservoirResPostApi(BaseRestModel):
 
 
 class InitialResListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Initial_res
-		list_name = 'reservoirs'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name, True)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols, True)
 
 
 def get_initial_args(get_selected_ids=False):
@@ -368,7 +260,7 @@ def get_initial_args(get_selected_ids=False):
 	parser.add_argument('path_name', type=str, required=False, location='json')
 	parser.add_argument('hmet_name', type=str, required=False, location='json')
 	parser.add_argument('salt_name', type=str, required=False, location='json')
-	args = parser.parse_args(strict=True)
+	args = parser.parse_args(strict=False)
 	return args
 
 
@@ -504,10 +396,10 @@ class InitialResPostApi(BaseRestModel):
 
 
 class HydrologyResListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Hydrology_res
-		list_name = 'reservoirs'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class HydrologyResApi(BaseRestModel):
@@ -535,10 +427,10 @@ class HydrologyResPostApi(BaseRestModel):
 
 
 class SedimentResListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Sediment_res
-		list_name = 'reservoirs'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class SedimentResApi(BaseRestModel):
@@ -566,10 +458,10 @@ class SedimentResPostApi(BaseRestModel):
 
 
 class NutrientsResListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Nutrients_res
-		list_name = 'reservoirs'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class NutrientsResApi(BaseRestModel):
@@ -611,15 +503,15 @@ def get_wet_args(get_selected_ids=False):
 	parser.add_argument('hyd_name', type=str, required=True, location='json')
 	parser.add_argument('sed_name', type=str, required=True, location='json')
 	parser.add_argument('nut_name', type=str, required=True, location='json')
-	args = parser.parse_args(strict=True)
+	args = parser.parse_args(strict=False)
 	return args
 
 
 class WetlandsWetListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
-		list_name = 'reservoirs'
+	def get(self, project_db):
 		table = Wetland_wet
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, Wetland_wet, list_name, True)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols, True)
 
 
 class WetlandsWetApi(BaseRestModel):
@@ -747,10 +639,10 @@ class WetlandsWetPostApi(BaseRestModel):
 
 
 class HydrologyWetListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Hydrology_wet
-		list_name = 'reservoirs'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class HydrologyWetApi(BaseRestModel):

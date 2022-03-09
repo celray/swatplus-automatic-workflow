@@ -12,6 +12,9 @@ class Losses(OutputBase):
 	usle = DoubleField(null=True)
 	sedmin = DoubleField(null=True)
 	tileno3 = DoubleField(null=True)
+	lchlabp = DoubleField(null=True)
+	tilelabp = DoubleField(null=True)
+	satexn = DoubleField(null=True)
 
 
 class Basin_ls_day(Losses):

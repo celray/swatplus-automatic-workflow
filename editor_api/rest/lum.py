@@ -67,10 +67,10 @@ def save_landuse_args(self, m, args):
 
 
 class LanduseLumListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Landuse_lum
-		list_name = 'landuse'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name, True)
+		filter_cols = [table.name, table.description]
+		return self.base_paged_list(project_db, table, filter_cols, back_refs=True)
 
 
 class LanduseLumApi(BaseRestModel):
@@ -248,10 +248,10 @@ def save_cntable_lum(m, args):
 
 
 class CntableLumListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Cntable_lum
-		list_name = 'cntable'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name, table.description, table.treat, table.cond_cov]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class CntableLumApi(BaseRestModel):
@@ -333,10 +333,10 @@ class CntableLumDatasetsApi(BaseRestModel):
 
 
 class OvntableLumListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Ovn_table_lum
-		list_name = 'ovntable'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name, table.description]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class OvntableLumApi(BaseRestModel):
@@ -369,10 +369,10 @@ class OvntableLumDatasetsApi(BaseRestModel):
 
 
 class ConsPracLumListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Cons_prac_lum
-		list_name = 'cons_prac'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name, table.description]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class ConsPracLumApi(BaseRestModel):
@@ -416,21 +416,19 @@ def get_mgt_args():
 
 
 class ManagementSchListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Management_sch
-		list_name = 'mgt_sch'
-
-		SetupProjectDatabase.init(project_db)
-		total = table.select().count()
-
-		sort_val = SQL(sort)
-		if reverse == 'true':
-			sort_val = SQL(sort).desc()
-
-		m = table.select().order_by(sort_val).paginate(int(page), int(items_per_page))
+		filter_cols = [table.name]
+		
+		items = self.base_paged_items(project_db, table, filter_cols)
+		m = items['model']
 		ml = [{'id': v.id, 'name': v.name, 'num_ops': len(v.operations), 'num_auto': len(v.auto_ops)} for v in m]
 
-		return {'total': total, list_name: ml}
+		return {
+			'total': items['total'],
+			'matches': items['matches'],
+			'items': ml
+		}
 
 
 class ManagementSchApi(BaseRestModel):
@@ -452,10 +450,10 @@ class ManagementSchApi(BaseRestModel):
 			new_auto = []
 			for a in args['auto_ops']:
 				try:
-					dt = D_table_dtl.get((D_table_dtl.file_name == 'lum.dtl') & (D_table_dtl.name == a))
-					new_auto.append({'management_sch_id': m.id, 'd_table_id': dt.id})
+					dt = D_table_dtl.get((D_table_dtl.file_name == 'lum.dtl') & (D_table_dtl.name == a['name']))
+					new_auto.append({'management_sch_id': m.id, 'd_table_id': dt.id, 'plant1': a['plant1'], 'plant2': a['plant2']})
 				except D_table_dtl.DoesNotExist:
-					abort(404, message='Decision table {name} does not exist'.format(name=a))
+					abort(404, message='Decision table {name} does not exist'.format(name=a['name']))
 
 			new_ops = []
 			order = 1
@@ -500,10 +498,10 @@ class ManagementSchPostApi(BaseRestModel):
 			new_auto = []
 			for a in args['auto_ops']:
 				try:
-					dt = D_table_dtl.get((D_table_dtl.file_name == 'lum.dtl') & (D_table_dtl.name == a))
-					new_auto.append({'management_sch_id': m.id, 'd_table_id': dt.id})
+					dt = D_table_dtl.get((D_table_dtl.file_name == 'lum.dtl') & (D_table_dtl.name == a['name']))
+					new_auto.append({'management_sch_id': m.id, 'd_table_id': dt.id, 'plant1': a['plant1'], 'plant2': a['plant2']})
 				except D_table_dtl.DoesNotExist:
-					abort(404, message='Decision table {name} does not exist'.format(name=a))
+					abort(404, message='Decision table {name} does not exist'.format(name=a['name']))
 
 			new_ops = []
 			order = 1

@@ -7,9 +7,10 @@ from peewee import *
 
 
 class Rout_unit(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -42,9 +43,10 @@ class Rout_unit(BaseFileModel):
 
 
 class Rout_unit_ele(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -77,9 +79,10 @@ class Rout_unit_ele(BaseFileModel):
 
 
 class Rout_unit_dr(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -89,9 +92,10 @@ class Rout_unit_dr(BaseFileModel):
 
 
 class Rout_unit_def(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -102,6 +106,11 @@ class Rout_unit_def(BaseFileModel):
 		count = table.select().count()
 
 		if count > 0:
+			element_table = connect.Rout_unit_ele
+			first_elem = element_table.get()
+			obj_table = table_mapper.obj_typs.get(first_elem.obj_typ, None)
+			obj_ids = [o.id for o in obj_table.select(obj_table.id).order_by(obj_table.id)]
+			
 			with open(self.file_name, 'w') as file:
 				file.write(self.get_meta_line())
 				file.write(utils.int_pad("id"))
@@ -116,5 +125,5 @@ class Rout_unit_def(BaseFileModel):
 					i += 1
 					file.write(utils.string_pad(row.name))
 
-					self.write_ele_ids(file, table, connect.Rout_unit_ele, row.elements)
+					self.write_ele_ids2(file, table, element_table, row.elements, obj_table, obj_ids)
 					file.write("\n")

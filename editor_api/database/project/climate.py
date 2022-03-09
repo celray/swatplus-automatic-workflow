@@ -41,6 +41,10 @@ class Weather_sta_cli(BaseModel):
 	atmo_dep = CharField(null=True)
 	lat = DoubleField(null=True)
 	lon = DoubleField(null=True)
+	
+	@classmethod
+	def observed_count(cls):
+		return cls.select().where((cls.pcp != 'sim') | (cls.tmp != 'sim') | (cls.slr != 'sim') | (cls.hmd != 'sim') | (cls.wnd != 'sim')).count()
 
 
 class Weather_file(BaseModel):

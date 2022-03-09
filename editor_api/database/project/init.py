@@ -158,10 +158,8 @@ class Pest_water_ini(base.BaseModel):
 class Pest_water_ini_item(base.BaseModel):
 	pest_water_ini = ForeignKeyField(Pest_water_ini, on_delete='CASCADE', related_name="pest_waters")
 	name = ForeignKeyField(hru_parm_db.Pesticide_pst, on_delete='CASCADE', null=True)
-	water_sol = DoubleField()
-	water_sor = DoubleField()
-	benthic_sol = DoubleField()
-	benthic_sor = DoubleField()
+	water = DoubleField()
+	benthic = DoubleField()
 
 
 class Path_hru_ini(base.BaseModel):
@@ -182,26 +180,52 @@ class Path_water_ini(base.BaseModel):
 class Path_water_ini_item(base.BaseModel):
 	path_water_ini = ForeignKeyField(Path_water_ini, on_delete='CASCADE', related_name="path_waters")
 	name = ForeignKeyField(hru_parm_db.Pathogens_pth, on_delete='CASCADE', null=True)
-	water_sol = DoubleField()
-	water_sor = DoubleField()
-	benthic_sol = DoubleField()
-	benthic_sor = DoubleField()
+	water = DoubleField()
+	benthic = DoubleField()
 
 
 class Hmet_hru_ini(base.BaseModel):
 	name = CharField(unique=True)
 
 
+class Hmet_hru_ini_item(base.BaseModel):
+	hmet_hru_ini = ForeignKeyField(Hmet_hru_ini, on_delete='CASCADE', related_name="hmet_hrus")
+	name = ForeignKeyField(hru_parm_db.Metals_mtl, on_delete='CASCADE', null=True)
+	plant = DoubleField()
+	soil = DoubleField()
+
+
 class Hmet_water_ini(base.BaseModel):
 	name = CharField(unique=True)
+
+
+class Hmet_water_ini_item(base.BaseModel):
+	hmet_water_ini = ForeignKeyField(Hmet_water_ini, on_delete='CASCADE', related_name="hmet_waters")
+	name = ForeignKeyField(hru_parm_db.Metals_mtl, on_delete='CASCADE', null=True)
+	water = DoubleField()
+	benthic = DoubleField()
 
 
 class Salt_hru_ini(base.BaseModel):
 	name = CharField(unique=True)
 
 
+class Salt_hru_ini_item(base.BaseModel):
+	salt_hru_ini = ForeignKeyField(Salt_hru_ini, on_delete='CASCADE', related_name="salt_hrus")
+	name = ForeignKeyField(hru_parm_db.Salts_slt, on_delete='CASCADE', null=True)
+	plant = DoubleField()
+	soil = DoubleField()
+
+
 class Salt_water_ini(base.BaseModel):
 	name = CharField(unique=True)
+
+
+class Salt_water_ini_item(base.BaseModel):
+	salt_water_ini = ForeignKeyField(Salt_water_ini, on_delete='CASCADE', related_name="salt_waters")
+	name = ForeignKeyField(hru_parm_db.Salts_slt, on_delete='CASCADE', null=True)
+	water = DoubleField()
+	benthic = DoubleField()
 
 
 class Soil_plant_ini(base.BaseModel):

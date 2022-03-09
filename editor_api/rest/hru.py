@@ -8,9 +8,9 @@ from database.project.climate import Weather_sta_cli
 from database.project.connect import Hru_con, Hru_con_out, Hru_lte_con, Hru_lte_con_out
 from database.project.hru import Hru_data_hru, Hru_lte_hru
 from database.project.hydrology import Hydrology_hyd, Topography_hyd, Field_fld
-from database.project.soils import Nutrients_sol, Soils_sol
+from database.project.soils import Nutrients_sol, Soils_sol, Soils_lte_sol
 from database.project.lum import Landuse_lum
-from database.project.hru_parm_db import Snow_sno
+from database.project.hru_parm_db import Snow_sno, Plants_plt
 from database.project.init import Soil_plant_ini
 from database.project.decision_table import D_table_dtl
 from database.project.reservoir import Wetland_wet
@@ -23,7 +23,7 @@ class HruConApi(BaseRestModel):
 		return self.base_get(project_db, id, Hru_con, 'Hru', True)
 
 	def delete(self, project_db, id):
-		return self.base_delete(project_db, id, Hru_con, 'Hru')
+		return self.base_delete(project_db, id, Hru_con, 'Hru', 'hru', Hru_data_hru)
 
 	def put(self, project_db, id):
 		return self.put_con(project_db, id, 'hru', Hru_con, Hru_data_hru)
@@ -35,10 +35,43 @@ class HruConPostApi(BaseRestModel):
 
 
 class HruConListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Hru_con
-		list_name = 'hrus'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name, True)
+		prop_table = Hru_data_hru
+		filter_cols = [table.name, table.wst, prop_table.topo, prop_table.hydro, prop_table.soil, prop_table.lu_mgt, prop_table.soil_plant_init, prop_table.surf_stor, prop_table.snow, prop_table.field]
+		table_lookups = {
+			table.wst: Weather_sta_cli
+		}
+		props_lookups = {
+			prop_table.topo: Topography_hyd,
+			prop_table.hydro: Hydrology_hyd,
+			prop_table.soil: Soils_sol,
+			prop_table.lu_mgt: Landuse_lum,
+			prop_table.soil_plant_init: Soil_plant_ini,
+			prop_table.surf_stor: Wetland_wet,
+			prop_table.snow: Snow_sno,
+			prop_table.field: Field_fld
+		}
+
+		items = self.base_connect_paged_items(project_db, table, prop_table, filter_cols, table_lookups, props_lookups)
+		ml = []
+		for v in items['model']:
+			d = self.base_get_con_item_dict(v)
+			d['topo'] = self.base_get_prop_dict(v.hru.topo)
+			d['hydro'] = self.base_get_prop_dict(v.hru.hydro)
+			d['soil'] = self.base_get_prop_dict(v.hru.soil)
+			d['lu_mgt'] = self.base_get_prop_dict(v.hru.lu_mgt)
+			d['soil_plant_init'] = self.base_get_prop_dict(v.hru.soil_plant_init)
+			d['surf_stor'] = self.base_get_prop_dict(v.hru.surf_stor)
+			d['snow'] = self.base_get_prop_dict(v.hru.snow)
+			d['field'] = self.base_get_prop_dict(v.hru.field)
+			ml.append(d)
+		
+		return {
+			'total': items['total'],
+			'matches': items['matches'],
+			'items': ml
+		}
 
 
 class HruConMapApi(BaseRestModel):
@@ -67,28 +100,30 @@ def get_hru_args(get_selected_ids=False):
 
 	if get_selected_ids:
 		parser.add_argument('selected_ids', type=int, action='append', required=False, location='json')
+		parser.add_argument('elev', type=float, required=False, location='json')
+		parser.add_argument('wst_name', type=str, required=False, location='json')
 	else:
 		parser.add_argument('id', type=int, required=False, location='json')
 		parser.add_argument('name', type=str, required=True, location='json')
 		parser.add_argument('description', type=str, required=False, location='json')
 
-	parser.add_argument('topo_name', type=str, required=True, location='json')
-	parser.add_argument('hyd_name', type=str, required=True, location='json')
-	parser.add_argument('soil_name', type=str, required=True, location='json')
-	parser.add_argument('lu_mgt_name', type=str, required=True, location='json')
-	parser.add_argument('soil_plant_init_name', type=str, required=True, location='json')
+	parser.add_argument('topo_name', type=str, required=False, location='json')
+	parser.add_argument('hyd_name', type=str, required=False, location='json')
+	parser.add_argument('soil_name', type=str, required=False, location='json')
+	parser.add_argument('lu_mgt_name', type=str, required=False, location='json')
+	parser.add_argument('soil_plant_init_name', type=str, required=False, location='json')
 	parser.add_argument('surf_stor', type=str, required=False, location='json')
-	parser.add_argument('snow_name', type=str, required=True, location='json')
-	parser.add_argument('field_name', type=str, required=True, location='json')
-	args = parser.parse_args(strict=True)
+	parser.add_argument('snow_name', type=str, required=False, location='json')
+	parser.add_argument('field_name', type=str, required=False, location='json')
+	args = parser.parse_args(strict=False)
 	return args
 
 
 class HruDataHruListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Hru_data_hru
-		list_name = 'hrus'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name, True)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols, True)
 
 
 class HruDataHruApi(BaseRestModel):
@@ -182,9 +217,11 @@ class HruDataHruUpdateManyApi(BaseRestModel):
 			if args['field_name'] is not None:
 				param_dict['field_id'] = self.get_id_from_name(Field_fld, args['field_name'])
 
-			query = Hru_data_hru.update(param_dict).where(Hru_data_hru.id.in_(args['selected_ids']))
-			result = query.execute()
+			con_table = Hru_con
+			con_prop_field = Hru_con.hru_id
+			prop_table = Hru_data_hru
 
+			result = self.base_put_many_con(args, param_dict, con_table, con_prop_field, prop_table)
 			if result > 0:
 				return 200
 
@@ -230,7 +267,7 @@ class HruDataHruPostApi(BaseRestModel):
 			result = m.save()
 
 			if result > 0:
-				return 200
+				return {'id': m.id }, 200
 
 			abort(400, message='Unable to update hru properties {id}.'.format(id=id))
 		except IntegrityError as e:
@@ -261,7 +298,7 @@ class HruLteConApi(BaseRestModel):
 		return self.base_get(project_db, id, Hru_lte_con, 'Hru', True)
 
 	def delete(self, project_db, id):
-		return self.base_delete(project_db, id, Hru_lte_con, 'Hru')
+		return self.base_delete(project_db, id, Hru_lte_con, 'Hru', 'lhru', Hru_lte_hru)
 
 	def put(self, project_db, id):
 		return self.put_con(project_db, id, 'lhru', Hru_lte_con, Hru_lte_hru)
@@ -273,10 +310,35 @@ class HruLteConPostApi(BaseRestModel):
 
 
 class HruLteConListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Hru_lte_con
-		list_name = 'hrus-lte'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name, True)
+		prop_table = Hru_lte_hru
+		filter_cols = [table.name, table.wst, prop_table.soil_text, prop_table.grow_start, prop_table.grow_end, prop_table.plnt_typ, prop_table.pet_flag, prop_table.irr_flag, prop_table.irr_src]
+		table_lookups = {
+			table.wst: Weather_sta_cli
+		}
+		props_lookups = {
+			prop_table.soil_text: Soils_lte_sol,
+			prop_table.grow_start: D_table_dtl,
+			prop_table.grow_end: D_table_dtl,
+			prop_table.plnt_typ: Plants_plt
+		}
+
+		items = self.base_connect_paged_items(project_db, table, prop_table, filter_cols, table_lookups, props_lookups)
+		ml = []
+		for v in items['model']:
+			d = self.base_get_con_item_dict(v)
+			d['soil_text'] = self.base_get_prop_dict(v.lhru.soil_text)
+			d['grow_start'] = self.base_get_prop_dict(v.lhru.grow_start)
+			d['grow_end'] = self.base_get_prop_dict(v.lhru.grow_end)
+			d['plnt_typ'] = self.base_get_prop_dict(v.lhru.plnt_typ)
+			ml.append(d)
+		
+		return {
+			'total': items['total'],
+			'matches': items['matches'],
+			'items': ml
+		}
 
 
 class HruLteConMapApi(BaseRestModel):
@@ -301,10 +363,10 @@ class HruLteConOutPostApi(BaseRestModel):
 
 
 class HruLteListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db, sort):
 		table = Hru_lte_hru
-		list_name = 'hrus-lte'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name, back_refs=True)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols, True)
 
 
 class HruLteApi(BaseRestModel):
@@ -374,7 +436,7 @@ class HruLtePostApi(BaseRestModel):
 			result = self.save_args(Hru_lte_hru, args, is_new=True, lookup_fields=['soil_text', 'plnt_typ'])
 
 			if result > 0:
-				return 201
+				return {'id': result }, 201
 
 			abort(400, message='Unable to update HRU {id}.'.format(id=id))
 		except IntegrityError as e:
@@ -416,9 +478,11 @@ class HruLteUpdateManyApi(BaseRestModel):
 					else:
 						param_dict[key] = args[key]
 
-			query = Hru_lte_hru.update(param_dict).where(Hru_lte_hru.id.in_(args['selected_ids']))
-			result = query.execute()
+			con_table = Hru_lte_con
+			con_prop_field = Hru_lte_con.lhru_id
+			prop_table = Hru_lte_hru
 
+			result = self.base_put_many_con(args, param_dict, con_table, con_prop_field, prop_table)
 			if result > 0:
 				return 200
 

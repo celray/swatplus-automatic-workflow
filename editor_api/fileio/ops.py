@@ -11,9 +11,10 @@ from database.datasets.hru_parm_db import Fertilizer_frt
 
 
 class Graze_ops(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database ='project'):
 		"""
@@ -83,9 +84,10 @@ class Graze_ops(BaseFileModel):
 
 
 class Harv_ops(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database ='project'):
 		"""
@@ -122,9 +124,10 @@ class Harv_ops(BaseFileModel):
 
 
 class Irr_ops(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database ='project'):
 		if database == 'project':
@@ -137,9 +140,10 @@ class Irr_ops(BaseFileModel):
 
 
 class Fire_ops(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database ='project'):
 		"""
@@ -174,9 +178,10 @@ class Fire_ops(BaseFileModel):
 
 
 class Sweep_ops(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database ='project'):
 		"""
@@ -211,9 +216,10 @@ class Sweep_ops(BaseFileModel):
 
 
 class Chem_app_ops(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database ='project'):
 		"""

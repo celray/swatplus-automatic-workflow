@@ -4,9 +4,10 @@ import database.project.climate as db
 
 
 class Weather_sta_cli(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -39,9 +40,10 @@ class Weather_sta_cli(BaseFileModel):
 
 
 class Weather_wgn_cli(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')

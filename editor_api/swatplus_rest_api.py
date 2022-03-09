@@ -2,11 +2,12 @@ from flask import Flask, request
 from flask_restful import Resource, Api
 from flask_cors import CORS
 
-from rest import setup, simulation, auto_complete, climate, routing_unit, hru_parm_db, channel, definitions, aquifer, reservoir, hydrology, hru, exco, dr, lum, init, ops, basin, soils, regions, change, recall, decision_table, structural
+from rest import setup, simulation, auto_complete, climate, routing_unit, hru_parm_db, channel, definitions, aquifer, reservoir, hydrology, hru, exco, dr, lum, init, ops, basin, soils, regions, change, recall, decision_table, structural, check
 
 from helpers.executable_api import Unbuffered
 import sys
 import argparse
+import platform
 
 from werkzeug.routing import PathConverter
 
@@ -29,7 +30,10 @@ def shutdown_server():
 
 class SwatPlusApi(Resource):
 	def get(self):
-		return {'SWATPlusEditor': 'API call working'}
+		return {
+			'editor': 'API call working',
+			'pythonVersion': platform.python_version()
+		}
 
 
 class SwatPlusShutdownApi(Resource):
@@ -38,7 +42,7 @@ class SwatPlusShutdownApi(Resource):
 		return {'SWATPlusEditor': 'Server shutting down...'}
 
 
-list_params = 'list/<sort>/<reverse>/<page>/<items_per_page>/<everything:project_db>'
+list_params = 'list/<everything:project_db>'
 post_params = 'post/<everything:project_db>'
 get_params = '<id>/<everything:project_db>'
 many_params = 'many/<everything:project_db>'
@@ -47,6 +51,8 @@ datasets_get_name_params = 'datasets/<name>/<everything:datasets_db>'
 api.add_resource(SwatPlusApi, '/')
 api.add_resource(SwatPlusShutdownApi, '/shutdown')
 
+api.add_resource(check.SwatCheckApi, '/output/check')
+
 api.add_resource(setup.SetupApi, '/setup')
 api.add_resource(setup.ConfigApi, '/setup/config/<everything:project_db>')
 api.add_resource(setup.CheckImportConfigApi, '/setup/check-config/<everything:project_db>')
@@ -54,13 +60,19 @@ api.add_resource(setup.InputFilesSettingsApi, '/setup/inputfiles/<everything:pro
 api.add_resource(setup.SwatRunSettingsApi, '/setup/swatrun/<everything:project_db>')
 api.add_resource(setup.SaveOutputReadSettingsApi, '/setup/outputread/<everything:project_db>')
 api.add_resource(setup.InfoApi, '/setup/info/<everything:project_db>')
+api.add_resource(setup.RunInfoApi, '/setup/run-info/<everything:project_db>')
 
 api.add_resource(auto_complete.AutoCompleteApi, '/autocomplete/<type>/<partial_name>/<everything:project_db>')
 api.add_resource(auto_complete.AutoCompleteNoParmApi, '/autocomplete-np/<type>/<everything:project_db>')
 api.add_resource(auto_complete.AutoCompleteIdApi, '/autocomplete/id/<type>/<name>/<everything:project_db>')
 api.add_resource(auto_complete.SelectListApi, '/selectlist/<type>/<everything:project_db>')
-api.add_resource(definitions.VarRangeApi, '/vars/<table>/<everything:db>')
-api.add_resource(definitions.VarCodeApi, '/codes/<table>/<variable>/<everything:db>')
+api.add_resource(auto_complete.SubbasinsListApi, '/subbasinlist/<everything:project_db>')
+api.add_resource(auto_complete.LanduseListApi, '/landuselist/<everything:project_db>')
+api.add_resource(auto_complete.SoilListApi, '/soillist/<everything:project_db>')
+api.add_resource(auto_complete.MatchingObjectsListApi, '/matchingobjlist/<type>/<everything:project_db>')
+
+api.add_resource(definitions.VarRangeApi, '/vars/<table>/<everything:db_path>')
+api.add_resource(definitions.VarCodeApi, '/codes/<table>/<variable>/<everything:db_path>')
 
 api.add_resource(simulation.TimeSimApi, '/sim/time/<everything:project_db>')
 api.add_resource(simulation.PrintPrtApi, '/sim/print/<everything:project_db>')
@@ -69,18 +81,17 @@ api.add_resource(simulation.PrintPrtObjectApi, '/sim/print/objects/' + get_param
 api.add_resource(basin.ParametersBsnApi, '/basin/parameters/<everything:project_db>')
 api.add_resource(basin.CodesBsnApi, '/basin/codes/<everything:project_db>')
 
-api.add_resource(climate.WeatherStationListApi, '/climate/stations/' + post_params)
-api.add_resource(climate.WeatherStationApi, '/climate/stations/' + get_params)
-api.add_resource(climate.WeatherStationPageApi, '/climate/stations/' + list_params)
-api.add_resource(climate.WeatherStationSaveDirApi, '/climate/stations/directory/<everything:project_db>')
+api.add_resource(climate.WeatherStationPostApi, '/climate/stations/' + post_params)
+api.add_resource(climate.WeatherStationSingleApi, '/climate/stations/' + get_params)
+api.add_resource(climate.WeatherStationListApi, '/climate/stations/' + list_params)
+api.add_resource(climate.WeatherStationDirectoryApi, '/climate/stations/directory/<everything:project_db>')
 api.add_resource(climate.WeatherFileAutoCompleteApi, '/climate/stations/files/<type>/<partial_name>/<everything:project_db>')
 
-api.add_resource(climate.WgnListApi, '/climate/wgn/' + post_params)
-api.add_resource(climate.WgnApi, '/climate/wgn/' + get_params)
-api.add_resource(climate.WgnPageApi, '/climate/wgn/' + list_params)
+api.add_resource(climate.WgnPostApi, '/climate/wgn/' + post_params)
+api.add_resource(climate.WgnSingleApi, '/climate/wgn/' + get_params)
+api.add_resource(climate.WgnListApi, '/climate/wgn/' + list_params)
 api.add_resource(climate.WgnSaveImportDbApi, '/climate/wgn/db/<everything:project_db>')
 api.add_resource(climate.WgnTablesAutoCompleteApi, '/climate/wgn/db/tables/autocomplete/<partial_name>/<everything:wgn_db>')
-api.add_resource(climate.WgnAutoCompleteApi, '/climate/wgn/autocomplete/<partial_name>/<everything:project_db>')
 
 api.add_resource(climate.WgnMonthListApi, '/climate/wgn/months/<wgn_id>/<everything:project_db>')
 api.add_resource(climate.WgnMonthApi, '/climate/wgn/month/' + get_params)
@@ -90,13 +101,6 @@ api.add_resource(routing_unit.RoutUnitBoundariesApi, '/routing_unit/boundaries/<
 """ Channels Modules   """
 api.add_resource(channel.ChannelTypeApi, '/channels/get_type/<everything:project_db>')
 
-api.add_resource(channel.ChannelConListApi, '/channels/' + list_params)
-api.add_resource(channel.ChannelConPostApi, '/channels/' + post_params)
-api.add_resource(channel.ChannelConApi, '/channels/' + get_params)
-api.add_resource(channel.ChannelConMapApi, '/channels/map/<everything:project_db>')
-api.add_resource(channel.ChannelConOutPostApi, '/channels/out/' + post_params)
-api.add_resource(channel.ChannelConOutApi, '/channels/out/' + get_params)
-
 api.add_resource(channel.ChandegConListApi, '/channels-lte/' + list_params)
 api.add_resource(channel.ChandegConPostApi, '/channels-lte/' + post_params)
 api.add_resource(channel.ChandegConApi, '/channels-lte/' + get_params)
@@ -104,25 +108,10 @@ api.add_resource(channel.ChandegConMapApi, '/channels-lte/map/<everything:projec
 api.add_resource(channel.ChandegConOutPostApi, '/channels-lte/out/' + post_params)
 api.add_resource(channel.ChandegConOutApi, '/channels-lte/out/' + get_params)
 
-api.add_resource(channel.ChannelChaListApi, '/channels/properties/' + list_params)
-api.add_resource(channel.ChannelChaPostApi, '/channels/properties/' + post_params)
-api.add_resource(channel.ChannelChaUpdateManyApi, '/channels/properties/' + many_params)
-api.add_resource(channel.ChannelChaApi, '/channels/properties/' + get_params)
-
 api.add_resource(channel.InitialChaListApi, '/channels/initial/' + list_params)
 api.add_resource(channel.InitialChaPostApi, '/channels/initial/' + post_params)
 api.add_resource(channel.InitialChaUpdateManyApi, '/channels/initial/' + many_params)
 api.add_resource(channel.InitialChaApi, '/channels/initial/' + get_params)
-
-api.add_resource(channel.HydrologyChaListApi, '/channels/hydrology/' + list_params)
-api.add_resource(channel.HydrologyChaPostApi, '/channels/hydrology/' + post_params)
-api.add_resource(channel.HydrologyChaUpdateManyApi, '/channels/hydrology/' + many_params)
-api.add_resource(channel.HydrologyChaApi, '/channels/hydrology/' + get_params)
-
-api.add_resource(channel.SedimentChaListApi, '/channels/sediment/' + list_params)
-api.add_resource(channel.SedimentChaPostApi, '/channels/sediment/' + post_params)
-api.add_resource(channel.SedimentChaUpdateManyApi, '/channels/sediment/' + many_params)
-api.add_resource(channel.SedimentChaApi, '/channels/sediment/' + get_params)
 
 api.add_resource(channel.NutrientsChaListApi, '/channels/nutrients/' + list_params)
 api.add_resource(channel.NutrientsChaPostApi, '/channels/nutrients/' + post_params)
@@ -305,8 +294,10 @@ api.add_resource(recall.RecallConOutApi, '/recall/out/' + get_params)
 
 api.add_resource(recall.RecallRecListApi, '/recall/data/' + list_params)
 api.add_resource(recall.RecallRecPostApi, '/recall/data/' + post_params)
+api.add_resource(recall.RecallRecUpdateManyApi, '/recall/data/' + many_params)
 api.add_resource(recall.RecallRecApi, '/recall/data/' + get_params)
 
+api.add_resource(recall.RecallDatListApi, '/recall/data/items/<id>/' + list_params)
 api.add_resource(recall.RecallDatPostApi, '/recall/data/item/' + post_params)
 api.add_resource(recall.RecallDatApi, '/recall/data/item/' + get_params)
 """ Recall Modules   """
@@ -412,6 +403,12 @@ api.add_resource(init.PlantIniPostApi, '/plant_ini/' + post_params)
 api.add_resource(init.PlantIniApi, '/plant_ini/' + get_params)
 api.add_resource(init.PlantIniItemPostApi, '/plant_ini/item/' + post_params)
 api.add_resource(init.PlantIniItemApi, '/plant_ini/item/' + get_params)
+
+api.add_resource(init.ConstituentsApi, '/constituents/<everything:project_db>')
+api.add_resource(init.PestHruIniApi, '/constituents/pest-hru/<everything:project_db>')
+api.add_resource(init.PestWaterIniApi, '/constituents/pest-water/<everything:project_db>')
+api.add_resource(init.PathHruIniApi, '/constituents/path-hru/<everything:project_db>')
+api.add_resource(init.PathWaterIniApi, '/constituents/path-water/<everything:project_db>')
 """ Initialization Data Modules   """
 
 """ Databases - Modules   """
@@ -456,6 +453,12 @@ api.add_resource(hru_parm_db.SnowSnoPostApi, '/db/snow/' + post_params)
 api.add_resource(hru_parm_db.SnowSnoUpdateManyApi, '/db/snow/' + many_params)
 api.add_resource(hru_parm_db.SnowSnoApi, '/db/snow/' + get_params)
 api.add_resource(hru_parm_db.SnowSnoDatasetsApi, '/db/snow/' + datasets_get_name_params)
+
+api.add_resource(hru_parm_db.PathogensPthListApi, '/db/pathogens/' + list_params)
+api.add_resource(hru_parm_db.PathogensPthPostApi, '/db/pathogens/' + post_params)
+api.add_resource(hru_parm_db.PathogensPthUpdateManyApi, '/db/pathogens/' + many_params)
+api.add_resource(hru_parm_db.PathogensPthApi, '/db/pathogens/' + get_params)
+api.add_resource(hru_parm_db.PathogensPthDatasetsApi, '/db/pathogens/' + datasets_get_name_params)
 """ Databases - Modules   """
 
 """ Soils Modules """
@@ -524,7 +527,11 @@ api.add_resource(change.PlantGroSftApi, '/change/soft/regions/plant/' + get_para
 
 """ Decision Table Modules """
 api.add_resource(decision_table.DTableDtlListApi, '/decision_table/<table_type>/' + list_params)
+api.add_resource(decision_table.DTableDtlDatasetsListApi, '/decision_table_datasets/<table_type>/list/<everything:datasets_db>')
 api.add_resource(decision_table.DTableDtlApi, '/decision_table/' + get_params)
+api.add_resource(decision_table.DTableDtlDatasetsApi, '/decision_table_datasets/<id>/<everything:datasets_db>')
+api.add_resource(decision_table.DTableDtlPostApi, '/decision_table/' + post_params)
+api.add_resource(decision_table.DTableDtlPutTextApi, '/decision_table/text/' + get_params)
 """ Decision Table """
 
 """ Structural Modules """

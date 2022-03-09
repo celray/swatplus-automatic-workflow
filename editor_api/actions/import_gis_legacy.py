@@ -95,50 +95,50 @@ class GisImport(ExecutableApi):
 		if not self.config.imported_gis:
 			try:
 				if gis.Gis_subbasins.select().count() > 0:
-					if not is_supported_version(self.config.gis_version):
-						raise ValueError("This version of SWAT+ Editor does not support QSWAT+ {uv}.".format(uv=self.config.gis_version))
+					#if not is_supported_version(self.config.gis_version):
+					#	raise ValueError("This version of SWAT+ Editor does not support QSWAT+ {uv}.".format(uv=self.config.gis_version))
 					
-					self.emit_progress(5, "Checking for plants_plt updates...")
+					self.emit_progress(5, "Checking for plants_plt updates (legacy import)...")
 					self.update_plants()
 					self.update_gis_routing()
 
 					if self.is_lte:
-						self.emit_progress(15, "Importing channels from GIS...")
+						self.emit_progress(15, "Importing channels from GIS (legacy import)...")
 						self.insert_om_water()
 						self.insert_channels_lte()
 
-						self.emit_progress(50, "Importing hrus from GIS...")
+						self.emit_progress(50, "Importing hrus from GIS (legacy import)...")
 						self.insert_hru_ltes()
 
-						self.emit_progress(90, "Importing connections from GIS...")
+						self.emit_progress(90, "Importing connections from GIS (legacy import)...")
 						self.insert_connections_lte()
 					else:
-						self.emit_progress(12, "Checking GIS water table...")
+						self.emit_progress(12, "Checking GIS water table (legacy import)...")
 						self.update_gis_water()
 
-						self.emit_progress(15, "Importing routing units from GIS...")
+						self.emit_progress(15, "Importing routing units from GIS (legacy import)...")
 						self.insert_routing_units()
 
-						self.emit_progress(30, "Importing channels from GIS...")
+						self.emit_progress(30, "Importing channels from GIS (legacy import)...")
 						self.insert_om_water()
 						self.insert_channels_lte()
 
-						self.emit_progress(40, "Importing reservoirs from GIS...")
+						self.emit_progress(40, "Importing reservoirs from GIS (legacy import)...")
 						self.insert_reservoirs()
 
-						self.emit_progress(50, "Importing point source from GIS...")
+						self.emit_progress(50, "Importing point source from GIS (legacy import)...")
 						self.insert_recall(is_lte_cha_type=True)
 
-						self.emit_progress(60, "Importing hrus from GIS...")
+						self.emit_progress(60, "Importing hrus from GIS (legacy import)...")
 						self.insert_hrus()
 						
-						self.emit_progress(75, "Creating aquifers...")
+						self.emit_progress(75, "Creating aquifers (legacy import)...")
 						self.insert_aquifers()
 
-						self.emit_progress(90, "Importing connections from GIS...")
+						self.emit_progress(90, "Importing connections from GIS (legacy import)...")
 						self.insert_connections(is_lte_cha_type=True)
 
-						self.emit_progress(95, "Creating default landscape units...")
+						self.emit_progress(95, "Creating default landscape units (legacy import)...")
 						self.insert_lsus()
 
 						if climate.Weather_sta_cli.select().count() > 0:
@@ -780,7 +780,7 @@ class GisImport(ExecutableApi):
 					'k': 1,
 					'erod_fact': 0.01,
 					'cov_fact': 0.005,
-					'hc_cov': 0,
+					'wd_rto': 4 if row.dep2 == 0 else row.wid2 / row.dep2,
 					'eq_slp': 0.001,
 					'd50': 12,
 					'clay': 50,

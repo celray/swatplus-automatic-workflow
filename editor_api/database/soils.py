@@ -136,8 +136,8 @@ class ImportSoils():
 			conn = sqlite3.connect(db_file_name)"""
 		conn = sqlite3.connect(db_file_name)
 
-		#if not db_lib.exists_table(conn, db_table):
-			#raise ValueError("Table {table} does not exist in {file}.".format(table=db_table, file=db_file_name))
+		"""if not db_lib.exists_table(conn, db_table):
+			raise ValueError("Table {table} does not exist in {file}.".format(table=db_table, file=db_file_name))"""
 
 		cursor = conn.cursor().execute('select * from {table_name} order by OBJECTID'.format(table_name=db_table))
 		ncols = len(cursor.description)

@@ -20,11 +20,11 @@
  ***************************************************************************/
 '''
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import * # @UnusedWildImport
-from PyQt5.QtGui import * # @UnusedWildImport
-from qgis.core import * # @UnusedWildImport
+from qgis.PyQt.QtCore import Qt
+#from qgis.PyQt.QtGui import * # @UnusedWildImport
+#from qgis.core import * # @UnusedWildImport
 # Import the code for the dialog
-from selectludialog import SelectluDialog
+from .selectludialog import SelectluDialog
 
 class Selectlu:
     

@@ -20,29 +20,15 @@
  ***************************************************************************/
 """
 
-#import os
+from qgis.PyQt import QtWidgets
 
-#from PyQt5 import uic
-from PyQt5 import QtWidgets
-
-from ui_convert import Ui_arcConvertChoice  # @UnresolvedImport
+from ui_convert import Ui_arcConvertChoice  # @UnresolvedImport  needs to be relative since run from .bat
 
 
 class convertDialog(QtWidgets.QDialog, Ui_arcConvertChoice):
     """Set up dialog from designer."""
     def __init__(self, parent=None):
         """Constructor."""
-
-# pdir = os.path.dirname(__file__)
-# print(os.path.basename(pdir))
-# FORM_CLASS, _ = uic.loadUiType(os.path.join(pdir, 'ui_convert.ui'), 
-#                                from_imports=True, 
-#                                import_from=os.path.basename(pdir))
-# 
-# class convertDialog(QtWidgets.QDialog, FORM_CLASS):
-#     """Set up dialog from designer."""
-#     def __init__(self, parent=None):
-#         """Constructor."""
         super(convertDialog, self).__init__(parent)
         # Set up the user interface from Designer.
         # After setupUI you can access any designer object by doing

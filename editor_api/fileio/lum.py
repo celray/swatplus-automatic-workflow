@@ -13,9 +13,10 @@ from database import lib as db_lib
 
 
 class Management_sch(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database ='project'):
 		"""
@@ -136,10 +137,16 @@ class Management_sch(BaseFileModel):
 								col(len(row.auto_ops), padding_override=9)]
 					self.write_row(file, row_cols)
 					file.write("\n")
+
+					special_tables = ['pl_hv_summer1', 'pl_hv_summer2', 'pl_hv_winter1']
 					
 					for aop in row.auto_ops:
 						file.write(utils.string_pad(" ", default_pad=total_pad))
 						file.write(utils.key_name_pad(aop.d_table))
+						if aop.d_table.name in special_tables:
+							file.write(utils.string_pad(aop.plant1, default_pad=5))
+							if aop.d_table.name == special_tables[1]:
+								file.write(utils.string_pad(aop.plant2, default_pad=5))
 						file.write("\n")
 
 					skip_op = 'skip'
@@ -158,9 +165,10 @@ class Management_sch(BaseFileModel):
 
 
 class Landuse_lum(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -208,9 +216,10 @@ class Landuse_lum(BaseFileModel):
 
 
 class Cntable_lum(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database ='project'):
 		"""
@@ -277,9 +286,10 @@ class Cntable_lum(BaseFileModel):
 
 
 class Ovn_table_lum(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database ='project'):
 		"""
@@ -316,9 +326,10 @@ class Ovn_table_lum(BaseFileModel):
 
 
 class Cons_prac_lum(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database ='project'):
 		"""

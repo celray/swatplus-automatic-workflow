@@ -32,17 +32,17 @@ class Soils_sol_layer(BaseModel):
 
 class Nutrients_sol(BaseModel):
 	name = CharField(unique=True)
-	dp_co = DoubleField()
-	tot_n = DoubleField()
-	min_n = DoubleField()
-	org_n = DoubleField()
-	tot_p = DoubleField()
-	min_p = DoubleField()
-	org_p = DoubleField()
-	sol_p = DoubleField()
+	exp_co = DoubleField()
+	lab_p = DoubleField()
+	nitrate = DoubleField()
+	fr_hum_act = DoubleField()
+	hum_c_n = DoubleField()
+	hum_c_p = DoubleField()
+	inorgp = DoubleField()
+	watersol_p = DoubleField()
 	h3a_p = DoubleField()
-	mehl_p = DoubleField()
-	bray_p = DoubleField()
+	mehlich_p = DoubleField()
+	bray_strong_p = DoubleField()
 	description = TextField(null=True)
 
 

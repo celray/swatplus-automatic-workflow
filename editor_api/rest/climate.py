@@ -2,6 +2,7 @@ from flask_restful import Resource, reqparse, abort
 from playhouse.shortcuts import model_to_dict
 from peewee import *
 
+from .base import BaseRestModel
 from database.project import base as project_base
 from database.project.setup import SetupProjectDatabase
 from database.project.config import Project_config
@@ -70,7 +71,7 @@ def get_wgn_mon_args():
 	return args
 
 
-class WeatherStationApi(Resource):
+class WeatherStationSingleApi(Resource):
 	def get(self, project_db, id):
 		SetupProjectDatabase.init(project_db)
 		try:
@@ -132,12 +133,7 @@ class WeatherStationApi(Resource):
 			abort(404, message='Weather station {id} does not exist'.format(id=id))
 
 
-class WeatherStationListApi(Resource):
-	def get(self, project_db):
-		SetupProjectDatabase.init(project_db)
-		m = Weather_sta_cli.select()
-		return [model_to_dict(v, recurse=False) for v in m]
-
+class WeatherStationPostApi(Resource):
 	def post(self, project_db):
 		args = get_station_args()
 
@@ -176,36 +172,66 @@ class WeatherStationListApi(Resource):
 			abort(400, message='Unable to create weather station.')
 
 
-class WeatherStationPageApi(Resource):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+class WeatherStationListApi(BaseRestModel):
+	def get(self, project_db):
+		SetupProjectDatabase.init(project_db)
+		args = self.get_table_args()
+
+		try:
+			t = Weather_sta_cli
+
+			total = t.select().count()
+			sort = self.get_arg(args, 'sort', 'name')
+			reverse = self.get_arg(args, 'reverse', 'n')
+			page = self.get_arg(args, 'page', 1)
+			per_page = self.get_arg(args, 'per_page', 50)
+			filter_val = self.get_arg(args, 'filter', None)
+
+			if filter_val is not None:
+				wgns = Weather_wgn_cli.select().where(Weather_wgn_cli.name.contains(filter_val))
+				s = t.select().where((t.name.contains(filter_val)) | 
+						(t.lat.contains(filter_val)) | 
+						(t.lon.contains(filter_val)) | 
+						(t.pcp.contains(filter_val)) | 
+						(t.tmp.contains(filter_val)) | 
+						(t.slr.contains(filter_val)) | 
+						(t.hmd.contains(filter_val)) | 
+						(t.wnd.contains(filter_val)) | 
+						(t.wnd_dir.contains(filter_val)) | 
+						(t.atmo_dep.contains(filter_val)) |
+						(t.wgn.in_(wgns)))
+			else:
+				s = t.select()
+
+			matches = s.count()
+
+			sort_val = SQL(sort)
+			if reverse == 'y':
+				sort_val = SQL(sort).desc()
+
+			m = s.order_by(sort_val).paginate(int(page), int(per_page))
+
+			return {
+				'total': total,
+				'matches': matches,
+				'items': [model_to_dict(v, recurse=True, max_depth=1) for v in m]
+			}
+		except Project_config.DoesNotExist:
+			abort(400, message='Error selecting weather stations.')
+
+
+class WeatherStationDirectoryApi(Resource):
+	def get(self, project_db):
 		SetupProjectDatabase.init(project_db)
 
 		try:
 			config = Project_config.get()
-			total = Weather_sta_cli.select().count()
-
-			sort_val = SQL(sort)
-			if reverse == 'true':
-				sort_val = SQL(sort).desc()
-
-			m = Weather_sta_cli.select().order_by(sort_val).paginate(int(page), int(items_per_page))
-			stations = []
-			for v in m:
-				s = model_to_dict(v, recurse=False)
-				if v.wgn is not None:
-					s['wgn_name'] = v.wgn.name
-				stations.append(s)
-
 			return {
-				'total': total,
-				'weather_data_dir': utils.full_path(project_db, config.weather_data_dir),
-				'stations': stations
+				'weather_data_dir': utils.full_path(project_db, config.weather_data_dir)
 			}
 		except Project_config.DoesNotExist:
 			abort(400, message='Could not retrieve project configuration data.')
 
-
-class WeatherStationSaveDirApi(Resource):
 	def put(self, project_db):
 		parser = reqparse.RequestParser()
 		parser.add_argument('weather_data_dir', type=str, required=True, location='json')
@@ -234,16 +260,7 @@ class WeatherFileAutoCompleteApi(Resource):
 		return [v.filename for v in m]
 
 
-class WgnAutoCompleteApi(Resource):
-	def get(self, project_db, partial_name):
-		SetupProjectDatabase.init(project_db)
-
-		m = Weather_wgn_cli.select().where(Weather_wgn_cli.name.startswith(partial_name))
-
-		return [v.name for v in m]
-
-
-class WgnApi(Resource):
+class WgnSingleApi(Resource):
 	def get(self, project_db, id):
 		SetupProjectDatabase.init(project_db)
 		try:
@@ -287,12 +304,7 @@ class WgnApi(Resource):
 			abort(404, message='Weather generator {id} does not exist'.format(id=id))
 
 
-class WgnListApi(Resource):
-	def get(self, project_db):
-		SetupProjectDatabase.init(project_db)
-		m = Weather_wgn_cli.select()
-		return [model_to_dict(v, recurse=False) for v in m]
-
+class WgnPostApi(Resource):
 	def post(self, project_db):
 		args = get_wgn_args()
 
@@ -316,28 +328,45 @@ class WgnListApi(Resource):
 			abort(400, message='Unable to create weather generator.')
 
 
-class WgnPageApi(Resource):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+class WgnListApi(BaseRestModel):
+	def get(self, project_db):
 		SetupProjectDatabase.init(project_db)
+		args = self.get_table_args()
 
 		try:
-			config = Project_config.get()
-			total = Weather_wgn_cli.select().count()
+			t = Weather_wgn_cli
+
+			total = t.select().count()
+			sort = self.get_arg(args, 'sort', 'name')
+			reverse = self.get_arg(args, 'reverse', 'n')
+			page = self.get_arg(args, 'page', 1)
+			per_page = self.get_arg(args, 'per_page', 50)
+			filter_val = self.get_arg(args, 'filter', None)
+
+			if filter_val is not None:
+				s = t.select().where((t.name.contains(filter_val)) | 
+						(t.lat.contains(filter_val)) | 
+						(t.lon.contains(filter_val)) | 
+						(t.elev.contains(filter_val)) | 
+						(t.rain_yrs.contains(filter_val)))
+			else:
+				s = t.select()
+
+			matches = s.count()
 
 			sort_val = SQL(sort)
-			if reverse == 'true':
+			if reverse == 'y':
 				sort_val = SQL(sort).desc()
 
-			m = Weather_wgn_cli.select().order_by(sort_val).paginate(int(page), int(items_per_page))
+			m = s.order_by(sort_val).paginate(int(page), int(per_page))
 
 			return {
 				'total': total,
-				'wgn_db': utils.full_path(project_db, config.wgn_db),
-				'wgn_table_name': config.wgn_table_name,
-				'wgns': [model_to_dict(v, backrefs=True, max_depth=1) for v in m]
+				'matches': matches,
+				'items': [model_to_dict(v, backrefs=True, max_depth=1) for v in m]
 			}
 		except Project_config.DoesNotExist:
-			abort(400, message='Could not retrieve project configuration data.')
+			abort(400, message='Error selecting wgns.')
 
 
 class WgnTablesAutoCompleteApi(Resource):
@@ -355,6 +384,15 @@ class WgnTablesAutoCompleteApi(Resource):
 
 
 class WgnSaveImportDbApi(Resource):
+	def get(self, project_db):
+		SetupProjectDatabase.init(project_db)
+		config = Project_config.get()
+		wgn_db = None if config.wgn_db is None or config.wgn_db == '' else utils.full_path(project_db, config.wgn_db)
+		return {
+			'wgn_db': wgn_db,
+			'wgn_table_name': config.wgn_table_name
+		}
+
 	def put(self, project_db):
 		parser = reqparse.RequestParser()
 		parser.add_argument('wgn_db', type=str, required=False, location='json')

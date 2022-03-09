@@ -20,15 +20,15 @@
  ***************************************************************************/
 '''
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import * # @UnusedWildImport
-from PyQt5.QtGui import * # @UnusedWildImport
-from qgis.core import * # @UnusedWildImport
+from qgis.PyQt.QtCore import Qt
+#from PyQt5.QtGui import * # @UnusedWildImport
+#from qgis.core import *
 import webbrowser
 
 # Import the code for the dialog
-from aboutdialog import aboutDialog
-from QSWATUtils import QSWATUtils
-from globals import GlobalVars
+from .aboutdialog import aboutDialog
+from .QSWATUtils import QSWATUtils # type: ignore 
+from .globals import GlobalVars
 
 class AboutQSWAT:
     
@@ -49,12 +49,12 @@ class AboutQSWAT:
         text = """
 {0} version: {1}
 
-Minimum QGIS version: 3.0
+Minimum QGIS version: 3.16
 
 Python version: 3.7
 
 Current restrictions:
-- Windows and Linux only
+- Windows Linux and MacOS only
         """.format(QSWATUtils._QSWATNAME, version)
         self._dlg.textBrowser.setText(text)
         self._dlg.exec_()

@@ -11,7 +11,6 @@ from database.project.climate import Weather_sta_cli
 from database.project.config import Project_config
 
 from database.datasets.setup import SetupDatasetsDatabase
-from database.datasets.definitions import Var_range
 
 import os.path
 
@@ -29,14 +28,14 @@ def get_hyd_args():
 	parser.add_argument('epco', type=float, required=True, location='json')
 	parser.add_argument('orgn_enrich', type=float, required=True, location='json')
 	parser.add_argument('orgp_enrich', type=float, required=True, location='json')
-	parser.add_argument('evap_pothole', type=float, required=True, location='json')
+	parser.add_argument('cn3_swf', type=float, required=True, location='json')
 	parser.add_argument('bio_mix', type=float, required=True, location='json')
 	parser.add_argument('lat_orgn', type=float, required=True, location='json')
 	parser.add_argument('lat_orgp', type=float, required=True, location='json')
 	parser.add_argument('harg_pet', type=float, required=True, location='json')
-	parser.add_argument('cn_plntet', type=float, required=True, location='json')
+	parser.add_argument('latq_co', type=float, required=True, location='json')
 	parser.add_argument('perco', type=float, required=True, location='json')
-	args = parser.parse_args(strict=True)
+	args = parser.parse_args(strict=False)
 	return args
 
 
@@ -49,21 +48,21 @@ def save_hyd(m, args):
 	m.epco = args['epco']
 	m.orgn_enrich = args['orgn_enrich']
 	m.orgp_enrich = args['orgp_enrich']
-	m.evap_pothole = args['evap_pothole']
+	m.cn3_swf = args['cn3_swf']
 	m.bio_mix = args['bio_mix']
 	m.lat_orgn = args['lat_orgn']
 	m.lat_orgp = args['lat_orgp']
 	m.harg_pet = args['harg_pet']
-	m.cn_plntet = args['cn_plntet']
+	m.latq_co = args['latq_co']
 	m.perco = args['perco']
 	return m.save()
 
 
 class HydrologyHydListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Hydrology_hyd
-		list_name = 'hydrology'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class HydrologyHydApi(BaseRestModel):
@@ -155,10 +154,10 @@ def get_topo_args():
 
 
 class TopographyHydListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Topography_hyd
-		list_name = 'topography'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class TopographyHydApi(BaseRestModel):
@@ -263,10 +262,10 @@ def get_fld_args():
 
 
 class FieldFldListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Field_fld
-		list_name = 'fields'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class FieldFldApi(BaseRestModel):

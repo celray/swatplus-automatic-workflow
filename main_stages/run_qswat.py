@@ -31,7 +31,7 @@ qgs.initQgis()
 
 # Prepare processing framework
 if platform.system() == "Windows":
-    sys.path.append('{QGIS_Dir}/apps/qgis-ltr/python/plugins'.format(
+    sys.path.append('{QGIS_Dir}/apps/qgis/python/plugins'.format(
         QGIS_Dir = os.environ['QGIS_Dir'])) # Folder where Processing is located
 else:
     sys.path.append('/usr/share/qgis/python/plugins') # Folder where Processing is located
@@ -58,11 +58,12 @@ from logger import log
 
 os.chdir(os.path.join(os.environ["swatplus_wf_dir"], "qswatplus"))
 
-from QSWATPlus import QSWATPlus
-from delineation import Delineation
-from hrus import HRUs
-from QSWATUtils import QSWATUtils
-from parameters import Parameters
+__package__ = 'qswatplus'
+from .QSWATPlusMain import QSWATPlus
+from .delineation import Delineation
+from .hrus import HRUs
+from .QSWATUtils import QSWATUtils
+from .parameters import Parameters
 from glob import glob
 
 atexit.register(QgsApplication.exitQgis)

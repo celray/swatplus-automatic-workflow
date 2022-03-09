@@ -20,17 +20,12 @@
  ***************************************************************************/
 """
 
-import os
+from qgis.PyQt import QtWidgets
 
-from PyQt5 import uic
-from PyQt5 import QtWidgets
+from .ui_exporttable import Ui_exportSQLiteTable
 
-pdir = os.path.dirname(__file__)
-FORM_CLASS, _ = uic.loadUiType(os.path.join(pdir, 'ui_exporttable.ui'), 
-                               from_imports=True, 
-                               import_from=os.path.basename(pdir))
 
-class ExportTableDialog(QtWidgets.QDialog, FORM_CLASS):
+class ExportTableDialog(QtWidgets.QDialog, Ui_exportSQLiteTable):
     """Set up dialog from designer."""
     def __init__(self, parent=None):
         """Constructor."""

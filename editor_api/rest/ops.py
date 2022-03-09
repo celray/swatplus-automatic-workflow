@@ -22,10 +22,10 @@ sweep_name = 'Sweep'
 
 """ Operations Database - Graze"""
 class GrazeOpsListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Graze_ops
-		list_name = 'ops'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name, back_refs=True)
+		filter_cols = [table.name, table.description]
+		return self.base_paged_list(project_db, table, filter_cols, back_refs=True)
 
 
 class GrazeOpsApi(BaseRestModel):
@@ -111,10 +111,10 @@ class GrazeOpsDatasetsApi(BaseRestModel):
 
 """ Operations Database - Harvest"""
 class HarvOpsListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = ops.Harv_ops
-		list_name = 'harvest'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name, table.description]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class HarvOpsApi(BaseRestModel):
@@ -148,10 +148,10 @@ class HarvOpsDatasetsApi(BaseRestModel):
 
 """ Operations Database - Irrigation"""
 class IrrOpsListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = ops.Irr_ops
-		list_name = 'irrigation'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name, table.description]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class IrrOpsApi(BaseRestModel):
@@ -185,10 +185,10 @@ class IrrOpsDatasetsApi(BaseRestModel):
 
 """ Operations Database - Chemical Applications"""
 class ChemAppOpsListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = ops.Chem_app_ops
-		list_name = 'chem_app'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name, table.description]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class ChemAppOpsApi(BaseRestModel):
@@ -222,10 +222,10 @@ class ChemAppOpsDatasetsApi(BaseRestModel):
 
 """ Operations Database - Fire"""
 class FireOpsListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = ops.Fire_ops
-		list_name = 'fire'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name, table.description]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class FireOpsApi(BaseRestModel):
@@ -259,10 +259,10 @@ class FireOpsDatasetsApi(BaseRestModel):
 
 """ Operations Database - Sweep"""
 class SweepOpsListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = ops.Sweep_ops
-		list_name = 'sweep'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name, table.description]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class SweepOpsApi(BaseRestModel):

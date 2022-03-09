@@ -9,6 +9,9 @@ from fileio import basin as files_basin
 from fileio import change as files_change
 from fileio import soils as files_soils
 from database import lib as db_lib
+from datetime import datetime
+
+from playhouse.migrate import *
 
 source_data_path = "../data/source-data/"
 
@@ -35,12 +38,18 @@ class SetupDatasetsDatabase():
 		base.db.create_tables([change.Cal_parms_cal])
 
 	@staticmethod
-	def check_version(datasets_db, editor_version, compatibility_versions=['1.1.0', '1.1.1', '1.1.2', '1.2.0']):
+	def check_version(datasets_db, editor_version):
+		min_version = 1.1
+		
 		conn = db_lib.open_db(datasets_db)
 		if db_lib.exists_table(conn, 'version'):
 			SetupDatasetsDatabase.init(datasets_db)
 			m = definitions.Version.get()
-			if not (m.value in compatibility_versions or m.value == editor_version):
+			ver = m.value
+			if len(ver) >= 3:
+				ver = ver[:3]
+
+			if not (float(ver) >= min_version or m.value == editor_version):
 				return 'Please update your swatplus_datasets.sqlite to the most recent version: {new_version}. Your version is {current_version}.'.format(new_version=editor_version, current_version=m.value)
 		else:
 			return 'Please update your swatplus_datasets.sqlite to the most recent version, {new_version}, before creating your project.'.format(new_version=editor_version)
@@ -311,7 +320,7 @@ class SetupDatasetsDatabase():
 			{'classification': 18, 'order_in_class': 1, 'default_file_name': 'plants.plt', 'database_table': 'plants_plt', 'is_core_file': True},
 			{'classification': 18, 'order_in_class': 2, 'default_file_name': 'fertilizer.frt', 'database_table': 'fertilizer_frt', 'is_core_file': True},
 			{'classification': 18, 'order_in_class': 3, 'default_file_name': 'tillage.til', 'database_table': 'tillage_til', 'is_core_file': True},
-			{'classification': 18, 'order_in_class': 4, 'default_file_name': 'pesticide.pst', 'database_table': 'pesticide_pst', 'is_core_file': False},
+			{'classification': 18, 'order_in_class': 4, 'default_file_name': 'pesticide.pes', 'database_table': 'pesticide_pst', 'is_core_file': False},
 			{'classification': 18, 'order_in_class': 5, 'default_file_name': 'pathogens.pth', 'database_table': 'pathogens_pth', 'is_core_file': False},
 			{'classification': 18, 'order_in_class': 6, 'default_file_name': 'metals.mtl', 'database_table': 'metals_mtl', 'is_core_file': False},
 			{'classification': 18, 'order_in_class': 7, 'default_file_name': 'salts.slt', 'database_table': 'salts_slt', 'is_core_file': False},
@@ -383,44 +392,44 @@ class SetupDatasetsDatabase():
 		]
 		
 		print_prt_objects = [
-			{'name': 'basin_wb', 'daily': False, 'monthly': False, 'yearly': True, 'avann': False},
-			{'name': 'basin_nb', 'daily': False, 'monthly': False, 'yearly': True, 'avann': False},
-			{'name': 'basin_ls', 'daily': False, 'monthly': False, 'yearly': True, 'avann': False},
-			{'name': 'basin_pw', 'daily': False, 'monthly': False, 'yearly': True, 'avann': False},
-			{'name': 'basin_aqu', 'daily': False, 'monthly': False, 'yearly': True, 'avann': False},
-			{'name': 'basin_res', 'daily': False, 'monthly': False, 'yearly': True, 'avann': False},
-			{'name': 'basin_cha', 'daily': False, 'monthly': False, 'yearly': True, 'avann': False},
-			{'name': 'basin_sd_cha', 'daily': False, 'monthly': False, 'yearly': True, 'avann': False},
-			{'name': 'basin_psc', 'daily': False, 'monthly': False, 'yearly': True, 'avann': False},
-			{'name': 'region_wb', 'daily': False, 'monthly': False, 'yearly': False, 'avann': False},
-			{'name': 'region_nb', 'daily': False, 'monthly': False, 'yearly': False, 'avann': False},
-			{'name': 'region_ls', 'daily': False, 'monthly': False, 'yearly': False, 'avann': False},
-			{'name': 'region_pw', 'daily': False, 'monthly': False, 'yearly': False, 'avann': False},
-			{'name': 'region_aqu', 'daily': False, 'monthly': False, 'yearly': False, 'avann': False},
-			{'name': 'region_res', 'daily': False, 'monthly': False, 'yearly': False, 'avann': False},
-			{'name': 'region_cha', 'daily': False, 'monthly': False, 'yearly': False, 'avann': False},
-			{'name': 'region_sd_cha', 'daily': False, 'monthly': False, 'yearly': False, 'avann': False},
-			{'name': 'region_psc', 'daily': False, 'monthly': False, 'yearly': False, 'avann': False},
-			{'name': 'lsunit_wb', 'daily': False, 'monthly': False, 'yearly': True, 'avann': False},
-			{'name': 'lsunit_nb', 'daily': False, 'monthly': False, 'yearly': True, 'avann': False},
-			{'name': 'lsunit_ls', 'daily': False, 'monthly': False, 'yearly': True, 'avann': False},
-			{'name': 'lsunit_pw', 'daily': False, 'monthly': False, 'yearly': True, 'avann': False},
-			{'name': 'hru_wb', 'daily': False, 'monthly': False, 'yearly': True, 'avann': False},
-			{'name': 'hru_nb', 'daily': False, 'monthly': False, 'yearly': True, 'avann': False},
-			{'name': 'hru_ls', 'daily': False, 'monthly': False, 'yearly': True, 'avann': False},
-			{'name': 'hru_pw', 'daily': False, 'monthly': False, 'yearly': True, 'avann': False},
-			{'name': 'hru-lte_wb', 'daily': False, 'monthly': False, 'yearly': False, 'avann': False},
-			{'name': 'hru-lte_nb', 'daily': False, 'monthly': False, 'yearly': False, 'avann': False},
-			{'name': 'hru-lte_ls', 'daily': False, 'monthly': False, 'yearly': False, 'avann': False},
-			{'name': 'hru-lte_pw', 'daily': False, 'monthly': False, 'yearly': False, 'avann': False},
-			{'name': 'channel', 'daily': False, 'monthly': False, 'yearly': True, 'avann': False},
-			{'name': 'channel_sd', 'daily': False, 'monthly': False, 'yearly': True, 'avann': False},
-			{'name': 'aquifer', 'daily': False, 'monthly': False, 'yearly': True, 'avann': False},
-			{'name': 'reservoir', 'daily': False, 'monthly': False, 'yearly': True, 'avann': False},
-			{'name': 'recall', 'daily': False, 'monthly': False, 'yearly': True, 'avann': False},
-			{'name': 'hyd', 'daily': False, 'monthly': False, 'yearly': False, 'avann': False},
-			{'name': 'ru', 'daily': False, 'monthly': False, 'yearly': False, 'avann': False},
-			{'name': 'pest', 'daily': False, 'monthly': False, 'yearly': False, 'avann': False}
+			{'name': 'basin_wb', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'basin_nb', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'basin_ls', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'basin_pw', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'basin_aqu', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'basin_res', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'basin_cha', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'basin_sd_cha', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'basin_psc', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'region_wb', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'region_nb', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'region_ls', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'region_pw', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'region_aqu', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'region_res', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'region_cha', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'region_sd_cha', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'region_psc', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'lsunit_wb', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'lsunit_nb', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'lsunit_ls', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'lsunit_pw', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'hru_wb', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'hru_nb', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'hru_ls', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'hru_pw', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'hru-lte_wb', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'hru-lte_nb', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'hru-lte_ls', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'hru-lte_pw', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'channel', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'channel_sd', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'aquifer', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'reservoir', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'recall', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'hyd', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'ru', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True},
+			{'name': 'pest', 'daily': False, 'monthly': False, 'yearly': True, 'avann': True}
 		]
 
 		with base.db.atomic():
@@ -525,7 +534,7 @@ class SetupDatasetsDatabase():
 					'cn2': val[3],
 					'cons_prac': val[4],
 					'ov_mann': val[5],
-					'lc_status': True if lc is 1 else False,
+					'lc_status': True if lc == 1 else False,
 					'lai_init': float(val[7]),
 					'bm_init': float(val[8]),
 					'phu_init': float(val[9]),
@@ -638,3 +647,62 @@ class SetupDatasetsDatabase():
 			lum_id += 1
 			
 		db_lib.bulk_insert(base.db, lum.Landuse_lum, urb_lums)
+
+	@staticmethod
+	def update_2_1_0(datasets_db: str = None):
+		basin.Codes_bsn.delete().execute()
+		basin.Parameters_bsn.delete().execute()
+		change.Cal_parms_cal.delete().execute()
+		lum.Landuse_lum.delete().execute()
+		init.Plant_ini_item.delete().execute()
+		init.Plant_ini.delete().execute()
+		hru_parm_db.Plants_plt.delete().execute()
+		decision_table.D_table_dtl_act_out.delete().execute()
+		decision_table.D_table_dtl_act.delete().execute()
+		decision_table.D_table_dtl_cond_alt.delete().execute()
+		decision_table.D_table_dtl_cond.delete().execute()
+		decision_table.D_table_dtl.delete().execute()
+
+		#try:
+		migrator = SqliteMigrator(SqliteDatabase(datasets_db))
+		migrate(
+			migrator.rename_column('codes_bsn', 'baseflo', 'lapse'),
+			migrator.rename_column('codes_bsn', 'abstr_init', 'gampt'),
+			migrator.rename_column('codes_bsn', 'headwater', 'i_fpwet'),
+
+			migrator.rename_column('parameters_bsn', 'trans_loss', 'nperco_lchtile'),
+			migrator.rename_column('parameters_bsn', 's_max', 'plaps'),
+			migrator.rename_column('parameters_bsn', 'n_fix', 'tlaps'),
+			migrator.rename_column('parameters_bsn', 'vel_crit', 'urb_init_abst'),
+			migrator.rename_column('parameters_bsn', 'res_sed', 'petco_pmpt'),
+			migrator.rename_column('parameters_bsn', 'cha_part_sd', 'co2'),
+			migrator.rename_column('parameters_bsn', 'adj_cn', 'day_lag_max'),
+
+			migrator.rename_column('plants_plt', 'wnd_live', 'aeration'),
+
+			migrator.add_column('management_sch_auto', 'plant1', CharField(null=True)),
+			migrator.add_column('management_sch_auto', 'plant2', CharField(null=True)),
+			
+			migrator.add_column('d_table_dtl', 'description', CharField(null=True)),
+			migrator.add_column('d_table_dtl_cond', 'description', CharField(null=True)),
+			migrator.alter_column_type('d_table_dtl_act', 'const', DoubleField())
+		)
+		#except Exception:
+		#	pass
+
+		files_basin.Codes_bsn(source_data_path + 'codes.bsn').read('datasets')
+		files_basin.Parameters_bsn(source_data_path + 'parameters.bsn').read('datasets')
+		files_change.Cal_parms_cal(source_data_path + 'cal_parms.cal').read('datasets')
+
+		files_parmdb.Plants_plt(source_data_path + 'plants.plt').read('datasets')
+		SetupDatasetsDatabase.insert_lum()
+
+		files_dtable.D_table_dtl(source_data_path + 'lum.dtl').read('datasets')
+		files_dtable.D_table_dtl(source_data_path + 'res_rel.dtl').read('datasets')
+		files_dtable.D_table_dtl(source_data_path + 'scen_lu.dtl').read('datasets')
+		files_dtable.D_table_dtl(source_data_path + 'flo_con.dtl').read('datasets')
+
+		definitions.Version.update({
+			definitions.Version.value: '2.1.0', 
+			definitions.Version.release_date: datetime.now()
+		}).execute()

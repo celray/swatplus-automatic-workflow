@@ -5,6 +5,7 @@ from . import base
 class D_table_dtl(base.BaseModel):
 	name = CharField(unique=True)
 	file_name = CharField()
+	description = CharField(null=True)
 
 
 class D_table_dtl_cond(base.BaseModel):
@@ -15,6 +16,7 @@ class D_table_dtl_cond(base.BaseModel):
 	lim_var = CharField()
 	lim_op = CharField()
 	lim_const = DoubleField()
+	description = CharField(null=True)
 
 
 class D_table_dtl_cond_alt(base.BaseModel):
@@ -29,7 +31,7 @@ class D_table_dtl_act(base.BaseModel):
 	obj_num = IntegerField()
 	name = CharField()
 	option = CharField()
-	const = CharField()
+	const = DoubleField()
 	const2 = DoubleField()
 	fp = CharField()
 

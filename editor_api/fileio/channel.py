@@ -6,9 +6,10 @@ import database.project.link as link
 
 
 class Initial_cha(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -44,21 +45,23 @@ class Initial_cha(BaseFileModel):
 
 
 class Hydrology_cha(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
 
 	def write(self):
-		self.write_default_table(db.Hydrology_cha, ignore_id_col=True, non_zero_min_cols=['wd','dp','slp','len'])
+		self.write_default_table(db.Hydrology_cha, ignore_id_col=True, non_zero_min_cols=['wd','dp','slp','len','fps'])
 
 
 class Sediment_cha(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -68,9 +71,10 @@ class Sediment_cha(BaseFileModel):
 
 
 class Nutrients_cha(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -80,9 +84,10 @@ class Nutrients_cha(BaseFileModel):
 
 
 class Channel_cha(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -114,9 +119,10 @@ class Channel_cha(BaseFileModel):
 
 
 class Hyd_sed_lte_cha(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -126,9 +132,10 @@ class Hyd_sed_lte_cha(BaseFileModel):
 
 
 class Channel_lte_cha(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')

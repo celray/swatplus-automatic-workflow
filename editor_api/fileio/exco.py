@@ -5,9 +5,10 @@ import database.project.exco as db
 
 
 class Exco_om_exc(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database='project'):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -16,9 +17,12 @@ class Exco_om_exc(BaseFileModel):
 		#self.write_default_table(db.Exco_om_exc, True)
 		table = db.Exco_om_exc
 		order_by = db.Exco_om_exc.id
-		recall_recs = Recall_rec.select().where(Recall_rec.rec_typ == 4)
+		#recall_recs = Recall_rec.select(Recall_rec, Recall_dat).join(Recall_dat).where((Recall_rec.rec_typ == 4) & (Recall_dat.flo != 0))
+		valid_recs = Recall_dat.select(Recall_dat.recall_rec_id).join(Recall_rec).where((Recall_rec.rec_typ == 4) & (Recall_dat.flo != 0))
+		valid_ids = [r.recall_rec_id for r in valid_recs]
+		recall_recs = Recall_rec.select().where(Recall_rec.id.in_(valid_ids))
 
-		if table.select().count() > 0 or recall_recs.count() > 0:
+		if recall_recs.count() > 0:
 			with open(self.file_name, 'w') as file:
 				file.write(self.get_meta_line())
 				cols = [col(table.name, direction="left"),
@@ -43,7 +47,7 @@ class Exco_om_exc(BaseFileModel):
 				self.write_headers(file, cols)
 				file.write("\n")
 
-				for row in table.select().order_by(order_by):
+				"""for row in table.select().order_by(order_by):
 					file.write(utils.string_pad(row.name, direction="left"))
 					file.write(utils.num_pad(row.flo))
 					file.write(utils.num_pad(row.sed))
@@ -63,37 +67,38 @@ class Exco_om_exc(BaseFileModel):
 					file.write(utils.num_pad(row.lag))
 					file.write(utils.num_pad(row.gravel))
 					file.write(utils.num_pad(row.tmp))
-					file.write("\n")
+					file.write("\n")"""
 
 				for rec in recall_recs:
-					row = Recall_dat.get_or_none(Recall_dat.recall_rec_id == rec.id)
+					row = Recall_dat.get_or_none((Recall_dat.recall_rec_id == rec.id) & (Recall_dat.flo != 0))
 					if row is not None:
 						file.write(utils.string_pad(rec.name, direction="left"))
 						file.write(utils.num_pad(row.flo))
 						file.write(utils.num_pad(row.sed))
-						file.write(utils.num_pad(row.ptl_n))
-						file.write(utils.num_pad(row.ptl_p))
-						file.write(utils.num_pad(row.no3_n))
-						file.write(utils.num_pad(row.sol_p))
+						file.write(utils.num_pad(row.orgn))
+						file.write(utils.num_pad(row.sedp))
+						file.write(utils.num_pad(row.no3))
+						file.write(utils.num_pad(row.solp))
 						file.write(utils.num_pad(row.chla))
-						file.write(utils.num_pad(row.nh3_n))
-						file.write(utils.num_pad(row.no2_n))
-						file.write(utils.num_pad(row.cbn_bod))
-						file.write(utils.num_pad(row.oxy))
+						file.write(utils.num_pad(row.nh3))
+						file.write(utils.num_pad(row.no2))
+						file.write(utils.num_pad(row.cbod))
+						file.write(utils.num_pad(row.dox))
 						file.write(utils.num_pad(row.sand))
 						file.write(utils.num_pad(row.silt))
 						file.write(utils.num_pad(row.clay))
-						file.write(utils.num_pad(row.sm_agg))
-						file.write(utils.num_pad(row.lg_agg))
+						file.write(utils.num_pad(row.sag))
+						file.write(utils.num_pad(row.lag))
 						file.write(utils.num_pad(row.gravel))
 						file.write(utils.num_pad(row.tmp))
 						file.write("\n")
 
 
 class Exco_pest_exc(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database='project'):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -103,9 +108,10 @@ class Exco_pest_exc(BaseFileModel):
 
 
 class Exco_path_exc(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database='project'):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -115,9 +121,10 @@ class Exco_path_exc(BaseFileModel):
 
 
 class Exco_hmet_exc(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database='project'):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -127,9 +134,10 @@ class Exco_hmet_exc(BaseFileModel):
 
 
 class Exco_salt_exc(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database='project'):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -139,9 +147,10 @@ class Exco_salt_exc(BaseFileModel):
 
 
 class Exco_exc(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database='project'):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -149,9 +158,13 @@ class Exco_exc(BaseFileModel):
 	def write(self):
 		table = db.Exco_exc
 		order_by = db.Exco_exc.id
-		recall_recs = Recall_rec.select().where(Recall_rec.rec_typ == 4)
 
-		if table.select().count() > 0 or recall_recs.count() > 0:
+		valid_recs = Recall_dat.select(Recall_dat.recall_rec_id).join(Recall_rec).where((Recall_rec.rec_typ == 4) & (Recall_dat.flo != 0))
+		valid_ids = [r.recall_rec_id for r in valid_recs]
+		recall_recs = Recall_rec.select().where(Recall_rec.id.in_(valid_ids))
+		#recall_recs = Recall_rec.select(Recall_rec, Recall_dat).join(Recall_dat).where((Recall_rec.rec_typ == 4) & (Recall_dat.flo != 0))
+
+		if recall_recs.count() > 0:
 			with open(self.file_name, 'w') as file:
 				file.write(self.get_meta_line())
 				cols = [col(table.name, direction="left"),
@@ -163,14 +176,14 @@ class Exco_exc(BaseFileModel):
 				self.write_headers(file, cols)
 				file.write("\n")
 
-				for row in table.select().order_by(order_by):
+				"""for row in table.select().order_by(order_by):
 					file.write(utils.string_pad(row.name, direction="left"))
 					file.write(utils.key_name_pad(row.om))
 					file.write(utils.key_name_pad(row.pest))
 					file.write(utils.key_name_pad(row.path))
 					file.write(utils.key_name_pad(row.hmet))
 					file.write(utils.key_name_pad(row.salt))
-					file.write("\n")
+					file.write("\n")"""
 
 				for row in recall_recs:
 					file.write(utils.string_pad(row.name, direction="left"))

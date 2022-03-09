@@ -10,133 +10,59 @@ from database.project.climate import Weather_sta_cli
 
 invalid_name_msg = 'Invalid name {name}. Please ensure the value exists in your database.'
 
-def get_con_args():
-	parser = reqparse.RequestParser()
-	parser.add_argument('id', type=int, required=False, location='json')
-	parser.add_argument('name', type=str, required=True, location='json')
-	parser.add_argument('gis_id', type=int, required=False, location='json')
-	parser.add_argument('area', type=float, required=True, location='json')
-	parser.add_argument('lat', type=float, required=True, location='json')
-	parser.add_argument('lon', type=float, required=True, location='json')
-	parser.add_argument('elev', type=float, required=False, location='json')
-	parser.add_argument('wst', type=int, required=False, location='json')
-	parser.add_argument('wst_name', type=str, required=False, location='json')
-	parser.add_argument('cst', type=int, required=False, location='json')
-	parser.add_argument('ovfl', type=int, required=False, location='json')
-	parser.add_argument('rule', type=int, required=False, location='json')
-	parser.add_argument('dlr', type=int, required=False, location='json')
-	parser.add_argument('dlr_name', type=str, required=False, location='json')	
-	args = parser.parse_args(strict=True)
-	return args
-
-
 class DelratioConApi(BaseRestModel):
 	def get(self, project_db, id):
 		return self.base_get(project_db, id, Delratio_con, 'Delratio', True)
 
 	def delete(self, project_db, id):
-		return self.base_delete(project_db, id, Delratio_con, 'Delratio')
+		return self.base_delete(project_db, id, Delratio_con, 'Delratio', 'dlr', Delratio_del)
 
 	def put(self, project_db, id):
-		args = get_con_args()
-		try:
-			SetupProjectDatabase.init(project_db)
-			m = Delratio_con.get(Delratio_con.id == id)
-			m.name = args['name']
-			m.area = args['area']
-			m.lat = args['lat']
-			m.lon = args['lon']
-			m.elev = args['elev']
-
-			if args['dlr_name'] is not None:
-				m.dlr_id = self.get_id_from_name(Delratio_del, args['dlr_name'])
-
-			if args['wst_name'] is not None:
-				m.wst_id = self.get_id_from_name(Weather_sta_cli, args['wst_name'])
-
-			result = m.save()
-
-			if result > 0:
-				return 200
-
-			abort(400, message='Unable to update Delratio {id}.'.format(id=id))
-		except IntegrityError:
-			abort(400, message='Delratio name must be unique.')
-		except Delratio_con.DoesNotExist:
-			abort(404, message='Delratio {id} does not exist'.format(id=id))
-		except Delratio_del.DoesNotExist:
-			abort(400, message=invalid_name_msg.format(name=args['dr_name']))
-		except Weather_sta_cli.DoesNotExist:
-			abort(400, message=invalid_name_msg.format(name=args['wst_name']))
-		except Exception as ex:
-			abort(400, message="Unexpected error {ex}".format(ex=ex))
+		return self.put_con(project_db, id, 'dlr', Delratio_con, Delratio_del)
 
 
 class DelratioConPostApi(BaseRestModel):
 	def post(self, project_db):
-		args = get_con_args()
-		SetupProjectDatabase.init(project_db)
-
-		try:
-			e = Delratio_con.get(Delratio_con.name == args['name'])
-			abort(400, message='Delratio name must be unique.  Delratio with this name already exists.')
-		except Delratio_con.DoesNotExist:
-			try:
-				m = Delratio_con()
-				m.name = args['name']
-				m.area = args['area']
-				m.lat = args['lat']
-				m.lon = args['lon']
-				m.elev = args['elev']
-				m.gis_id = 0
-				m.ovfl = 0
-				m.rule = 0
-
-				if args['dlr_name'] is not None:
-					m.dlr_id = self.get_id_from_name(Delratio_del, args['dlr_name'])
-
-				if args['wst_name'] is not None:
-					m.wst_id = self.get_id_from_name(Weather_sta_cli, args['wst_name'])
-
-				result = m.save()
-
-				if result > 0:
-					return model_to_dict(m), 201
-
-				abort(400, message='Unable to create Delratio.')
-			except IntegrityError:
-				abort(400, message='Delratio name must be unique.')
-			except Delratio_del.DoesNotExist:
-				abort(400, message=invalid_name_msg.format(name=args['dlr_name']))
-			except Weather_sta_cli.DoesNotExist:
-				abort(400, message=invalid_name_msg.format(name=args['wst_name']))
-			except Exception as ex:
-				abort(400, message="Unexpected error {ex}".format(ex=ex))
+		return self.post_con(project_db, 'dlr', Delratio_con, Delratio_del)
 
 
 class DelratioConListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Delratio_con
-		list_name = 'dr'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name, True)
+		prop_table = Delratio_del
+		filter_cols = [table.name, table.wst, prop_table.om, prop_table.pest, prop_table.path, prop_table.hmet, prop_table.salt]
+		table_lookups = {
+			table.wst: Weather_sta_cli
+		}
+		props_lookups = {
+			prop_table.om: Dr_om_del,
+			prop_table.pest: Dr_pest_del,
+			prop_table.path: Dr_path_del,
+			prop_table.hmet: Dr_hmet_del,
+			prop_table.salt: Dr_salt_del
+		}
+
+		items = self.base_connect_paged_items(project_db, table, prop_table, filter_cols, table_lookups, props_lookups)
+		ml = []
+		for v in items['model']:
+			d = self.base_get_con_item_dict(v)
+			d['om'] = self.base_get_prop_dict(v.dlr.om)
+			d['pest'] = self.base_get_prop_dict(v.dlr.pest)
+			d['path'] = self.base_get_prop_dict(v.dlr.path)
+			d['hmet'] = self.base_get_prop_dict(v.dlr.hmet)
+			d['salt'] = self.base_get_prop_dict(v.dlr.salt)
+			ml.append(d)
+		
+		return {
+			'total': items['total'],
+			'matches': items['matches'],
+			'items': ml
+		}
 
 
 class DelratioConMapApi(BaseRestModel):
 	def get(self, project_db):
 		return self.get_con_map(project_db, Delratio_con)
-
-
-def get_con_out_args():
-	parser = reqparse.RequestParser()
-	parser.add_argument('id', type=int, required=False, location='json')
-	parser.add_argument('order', type=int, required=True, location='json')
-	parser.add_argument('obj_typ', type=str, required=True, location='json')
-	parser.add_argument('obj_id', type=int, required=True, location='json')
-	parser.add_argument('hyd_typ', type=str, required=True, location='json')
-	parser.add_argument('frac', type=float, required=True, location='json')
-	parser.add_argument('delratio_con_id', type=int, required=False, location='json')
-	args = parser.parse_args(strict=True)
-	return args
 
 
 class DelratioConOutApi(BaseRestModel):
@@ -147,51 +73,12 @@ class DelratioConOutApi(BaseRestModel):
 		return self.base_delete(project_db, id, Delratio_con_out, 'Outflow')
 
 	def put(self, project_db, id):
-		try:
-			args = get_con_out_args()
-			SetupProjectDatabase.init(project_db)
-
-			m = Delratio_con_out.get(Delratio_con_out.id == id)
-			m.order = args['order']
-			m.obj_typ = args['obj_typ']
-			m.obj_id = args['obj_id']
-			m.hyd_typ = args['hyd_typ']
-			m.frac = args['frac']
-
-			result = m.save()
-
-			if result > 0:
-				return 200
-
-			abort(400, message='Unable to update delratio outflow {id}.'.format(id=id))
-		except Delratio_con_out.DoesNotExist:
-			abort(404, message='Delratio outflow {id} does not exist'.format(id=id))
-		except Exception as ex:
-			abort(400, message="Unexpected error {ex}".format(ex=ex))
+		return self.put_con_out(project_db, id, 'delratio_con', Delratio_con_out)
 
 
 class DelratioConOutPostApi(BaseRestModel):
 	def post(self, project_db):
-		args = get_con_out_args()
-		SetupProjectDatabase.init(project_db)
-
-		try:
-			m = Delratio_con_out()
-			m.order = args['order']
-			m.obj_typ = args['obj_typ']
-			m.obj_id = args['obj_id']
-			m.hyd_typ = args['hyd_typ']
-			m.frac = args['frac']
-			m.delratio_con_id = args['delratio_con_id']
-
-			result = m.save()
-
-			if result > 0:
-				return model_to_dict(m), 201
-
-			abort(400, message='Unable to create delratio outflow.')
-		except Exception as ex:
-			abort(400, message="Unexpected error {ex}".format(ex=ex))
+		return self.post_con_out(project_db, 'delratio_con', Delratio_con_out)
 
 
 def get_dr_args(get_selected_ids=False):
@@ -199,24 +86,26 @@ def get_dr_args(get_selected_ids=False):
 
 	if get_selected_ids:
 		parser.add_argument('selected_ids', type=int, action='append', required=False, location='json')
+		parser.add_argument('elev', type=float, required=False, location='json')
+		parser.add_argument('wst_name', type=str, required=False, location='json')
 	else:
 		parser.add_argument('id', type=int, required=False, location='json')
 		parser.add_argument('name', type=str, required=True, location='json')
 
-	parser.add_argument('om_name', type=str, required=True, location='json')
-	parser.add_argument('pest_name', type=str, required=True, location='json')
-	parser.add_argument('path_name', type=str, required=True, location='json')
-	parser.add_argument('hmet_name', type=str, required=True, location='json')
-	parser.add_argument('salt_name', type=str, required=True, location='json')
-	args = parser.parse_args(strict=True)
+	parser.add_argument('om_name', type=str, required=False, location='json')
+	parser.add_argument('pest_name', type=str, required=False, location='json')
+	parser.add_argument('path_name', type=str, required=False, location='json')
+	parser.add_argument('hmet_name', type=str, required=False, location='json')
+	parser.add_argument('salt_name', type=str, required=False, location='json')
+	args = parser.parse_args(strict=False)
 	return args
 
 
 class DelratioDelListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Delratio_del
-		list_name = 'dr'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name, True)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols, True)
 
 
 class DelratioDelApi(BaseRestModel):
@@ -284,9 +173,11 @@ class DelratioDelUpdateManyApi(BaseRestModel):
 			if args['salt_name'] is not None:
 				param_dict['salt_id'] = self.get_id_from_name(Dr_salt_del, args['salt_name'])
 
-			query = Delratio_del.update(param_dict).where(Delratio_del.id.in_(args['selected_ids']))
-			result = query.execute()
+			con_table = Delratio_con
+			con_prop_field = Delratio_con.dlr_id
+			prop_table = Delratio_del
 
+			result = self.base_put_many_con(args, param_dict, con_table, con_prop_field, prop_table)
 			if result > 0:
 				return 200
 
@@ -322,7 +213,7 @@ class DelratioDelPostApi(BaseRestModel):
 			result = m.save()
 
 			if result > 0:
-				return 200
+				return {'id': m.id }, 200
 
 			abort(400, message='Unable to update delratio properties {id}.'.format(id=id))
 		except IntegrityError as e:
@@ -342,10 +233,10 @@ class DelratioDelPostApi(BaseRestModel):
 
 
 class DelratioOMListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Dr_om_del
-		list_name = 'dr'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 def save_dr_om_del(m, args):

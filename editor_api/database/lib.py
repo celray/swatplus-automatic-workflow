@@ -1,12 +1,15 @@
-import os, sys
-sys.path.insert(0, os.path.join(os.environ["swatplus_wf_dir"], "packages"))
+import sys, os
+import platform
+
+if platform.system() == 'Windows':
+	sys.path.insert(0, os.path.join(os.environ["swatplus_wf_dir"], "packages"))
 
 from peewee import *
 import sqlite3
 
 
 def bulk_insert(db, table, data):
-	if (len(data) > 0):
+	if len(data) > 0:
 		max_vars = 999  # SQLite limit to the number of parameters in a query
 		total_params = len(data[0]) * len(data)
 		num_insert = max_vars if max_vars > total_params else int(max_vars / len(data[0]))
@@ -14,6 +17,18 @@ def bulk_insert(db, table, data):
 		with db.atomic():
 			for idx in range(0, len(data), num_insert):
 				table.insert_many(data[idx:idx + num_insert]).execute()
+
+def bulk_update_ids(db, table, param_dict, id_list):
+	if len(id_list) > 0:
+		max_vars = 999  # SQLite limit to the number of parameters in a query
+		total_params = len(param_dict) + len(id_list)
+		num_update = max_vars if max_vars > total_params else int(max_vars - len(param_dict))
+
+		with db.atomic():
+			for idx in range(0, len(id_list), num_update):
+				table.update(param_dict).where(table.id.in_(id_list[idx:idx + num_update])).execute()
+
+	return 1
 
 
 def open_db(name):
@@ -23,11 +38,11 @@ def open_db(name):
 	return conn
 
 
-def copy_table(table, src, dest, include_id=False):
+def copy_table(table, src, dest, include_id=False, where_stmt=''):
 	src_conn = open_db(src)
 	dest_conn = open_db(dest)
 
-	sc = src_conn.execute('SELECT * FROM %s' % table)
+	sc = src_conn.execute('SELECT * FROM %s %s' % (table, where_stmt))
 	ins = None
 	dc = dest_conn.cursor()
 	for row in sc.fetchall():

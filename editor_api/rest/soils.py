@@ -10,10 +10,10 @@ from database.project.soils import Soils_sol, Soils_sol_layer, Nutrients_sol, So
 
 
 class SoilsSolListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Soils_sol
-		list_name = 'soils'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name, table.description, table.hyd_grp, table.texture]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class SoilsSolApi(BaseRestModel):
@@ -49,10 +49,10 @@ class SoilsSolLayerPostApi(BaseRestModel):
 
 
 class NutrientsSolListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Nutrients_sol
-		list_name = 'soils'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name, table.description]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class NutrientsSolApi(BaseRestModel):
@@ -80,10 +80,10 @@ class NutrientsSolUpdateManyApi(BaseRestModel):
 
 
 class SoilsLteSolListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Soils_lte_sol
-		list_name = 'soils'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class SoilsLteSolApi(BaseRestModel):

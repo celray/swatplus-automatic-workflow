@@ -25,56 +25,12 @@ class ChannelTypeApi(BaseRestModel):
 		return {'type': cha_type}
 
 
-class ChannelConApi(BaseRestModel):
-	def get(self, project_db, id):
-		return self.base_get(project_db, id, Channel_con, 'Channel', True)
-
-	def delete(self, project_db, id):
-		return self.base_delete(project_db, id, Channel_con, 'Channel')
-
-	def put(self, project_db, id):
-		return self.put_con(project_db, id, 'cha', Channel_con, Channel_cha)
-
-
-class ChannelConPostApi(BaseRestModel):
-	def post(self, project_db):
-		return self.post_con(project_db, 'cha', Channel_con, Channel_cha)
-
-
-class ChannelConListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
-		table = Channel_con
-		list_name = 'channels'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name, True)
-
-
-class ChannelConMapApi(BaseRestModel):
-	def get(self, project_db):
-		return self.get_con_map(project_db, Channel_con)
-
-
-class ChannelConOutApi(BaseRestModel):
-	def get(self, project_db, id):
-		return self.base_get(project_db, id, Channel_con_out, 'Outflow', True)
-
-	def delete(self, project_db, id):
-		return self.base_delete(project_db, id, Channel_con_out, 'Outflow')
-
-	def put(self, project_db, id):
-		return self.put_con_out(project_db, id, 'channel_con', Channel_con_out)
-
-
-class ChannelConOutPostApi(BaseRestModel):
-	def post(self, project_db):
-		return self.post_con_out(project_db, 'channel_con', Channel_con_out)
-
-
 class ChandegConApi(BaseRestModel):
 	def get(self, project_db, id):
 		return self.base_get(project_db, id, Chandeg_con, 'Channel', True)
 
 	def delete(self, project_db, id):
-		return self.base_delete(project_db, id, Chandeg_con, 'Channel')
+		return self.base_delete(project_db, id, Chandeg_con, 'Channel', 'lcha', Channel_lte_cha)
 
 	def put(self, project_db, id):
 		return self.put_con(project_db, id, 'lcha', Chandeg_con, Channel_lte_cha)
@@ -86,10 +42,33 @@ class ChandegConPostApi(BaseRestModel):
 
 
 class ChandegConListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Chandeg_con
-		list_name = 'channels'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name, True)
+		prop_table = Channel_lte_cha
+		filter_cols = [table.name, table.wst, prop_table.init, prop_table.hyd, prop_table.nut]
+		table_lookups = {
+			table.wst: Weather_sta_cli
+		}
+		props_lookups = {
+			prop_table.init: Initial_cha,
+			prop_table.hyd: Hyd_sed_lte_cha,
+			prop_table.nut: Nutrients_cha
+		}
+
+		items = self.base_connect_paged_items(project_db, table, prop_table, filter_cols, table_lookups, props_lookups)
+		ml = []
+		for v in items['model']:
+			d = self.base_get_con_item_dict(v)
+			d['init'] = self.base_get_prop_dict(v.lcha.init)
+			d['hyd'] = self.base_get_prop_dict(v.lcha.hyd)
+			d['nut'] = self.base_get_prop_dict(v.lcha.nut)
+			ml.append(d)
+		
+		return {
+			'total': items['total'],
+			'matches': items['matches'],
+			'items': ml
+		}
 
 
 class ChandegConMapApi(BaseRestModel):
@@ -113,151 +92,11 @@ class ChandegConOutPostApi(BaseRestModel):
 		return self.post_con_out(project_db, 'chandeg_con', Chandeg_con_out)
 
 
-def get_cha_args(get_selected_ids=False):
-	parser = reqparse.RequestParser()
-
-	if get_selected_ids:
-		parser.add_argument('selected_ids', type=int, action='append', required=False, location='json')
-	else:
-		parser.add_argument('id', type=int, required=False, location='json')
-		parser.add_argument('name', type=str, required=True, location='json')
-		parser.add_argument('description', type=str, required=False, location='json')
-
-	parser.add_argument('init_name', type=str, required=True, location='json')
-	parser.add_argument('hyd_name', type=str, required=True, location='json')
-	parser.add_argument('sed_name', type=str, required=True, location='json')
-	parser.add_argument('nut_name', type=str, required=True, location='json')
-	args = parser.parse_args(strict=True)
-	return args
-
-
-class ChannelChaListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
-		table = Channel_cha
-		list_name = 'channels'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name, True)
-
-
-class ChannelChaApi(BaseRestModel):
-	def get(self, project_db, id):
-		return self.base_get(project_db, id, Channel_cha, 'Channel', True)
-
-	def delete(self, project_db, id):
-		return self.base_delete(project_db, id, Channel_cha, 'Channel')
-
-	def put(self, project_db, id):
-		args = get_cha_args()
-		try:
-			SetupProjectDatabase.init(project_db)
-
-			m = Channel_cha.get(Channel_cha.id == id)
-			m.name = args['name']
-			m.description = args['description']
-			m.init_id = self.get_id_from_name(Initial_cha, args['init_name'])
-			m.hyd_id = self.get_id_from_name(Hydrology_cha, args['hyd_name'])
-			m.sed_id = self.get_id_from_name(Sediment_cha, args['sed_name'])
-			m.nut_id = self.get_id_from_name(Nutrients_cha, args['nut_name'])
-
-			result = m.save()
-
-			if result > 0:
-				return 200
-
-			abort(400, message='Unable to update channel properties {id}.'.format(id=id))
-		except IntegrityError as e:
-			abort(400, message='Channel properties name must be unique.')
-		except Channel_cha.DoesNotExist:
-			abort(404, message='Channel properties {id} does not exist'.format(id=id))
-		except Initial_cha.DoesNotExist:
-			abort(400, message=self.__invalid_name_msg.format(name=args['init_name']))
-		except Hydrology_cha.DoesNotExist:
-			abort(400, message=self.__invalid_name_msg.format(name=args['hyd_name']))
-		except Sediment_cha.DoesNotExist:
-			abort(400, message=self.__invalid_name_msg.format(name=args['sed_name']))
-		except Nutrients_cha.DoesNotExist:
-			abort(400, message=self.__invalid_name_msg.format(name=args['nut_name']))
-		except Exception as ex:
-			abort(400, message="Unexpected error {ex}".format(ex=ex))
-
-
-class ChannelChaUpdateManyApi(BaseRestModel):
-	def get(self, project_db):
-		return self.base_name_id_list(project_db, Channel_cha)
-
-	def put(self, project_db):
-		SetupProjectDatabase.init(project_db)
-		args = get_cha_args(True)
-		
-		try:
-			param_dict = {}
-
-			if args['init_name'] is not None:
-				param_dict['init_id'] = self.get_id_from_name(Initial_cha, args['init_name'])
-			if args['hyd_name'] is not None:
-				param_dict['hyd_id'] = self.get_id_from_name(Hydrology_cha, args['hyd_name'])
-			if args['sed_name'] is not None:
-				param_dict['sed_id'] = self.get_id_from_name(Sediment_cha, args['sed_name'])
-			if args['nut_name'] is not None:
-				param_dict['nut_id'] = self.get_id_from_name(Nutrients_cha, args['nut_name'])
-
-			query = Channel_cha.update(param_dict).where(Channel_cha.id.in_(args['selected_ids']))
-			result = query.execute()
-
-			if result > 0:
-				return 200
-
-			abort(400, message='Unable to update channel properties.')
-		except Initial_cha.DoesNotExist:
-			abort(400, message=self.__invalid_name_msg.format(name=args['init_name']))
-		except Hydrology_cha.DoesNotExist:
-			abort(400, message=self.__invalid_name_msg.format(name=args['hyd_name']))
-		except Sediment_cha.DoesNotExist:
-			abort(400, message=self.__invalid_name_msg.format(name=args['sed_name']))
-		except Nutrients_cha.DoesNotExist:
-			abort(400, message=self.__invalid_name_msg.format(name=args['nut_name']))
-		except Exception as ex:
-			abort(400, message="Unexpected error {ex}".format(ex=ex))
-
-
-class ChannelChaPostApi(BaseRestModel):
-	def post(self, project_db):
-		args = get_cha_args()
-		try:
-			SetupProjectDatabase.init(project_db)
-
-			m = Channel_cha()
-			m.name = args['name']
-			m.description = args['description']
-			m.init_id = self.get_id_from_name(Initial_cha, args['init_name'])
-			m.hyd_id = self.get_id_from_name(Hydrology_cha, args['hyd_name'])
-			m.sed_id = self.get_id_from_name(Sediment_cha, args['sed_name'])
-			m.nut_id = self.get_id_from_name(Nutrients_cha, args['nut_name'])
-
-			result = m.save()
-
-			if result > 0:
-				return 200
-
-			abort(400, message='Unable to update channel properties {id}.'.format(id=id))
-		except IntegrityError as e:
-			abort(400, message='Channel properties name must be unique.')
-		except Initial_cha.DoesNotExist:
-			abort(400, message=self.__invalid_name_msg.format(name=args['init_name']))
-		except Hydrology_cha.DoesNotExist:
-			abort(400, message=self.__invalid_name_msg.format(name=args['hyd_name']))
-		except Sediment_cha.DoesNotExist:
-			abort(400, message=self.__invalid_name_msg.format(name=args['sed_name']))
-		except Nutrients_cha.DoesNotExist:
-			abort(400, message=self.__invalid_name_msg.format(name=args['nut_name']))
-		except Exception as ex:
-			abort(400, message="Unexpected error {ex}".format(ex=ex))
-
-
 class InitialChaListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Initial_cha
-		list_name = 'channels'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name, True)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols, True)
 
 
 def get_initial_args(get_selected_ids=False):
@@ -410,73 +249,11 @@ class InitialChaPostApi(BaseRestModel):
 			abort(400, message="Unexpected error {ex}".format(ex=ex))
 
 
-class HydrologyChaListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
-		table = Hydrology_cha
-		list_name = 'channels'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
-
-
-class HydrologyChaApi(BaseRestModel):
-	def get(self, project_db, id):
-		return self.base_get(project_db, id, Hydrology_cha, 'Channel')
-
-	def delete(self, project_db, id):
-		return self.base_delete(project_db, id, Hydrology_cha, 'Channel')
-
-	def put(self, project_db, id):
-		return self.base_put(project_db, id, Hydrology_cha, 'Channel')
-
-
-class HydrologyChaUpdateManyApi(BaseRestModel):
-	def get(self, project_db):
-		return self.base_name_id_list(project_db, Hydrology_cha)
-
-	def put(self, project_db):
-		return self.base_put_many(project_db, Hydrology_cha, 'Channel')
-
-
-class HydrologyChaPostApi(BaseRestModel):
-	def post(self, project_db):
-		return self.base_post(project_db, Hydrology_cha, 'Channel')
-
-
-class SedimentChaListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
-		table = Sediment_cha
-		list_name = 'channels'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
-
-
-class SedimentChaApi(BaseRestModel):
-	def get(self, project_db, id):
-		return self.base_get(project_db, id, Sediment_cha, 'Channel')
-
-	def delete(self, project_db, id):
-		return self.base_delete(project_db, id, Sediment_cha, 'Channel')
-
-	def put(self, project_db, id):
-		return self.base_put(project_db, id, Sediment_cha, 'Channel')
-
-
-class SedimentChaUpdateManyApi(BaseRestModel):
-	def get(self, project_db):
-		return self.base_name_id_list(project_db, Sediment_cha)
-
-	def put(self, project_db):
-		return self.base_put_many(project_db, Sediment_cha, 'Channel')
-
-
-class SedimentChaPostApi(BaseRestModel):
-	def post(self, project_db):
-		return self.base_post(project_db, Sediment_cha, 'Channel')
-
-
 class NutrientsChaListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Nutrients_cha
-		list_name = 'channels'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class NutrientsChaApi(BaseRestModel):
@@ -510,23 +287,25 @@ def get_cha_lte_args(get_selected_ids=False):
 
 	if get_selected_ids:
 		parser.add_argument('selected_ids', type=int, action='append', required=False, location='json')
+		parser.add_argument('elev', type=float, required=False, location='json')
+		parser.add_argument('wst_name', type=str, required=False, location='json')
 	else:
 		parser.add_argument('id', type=int, required=False, location='json')
 		parser.add_argument('name', type=str, required=True, location='json')
 		parser.add_argument('description', type=str, required=False, location='json')
 
-	parser.add_argument('init_name', type=str, required=True, location='json')
-	parser.add_argument('hyd_name', type=str, required=True, location='json')
-	parser.add_argument('nut_name', type=str, required=True, location='json')
+	parser.add_argument('init_name', type=str, required=False, location='json')
+	parser.add_argument('hyd_name', type=str, required=False, location='json')
+	parser.add_argument('nut_name', type=str, required=False, location='json')
 	args = parser.parse_args(strict=False)
 	return args
 
 
 class ChannelLteChaListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Channel_lte_cha
-		list_name = 'channels'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name, True)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols, True)
 
 
 class ChannelLteChaApi(BaseRestModel):
@@ -586,9 +365,11 @@ class ChannelLteChaUpdateManyApi(BaseRestModel):
 			if args['nut_name'] is not None:
 				param_dict['nut_id'] = self.get_id_from_name(Nutrients_cha, args['nut_name'])
 
-			query = Channel_lte_cha.update(param_dict).where(Channel_lte_cha.id.in_(args['selected_ids']))
-			result = query.execute()
+			con_table = Chandeg_con
+			con_prop_field = Chandeg_con.lcha_id
+			prop_table = Channel_lte_cha
 
+			result = self.base_put_many_con(args, param_dict, con_table, con_prop_field, prop_table)
 			if result > 0:
 				return 200
 
@@ -599,6 +380,8 @@ class ChannelLteChaUpdateManyApi(BaseRestModel):
 			abort(400, message=self.__invalid_name_msg.format(name=args['hyd_name']))
 		except Nutrients_cha.DoesNotExist:
 			abort(400, message=self.__invalid_name_msg.format(name=args['nut_name']))
+		except Weather_sta_cli.DoesNotExist:
+			abort(400, message=self.__invalid_name_msg.format(name=args['wst_name']))
 		except Exception as ex:
 			abort(400, message="Unexpected error {ex}".format(ex=ex))
 
@@ -619,7 +402,7 @@ class ChannelLteChaPostApi(BaseRestModel):
 			result = m.save()
 
 			if result > 0:
-				return 200
+				return {'id': m.id }, 200
 
 			abort(400, message='Unable to update channel properties {id}.'.format(id=id))
 		except IntegrityError as e:
@@ -635,10 +418,10 @@ class ChannelLteChaPostApi(BaseRestModel):
 
 
 class HydSedLteChaListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Hyd_sed_lte_cha
-		list_name = 'channels'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class HydSedLteChaApi(BaseRestModel):

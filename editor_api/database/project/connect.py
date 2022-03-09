@@ -132,7 +132,7 @@ class Outlet_con_out(Con_out):
 
 
 class Chandeg_con(Con):
-	lcha = ForeignKeyField(channel.Channel_lte_cha, null=True, on_delete='SET NULL')  # Think this is connect for channel-lte, but not positive.
+	lcha = ForeignKeyField(channel.Channel_lte_cha, null=True, on_delete='SET NULL')  
 
 
 class Chandeg_con_out(Con_out):

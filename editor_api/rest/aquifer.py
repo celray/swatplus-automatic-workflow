@@ -22,7 +22,7 @@ class AquiferConApi(BaseRestModel):
 		return self.base_get(project_db, id, Aquifer_con, 'Aquifer', True)
 
 	def delete(self, project_db, id):
-		return self.base_delete(project_db, id, Aquifer_con, 'Aquifer')
+		return self.base_delete(project_db, id, Aquifer_con, 'Aquifer', 'aqu', Aquifer_aqu)
 
 	def put(self, project_db, id):
 		return self.put_con(project_db, id, 'aqu', Aquifer_con, Aquifer_aqu)
@@ -34,10 +34,31 @@ class AquiferConPostApi(BaseRestModel):
 
 
 class AquiferConListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Aquifer_con
-		list_name = 'aquifers'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name, True)
+		prop_table = Aquifer_aqu
+		filter_cols = [table.name, table.wst, prop_table.init]
+		table_lookups = {
+			table.wst: Weather_sta_cli
+		}
+		props_lookups = {
+			prop_table.init: Initial_aqu
+		}
+
+		items = self.base_connect_paged_items(project_db, table, prop_table, filter_cols, table_lookups, props_lookups)
+		ml = []
+		for v in items['model']:
+			d = self.base_get_con_item_dict(v)
+			d2 = model_to_dict(v.aqu, recurse=False)
+			d3 = {**d, **d2}
+			d3['init'] = self.base_get_prop_dict(v.aqu.init)
+			ml.append(d3)
+		
+		return {
+			'total': items['total'],
+			'matches': items['matches'],
+			'items': ml
+		}
 
 
 class AquiferConMapApi(BaseRestModel):
@@ -62,10 +83,10 @@ class AquiferConOutPostApi(BaseRestModel):
 
 
 class AquiferAquListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Aquifer_aqu
-		list_name = 'aquifers'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name, True)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols, True)
 
 
 class AquiferAquApi(BaseRestModel):
@@ -115,9 +136,11 @@ class AquiferAquUpdateManyApi(BaseRestModel):
 					else:
 						param_dict[key] = args[key]
 
-			query = Aquifer_aqu.update(param_dict).where(Aquifer_aqu.id.in_(args['selected_ids']))
-			result = query.execute()
+			con_table = Aquifer_con
+			con_prop_field = Aquifer_con.aqu_id
+			prop_table = Aquifer_aqu
 
+			result = self.base_put_many_con(args, param_dict, con_table, con_prop_field, prop_table)
 			if result > 0:
 				return 200
 
@@ -135,7 +158,7 @@ class AquiferAquPostApi(BaseRestModel):
 			result = self.save_args(Aquifer_aqu, args, is_new=True, lookup_fields=['init'])
 
 			if result > 0:
-				return 200
+				return {'id': result }, 200
 
 			abort(400, message='Unable to update aquifer properties {id}.'.format(id=id))
 		except IntegrityError as e:
@@ -145,10 +168,10 @@ class AquiferAquPostApi(BaseRestModel):
 
 
 class InitialAquListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Initial_aqu
-		list_name = 'aquifers'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name, True)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols, True)
 
 
 def get_initial_args(get_selected_ids=False):
@@ -166,7 +189,7 @@ def get_initial_args(get_selected_ids=False):
 	parser.add_argument('path_name', type=str, required=False, location='json')
 	parser.add_argument('hmet_name', type=str, required=False, location='json')
 	parser.add_argument('salt_name', type=str, required=False, location='json')
-	args = parser.parse_args(strict=True)
+	args = parser.parse_args(strict=False)
 	return args
 
 

@@ -26,24 +26,26 @@
  ***************************************************************************
 """
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import *  # @UnusedWildImport
-from PyQt5.QtGui import *  # @UnusedWildImport
-from PyQt5.QtWidgets import *  # @UnusedWildImport
-from qgis.core import *  # @UnusedWildImport
-from qgis.gui import *  # @UnusedWildImport 
-from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry  # @UnresolvedImport
+from qgis.PyQt.QtCore import Qt, QObject, QFileInfo
+from qgis.PyQt.QtGui import QIntValidator, QDoubleValidator
+#from qgis.PyQt.QtWidgets import *  # @UnusedWildImport
+from qgis.core import QgsFeature, QgsFields, QgsProject, QgsRasterLayer, QgsVectorFileWriter, QgsVectorLayer, QgsWkbTypes, QgsCoordinateTransformContext
+from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry
 import os.path
-import subprocess
+#import subprocess
+import processing  # @UnresolvedImport type: ignore 
+from processing.core.Processing import Processing  #  @UnresolvedImport @UnusedImport type: ignore
 import time
+import locale
 from osgeo import gdal
 
-from TauDEMUtils import TauDEMUtils
-from QSWATTopology import QSWATTopology
-from QSWATUtils import QSWATUtils, FileTypes
-from landscapedialog import LandscapeDialog
-from floodplain import Floodplain
-from parameters import Parameters
-from raster import Raster
+from .TauDEMUtils import TauDEMUtils
+from .QSWATTopology import QSWATTopology
+from .QSWATUtils import QSWATUtils, FileTypes # type: ignore
+from .landscapedialog import LandscapeDialog
+from .floodplain import Floodplain
+from .parameters import Parameters
+from .raster import Raster
 
 
 class Landscape(QObject):
@@ -133,7 +135,7 @@ class Landscape(QObject):
         self._dlg.areaUnitsBox.activated.connect(self.changeRidgeArea)
         self._dlg.methodTab.currentChanged.connect(self.methodTabCheck)
         self._dlg.branchThreshold.textChanged.connect(self.parameterChange)
-        self._dlg.branchThreshold.setValidator(QDoubleValidator())
+        self._dlg.branchThreshold.setValidator(QIntValidator())
         self._dlg.createButton.clicked.connect(self.generate)
         self._dlg.doneButton.clicked.connect(self.cancel)
         # if distances to outlets not generated (eg existing watershed) then branch method is not available
@@ -156,9 +158,10 @@ class Landscape(QObject):
         self._dlg.methodTab.setCurrentIndex(1)  # default method is inverted DEM
         self.methodTabCheck()
         self.mustRun = mustRun
-        self._dlg.show()
-        self._dlg.exec_()
-        self._gv.landscapePos = self._dlg.pos()
+        if not self._gv.isBatch:
+            self._dlg.show()
+            self._dlg.exec_()
+            self._gv.landscapePos = self._dlg.pos()
         return 0
     
     def setAreaOfCell(self):
@@ -188,7 +191,7 @@ class Landscape(QObject):
             return
         area = numCells * self.areaOfCell
         self.changing = True
-        self._dlg.ridgeThresholdArea.setText('{0:.4G}'.format(area))
+        self._dlg.ridgeThresholdArea.setText(locale.format_string('%.4G', area))
         self.changing = False
         self.parameterChange()
             
@@ -198,7 +201,7 @@ class Landscape(QObject):
         # prevent division by zero
         if self.areaOfCell == 0: return
         try:
-            area = float(self._dlg.ridgeThresholdArea.text())
+            area = locale.atof(self._dlg.ridgeThresholdArea.text())
         except Exception:
             # not currently parsable - ignore
             return
@@ -232,12 +235,21 @@ class Landscape(QObject):
         if self.mustClip(clipperFile, inFile, clipFile):
             if os.path.exists(clipFile):
                 QSWATUtils.tryRemoveLayerAndFiles(clipFile, root)
-            command = 'gdalwarp --config GDALWARP_IGNORE_BAD_CUTLINE YES -dstnodata {3} -q -overwrite -cutline "{0}" -crop_to_cutline -of GTiff "{1}" "{2}"'.format(clipperFile, inFile, clipFile, self.noData)
-            proc = subprocess.run(command,  # @UnusedVariable
-                                    shell=True,
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.STDOUT,
-                                    universal_newlines=True)    # text=True) only in python 3.7
+            processing.run("gdal:cliprasterbymasklayer", 
+                           {'INPUT':inFile,
+                            'MASK':clipperFile,
+                            'SOURCE_CRS': self._gv.crsProject,
+                            'NODATA':self.noData,
+                            'CROP_TO_CUTLINE':True,
+                            'DATA_TYPE':0,
+                            'EXTRA':'--config GDALWARP_IGNORE_BAD_CUTLINE YES -overwrite',
+                            'OUTPUT':clipFile})
+#             command = 'gdalwarp --config GDALWARP_IGNORE_BAD_CUTLINE YES -dstnodata {3} -overwrite -cutline "{0}" -crop_to_cutline -of GTiff "{1}" "{2}"'.format(clipperFile, inFile, clipFile, self.noData)
+#             proc = subprocess.run(command,  # @UnusedVariable
+#                                     shell=True,
+#                                     stdout=subprocess.PIPE,
+#                                     stderr=subprocess.STDOUT,
+#                                     universal_newlines=True)    # text=True) only in python 3.7
             #for line in  proc.stdout.split('\n'):
             #    QSWATUtils.loginfo(line)
             QSWATUtils.copyPrj(inFile, clipFile)
@@ -280,6 +292,7 @@ class Landscape(QObject):
                 self.demRaster = Raster(dem, self._gv, canWrite=False, isInt=False)
                 res = self.demRaster.open(self.chunkCount)
                 if not res:
+                    self._dlg.setCursor(Qt.ArrowCursor)
                     return False
                 self.numRows = self.demRaster.numRows
                 self.numCols = self.demRaster.numCols
@@ -297,11 +310,13 @@ class Landscape(QObject):
                     res = self.channelsRaster.open(self.chunkCount)
                     if not res:
                         self._gv.closeOpenRasters()
+                        self._dlg.setCursor(Qt.ArrowCursor)
                         return False
                     self.flowRaster = Raster(d8Flow, self._gv, canWrite=False, isInt=True)
                     res = self.flowRaster.open(self.chunkCount)
                     if not res:
                         self._gv.closeOpenRasters()
+                        self._dlg.setCursor(Qt.ArrowCursor)
                         return False
                     # Require D8 flow raster  and channels raster  to have same geometry as dem,
                     # else, for example, 1 step downstream in flow raster  could stay in same channel pixel, or skip a channel pixel.
@@ -309,23 +324,30 @@ class Landscape(QObject):
                     if not QSWATTopology.sameTransform(self.transform, self.flowRaster.ds.GetGeoTransform(), self.numRows, self.numCols):
                         QSWATUtils.error('Clipped flow directions raster  {0} and clipped DEM raster {1} must have same geometry'.format(d8Flow, dem), self._gv.isBatch)
                         self._gv.closeOpenRasters()
+                        self._dlg.setCursor(Qt.ArrowCursor)
                         return False
                     if not QSWATTopology.sameTransform(self.transform, self.channelsRaster.ds.GetGeoTransform(), self.numRows, self.numCols):
                         QSWATUtils.error('Clipped channels raster  {0} and clipped DEM raster {1} must have same geometry'.format(channels, dem), self._gv.isBatch)
                         self._gv.closeOpenRasters()
+                        self._dlg.setCursor(Qt.ArrowCursor)
                         return False
                     self._progress('Hillslopes ...')
                     self.valleyDepthsRaster = self.openResult(self._gv.valleyDepthsFile, root, isInt=False)
                     if self.valleyDepthsRaster is None:
                         self._gv.closeOpenRasters()
+                        self._dlg.setCursor(Qt.ArrowCursor)
                         return False
                     self.findHeads()
                     self.findSides()
                     self.hillslopeRaster = self.openResult(hillslopeFile, root, isInt=True)
                     if self.hillslopeRaster is None:
                         self._gv.closeOpenRasters()
+                        self._dlg.setCursor(Qt.ArrowCursor)
                         return False
-                    self.fillResult()
+                    if not self.fillResult():
+                        self._gv.closeOpenRasters()
+                        self._dlg.setCursor(Qt.ArrowCursor)
+                        return False
                     self.channelsRaster.close()
                     self.flowRaster.close()
                     self.hillslopeRaster.close()
@@ -389,6 +411,7 @@ class Landscape(QObject):
                                                                                           self._gv.ad8File), self._gv.isBatch)
             return False
         QSWATUtils.copyPrj(self._gv.felFile, channelFile)
+        QSWATUtils.copyPrj(self._gv.felFile, wChannelFile)
         self._gv.channelFile = channelFile
         return True
                 
@@ -415,13 +438,14 @@ class Landscape(QObject):
                 return
             fields = bufferShapefileLayer.fields()
         else:
-            QSWATUtils.removeLayerAndFiles(bufferShapefile, root)
+            QSWATUtils.removeLayer(bufferShapefile, root)
             fields = QgsFields()
-            writer = QgsVectorFileWriter(bufferShapefile, 'CP1250', fields, QgsWkbTypes.MultiPolygon, self._gv.topo.crsProject, 'ESRI Shapefile')
+            writer = QgsVectorFileWriter.create(bufferShapefile, fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 
+                                         QgsCoordinateTransformContext(), self._gv.vectorFileWriterOptions)
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create channels buffer shapefile {0}: {1}'.format(bufferShapefile, writer.errorMessage()), self._gv.isBatch)
                 return
-            # delete the writer to flush
+            # flush
             writer.flushBuffer()
             del writer
             QSWATUtils.copyPrj(channels, bufferShapefile)
@@ -438,7 +462,7 @@ class Landscape(QObject):
             if drainAreaIndex >= 0:
                 areaToSqKm = 1E2 # AreaC is in hectares
         else:
-            areaToSqKm = 1E6 # DS_Cont_Ar is in sqaure metres
+            areaToSqKm = 1E6 / (self._gv.horizontalFactor * self._gv.horizontalFactor) # DS_Cont_Ar is in square metres (or maybe square feet)
         provider = bufferShapefileLayer.dataProvider()
         features = list()
         for reach in channelsLayer.getFeatures():
@@ -584,8 +608,10 @@ class Landscape(QObject):
                     return
         root = QgsProject.instance().layerTreeRoot()
         if doHillslopes or doFloodplain and not useBuffer:
-            self.calcHillslopes(self.channelThresh, self.clipperFile, root)
-        if doFloodplain:
+            ok = self.calcHillslopes(self.channelThresh, self.clipperFile, root)
+        else:
+            ok = True
+        if ok and doFloodplain:
             if useBuffer:
                 self.calcFloodplainBuffer(root)
             else:
@@ -669,7 +695,7 @@ class Landscape(QObject):
             formula = '0 - D@1'
             demInv = base + 'inv' + ext
             calc = QgsRasterCalculator(formula, demInv, 'GTiff', demLayer.extent(), demLayer.width(),
-                                       demLayer.height(), [entry])
+                                       demLayer.height(), [entry], QgsCoordinateTransformContext())
             result = calc.processCalculation(feedback=None)
             if result == 0:
                 assert os.path.exists(demInv), 'QGIS calculator formula {0} failed to write output'.format(formula)
@@ -678,17 +704,21 @@ class Landscape(QObject):
                 QSWATUtils.error('QGIS calculator formula {0} failed: returned {1}'.format(formula, result), self._gv.isBatch)
                 return None
             invFel = base + 'invFel' + ext
-            if not TauDEMUtils.runPitFill(demInv, invFel, self.numProcesses, self.taudemOutput):
+            if not TauDEMUtils.runPitFill(demInv, None, invFel, self.numProcesses, self.taudemOutput):
                 QSWATUtils.error('Failed to run TauDEM PitFill on {0}'.format(demInv), self._gv.isBatch)
-                return None 
+                return None
+            QSWATUtils.copyPrj(self._gv.demFile, invFel)
             sd8Inv = base + 'invsd8' + ext 
             if not TauDEMUtils.runD8FlowDir(invFel, sd8Inv, dirInv, self.numProcesses, self.taudemOutput):
                 QSWATUtils.error('Failed to run TauDEM D8FlowDir on {0}'.format(invFel), self._gv.isBatch)
                 return None 
+            QSWATUtils.copyPrj(self._gv.demFile, sd8Inv)
+            QSWATUtils.copyPrj(self._gv.demFile, dirInv)
             if not TauDEMUtils.runAreaD8(dirInv, accInv, None, None,
                                          self.numProcesses, self.taudemOutput, contCheck=False, mustRun=False):
                 QSWATUtils.error('Failed to run TauDEM AreaD8 on {0}'.format(dirInv), self._gv.isBatch)
                 return None 
+            QSWATUtils.copyPrj(self._gv.demFile, accInv)
         return dirInv, accInv
         
     def findHeads(self):
@@ -807,8 +837,11 @@ class Landscape(QObject):
         for row in range(self.numRows):
             for col in range(self.numCols):
                 if self.channelsRaster.read(row, col) != channelsNoData:
-                    (val, elev, path) = self.drainsTo(row, col)
+                    (val, elev, path, ok) = self.drainsTo(row, col)
+                    if not ok:
+                        return False
                     self.propagate(val, elev, path)
+        return True
                     
     def openResult(self, fileName, root, isInt=True):
         """Open raster  for writing and return it if OK."""
@@ -824,40 +857,40 @@ class Landscape(QObject):
             return None
         
     def drainsTo(self, row, col):
-        """Return drainage value, valley floor elevation and drainage path for (row, col)."""
+        """Return drainage value, valley floor elevation and drainage path for (row, col), plus boolean flag indicating OK or error."""
         path = []
         while True:
             val = self.hillslopeRaster.read(row, col)
             if val >= 0:  # already done this point
                 # if, eg, this point is 100m in elevation, and its valley depth is 60m, its valley floor point is at 40m
-                return (val, self.demRaster.read(row, col) - self.valleyDepthsRaster.read(row, col), path)
+                return (val, self.demRaster.read(row, col) - self.valleyDepthsRaster.read(row, col), path, True)
             val, elev = self.sides.get((row, col), (-1, 0))
             if val > 0:  # found the headwater or side drainage point
                 path.append((row, col))
-                return (val, elev, path)
+                return (val, elev, path, True)
             if self.channelsRaster.read(row, col) > 0:
                 if len(path) > 0:
                     (startRow, startCol) = path[0]
                     startX, startY = QSWATTopology.cellToProj(startCol, startRow, self.transform)
                     x, y = QSWATTopology.cellToProj(col, row, self.transform)
-                    QSWATUtils.error('Hit channel at ({0}, {1}) from ({2}, {3})'.format(x, y, startX, startY), self._gv.isBatch)
-                    return (-1, 0, [])
+                    QSWATUtils.error('Hit channel at ({0}, {1}) from ({2}, {3}). Landscape not created'.format(x, y, startX, startY), self._gv.isBatch)
+                    return (-1, 0, [], False)
                 else:
-                    return (0, self.demRaster.read(row, col), [(row, col)])  # set channel points (apart from head points) as zero
+                    return (0, self.demRaster.read(row, col), [(row, col)], True)  # set channel points (apart from head points) as zero
             if (row, col) in path:
                 (startRow, startCol) = path[0]
                 startX, startY = QSWATTopology.cellToProj(startCol, startRow, self.transform)
                 x, y = QSWATTopology.cellToProj(col, row, self.transform)
-                QSWATUtils.error('Loop to ({0}, {1}) from ({2}, {3})'.format(x, y, startX, startY), self._gv.isBatch)
-                return (-1, 0, [])
+                QSWATUtils.error('Loop to ({0}, {1}) from ({2}, {3}). Landscape not created.'.format(x, y, startX, startY), self._gv.isBatch)
+                return (-1, 0, [], False)
             path.append((row, col))
             pt = self.downSlopePoint(row, col)
             if pt is None:
                 (startRow, startCol) = path[0]
                 startX, startY = QSWATTopology.cellToProj(startCol, startRow, self.transform)
                 x, y = QSWATTopology.cellToProj(col, row, self.transform)
-                QSWATUtils.error('Dead end at ({0}, {1}) from ({2}, {3})'.format(x, y, startX, startY), self._gv.isBatch)
-                return (-1, 0, [])
+                QSWATUtils.error('Dead end at ({0}, {1}) from ({2}, {3}). Landscape not created.'.format(x, y, startX, startY), self._gv.isBatch)
+                return (-1, 0, [], False)
             (row, col) = pt
         
     def propagate(self, val, elev, path):

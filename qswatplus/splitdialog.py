@@ -20,17 +20,12 @@
  ***************************************************************************/
 """
 
-import os
+from qgis.PyQt import QtWidgets
 
-from PyQt5 import uic
-from PyQt5 import QtWidgets
+from .ui_split import Ui_SplitDialog
 
-pdir = os.path.dirname(__file__)
-FORM_CLASS, _ = uic.loadUiType(os.path.join(pdir, 'ui_split.ui'), 
-                               from_imports=True, 
-                               import_from=os.path.basename(pdir))
 
-class SplitDialog(QtWidgets.QDialog, FORM_CLASS):
+class SplitDialog(QtWidgets.QDialog, Ui_SplitDialog):
     """Set up dialog from designer."""
     def __init__(self, parent=None):
         """Constructor."""

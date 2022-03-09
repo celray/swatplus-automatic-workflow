@@ -20,8 +20,8 @@ class Aquifer_aqu(base.BaseModel):
 	dep_wt = DoubleField()
 	no3_n = DoubleField()
 	sol_p = DoubleField()
-	ptl_n = DoubleField()
-	ptl_p = DoubleField()
+	carbon = DoubleField()
+	flo_dist = DoubleField()
 	bf_max = DoubleField()
 	alpha_bf = DoubleField()
 	revap = DoubleField()
@@ -42,8 +42,8 @@ class Aquifer_aqu(base.BaseModel):
 			'dep_wt': 3,
 			'no3_n': 0,
 			'sol_p': 0,
-			'ptl_n': 0,
-			'ptl_p': 0,
+			'carbon': 0.5,
+			'flo_dist': 50,
 			'bf_max': 1,
 			'alpha_bf': 0.05,
 			'revap': 0.02,
@@ -65,8 +65,8 @@ class Aquifer_aqu(base.BaseModel):
 			'dep_wt': 20,
 			'no3_n': 0,
 			'sol_p': 0,
-			'ptl_n': 0,
-			'ptl_p': 0,
+			'carbon': 0.5,
+			'flo_dist': 50,
 			'bf_max': 1,
 			'alpha_bf': 0.01,
 			'revap': 0,

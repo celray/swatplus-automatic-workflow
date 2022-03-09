@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# cython: language_level=3
 '''
 /***************************************************************************
  QSWATPlus
@@ -21,14 +22,14 @@
  
  Cython version of parts of hrus
 '''
-
-# cython: language_level=3
+ 
 
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import *  # @UnusedWildImport
-from PyQt5.QtGui import *  # @UnusedWildImport
+from qgis.PyQt.QtCore import *  # @UnusedWildImport
+from qgis.PyQt.QtGui import *  # @UnusedWildImport
 from qgis.core import * # @UnusedWildImport
 from qgis.gui import * # @UnusedWildImport
+import math
 
 cdef class CellData:
 
@@ -233,10 +234,13 @@ cdef class LSUData:
         public double outletElevation
         public double sourceElevation
         public double channelLength
+        public int channelOrder
         public double farElevation
         public double farDistance
         public double farPointX
         public double farPointY
+        public double midPointX
+        public double midPointY
         public double totalElevation
         public double totalSlope
         public double totalLatitude
@@ -258,7 +262,7 @@ cdef class LSUData:
     Note that pixels of landuse WATR appear in both the main LSU data and also in the water body component.
     A decision is made later according to the water role:
     if the water role is a reservoir or pond then the water body is added to the model as reservoir or pond, and WATR HRUs are removed.
-    If the water role ins _UNKNOWN then the water body is ignored and the WATR HRUs included. 
+    If the water role is _UNKNOWN then the water body is ignored and the WATR HRUs included. 
     """
     def __init__(self):
         """Initialise class variables."""
@@ -272,6 +276,8 @@ cdef class LSUData:
         self.sourceElevation = 0
         ## channel length in m
         self.channelLength = 0
+        ## Strahler order
+        self.channelOrder = 0
         ## elevation of point with longest flow distance 
         self.farElevation = 0
         ## longest flow distance to channel
@@ -281,6 +287,10 @@ cdef class LSUData:
         self.farPointX = 0
         ## latitude (in projected units) of point with longest flow distance
         self.farPointY = 0
+        ## longitude (in projected units) of channel's mid point
+        self.midPointX = 0
+        ## latitude (in projected units) of channel's mid point
+        self.midPointY = 0
         ## Total of elevation values (to compute mean)
         self.totalElevation = 0
         ## total of latitudes (in projected units) (to compute centroid)
@@ -406,14 +416,47 @@ cdef class LSUData:
         for (hru, cellData) in self.hruMap.items():
             cellData.multiply(factor)
             self.hruMap[hru] = cellData
-        # keep area of water hrus and water body consistent
-        if self.waterBody is not None:
-            self.waterBody.multiply(factor)
+            
+    cpdef void moveWaterToPond(self, float lakeArea, int waterLanduse):
+        """ If the lsu has a lake pond and a waterBody that is currently unknown (not otherwise marked as pond or reservoir)
+        then water up to the area of the lake is removed from water body and water HRUs and the crop HRUs increased to compensate."""
+        cdef:
+            double cropRedistributeFactor, waterRedistributeFactor
+            list waterHRUs = []
+            list cropHRUs = []
+            int crop
+            dict soilSlopeNumbers
+            dict slopeNumbers
+            int hruNum
+            CellData hru
+        
+        # ensure there are crop HRUs to be enlarged
+        if self.waterBody is not None and self.waterBody.isUnknown() and self.cropSoilSlopeArea > self.waterBody.area:
+            if self.waterBody.area <= lakeArea:
+                cropRedistributeFactor = self.cropSoilSlopeArea  / (self.cropSoilSlopeArea - self.waterBody.area)
+                self.removeWaterHRUs(waterLanduse)
+                self.waterBody = None
+                waterRedistributeFactor = 0  # will not be used since now no water HRUs, but should be defined
+            else:
+                waterRedistributeFactor = (self.waterBody.area - lakeArea) / self.waterBody.area
+                self.waterBody.multiply(waterRedistributeFactor)
+                cropRedistributeFactor = (self.cropSoilSlopeArea - self.waterBody.area + lakeArea) / (self.cropSoilSlopeArea - self.waterBody.area)
+            for crop, soilSlopeNumbers in self.cropSoilSlopeNumbers.items():
+                for slopeNumbers in soilSlopeNumbers.values():
+                    for hruNum in slopeNumbers.values():
+                        if crop == waterLanduse:
+                            waterHRUs.append(self.hruMap[hruNum])
+                        else:
+                            cropHRUs.append(self.hruMap[hruNum])
+            for hru in waterHRUs:
+                hru.multiply(waterRedistributeFactor)
+            for hru in cropHRUs:
+                hru.multiply(cropRedistributeFactor)
             
     cpdef void redistributeNodataAndWater(self, int chLink, int lscape, list chLinksByLakes, int waterLanduse):
         """Add nodata areas proportionately to originalareas. 
          
-        Also removes water body if not a separate reservoir or pond 
+        Also removes water body if not a separate reservoir, pond or wetland
         and channel flows into or is inside lake and lscape is nolandscape or floodplain."""
         cdef:
             double areaToRedistribute, redistributeFactor
@@ -423,7 +466,7 @@ cdef class LSUData:
         if self.waterBody is not None and self.cropSoilSlopeArea > self.waterBody.originalArea and \
             self.waterBody.isUnknown() and chLink in chLinksByLakes and \
             lscape in {0, 1}:  # {QSWATUtils._NOLANDSCAPE, QSWATUtils._FLOODPLAIN}
-            # self.removeWaterHRUs(waterLanduse)
+            self.removeWaterHRUs(waterLanduse)
             self.waterBody = None
         areaToRedistribute = self.area - self.cropSoilSlopeArea
         if self.area > areaToRedistribute > 0:
@@ -460,6 +503,28 @@ cdef class LSUData:
                     for slope, hru in list(slopeNumbers.items()):
                         self.cropSoilSlopeArea -= self.hruMap[hru].area
                         self.removeHRU(hru, crop, soil, slope)
+                        
+    cpdef int totalHRUCellCount(self):
+        """Total cell count of HRUs in this LSU."""
+        
+        cdef:
+            int totalCellCount = 0
+            CellData hruData
+            
+        for hruData in self.hruMap.values():
+            totalCellCount += hruData.cellCount
+        return totalCellCount
+                        
+    cpdef float totalHRUSlopes(self):
+        """Total slope values of HRUs in this LSU."""
+        
+        cdef:
+            float totalSlope = 0
+            CellData hruData
+            
+        for hruData in self.hruMap.values():
+            totalSlope += hruData.totalSlope
+        return totalSlope
                   
     cpdef void setCropAreas(self, bint isOriginal):
         '''Make map crop -> area from hruMap and cropSoilSlopeNumbers.'''
@@ -575,10 +640,13 @@ cdef class LSUData:
         result.outletElevation = self.outletElevation
         result.sourceElevation = self.sourceElevation
         result.channelLength = self.channelLength
+        result.channelOrder = self.channelOrder
         result.farElevation = self.farElevation
         result.farDistance = self.farDistance
         result.farPointX = self.farPointX
         result.farPointY = self.farPointY
+        result.midPointX = self.midPointX
+        result.midPointY = self.midPointY
         result.totalElevation = self.totalElevation
         result.totalSlope = self.totalSlope
         result.totalLatitude = self.totalLatitude
@@ -664,7 +732,11 @@ cdef class LSUData:
             self.farPointX = lsuData.farPointX
             self.farPointY = lsuData.farPointY
             self.farDistance = lsuData.farDistance + self.channelLength
+        self.midPointX = (self.midPointX + lsuData.midPointX) / 2
+        self.midPointY = (self.midPointY + lsuData.midPointY) / 2
         self.channelLength += lsuData.channelLength
+        if self.channelOrder < lsuData.channelOrder:
+            self.channelOrder = lsuData.channelOrder
         self.totalElevation += lsuData.totalElevation
         self.totalSlope += lsuData.totalSlope
         self.totalLatitude += lsuData.totalLatitude
@@ -723,8 +795,9 @@ cdef class BasinData:
         public double minElevation
         public double maxElevation
         public int waterLanduse
+        public int waterId
     
-    def __init__(self, waterLanduse, farDistance):
+    def __init__(self, waterLanduse, farDistance, waterId):
         """Initialise class variables."""
         ## Map channel -> landscape category -> LSUData
         self.lsus = dict()
@@ -740,6 +813,8 @@ cdef class BasinData:
         self.farDistance = farDistance
         ## landuse (crop) value for WATR
         self.waterLanduse = waterLanduse
+        ## waterId used with grid models to indicate cells that are part of lakes but need to be recorded in gis_subbasins
+        self.waterId = waterId
         
     cpdef dict getLsus(self):
         """Return mergedLsus if it exists, else lsus."""
@@ -767,7 +842,11 @@ cdef class BasinData:
             reachData = _gv.topo.channelsData[channel]
             lsuData.outletElevation = reachData.lowerZ
             lsuData.sourceElevation = reachData.upperZ
+            # mid point of channel is a notional point midway between ends
+            lsuData.midPointX = (reachData.lowerX + reachData.upperX) / 2
+            lsuData.midPointY = (reachData.lowerY + reachData.upperY) / 2
             lsuData.channelLength = _gv.topo.channelLengths[channel]
+            lsuData.channelOrder = _gv.topo.strahler[channel]
             if _gv.existingWshed:
                 lsuData.farDistance = lsuData.channelLength
                 lsuData.farElevation = lsuData.sourceElevation
@@ -778,7 +857,7 @@ cdef class BasinData:
         lsuData.totalLongitude += x
         if slopeValue != _gv.slopeNoData:
             lsuData.totalSlope += slopeValue
-        if elevation != _gv.elevationNoData:
+        if not math.isclose(elevation, _gv.elevationNoData, rel_tol=1e-06):
             lsuData.totalElevation += elevation
             if distSt != _gv.distStNoData and distSt > self.farDistance:
                 # We have found a new  farthest (by flow distance) point from the subbasin outlet:
@@ -896,7 +975,7 @@ cdef class BasinData:
                 targetData[landscape] = lsuData
         del self.mergedLsus[channel]
     
-    cpdef void setAreas(self, bint isOriginal, list chLinksByLakes, int waterLanduse):
+    cpdef void setAreas(self, bint isOriginal, list chLinksByLakes, int waterLanduse, redistributeNodata=True):
         """Set area maps for crop, soil and slope."""
         
         cdef:
@@ -906,13 +985,22 @@ cdef class BasinData:
         for chLink, channelData in self.getLsus().items():
             for lscape, lsuData in channelData.items():
                 if isOriginal:
-                    # nodata area is included in final areas: need to add to original
-                    # so final and original tally
-                    # also remove water bodies that should be incorporated into lakes
-                    lsuData.redistributeNodataAndWater(chLink, lscape, chLinksByLakes, waterLanduse)
-                    # remove WATR HRUs if the LSU's water body is a reservoir or pond
-                    # if lsuData.waterBody is not None and not lsuData.waterBody.isUnknown():
-                    #     lsuData.removeWaterHRUs(waterLanduse)
+                    if redistributeNodata:
+                        # nodata area is included in final areas: need to add to original
+                        # so final and original tally
+                        # also remove water bodies that should be incorporated into lakes
+                        lsuData.redistributeNodataAndWater(chLink, lscape, chLinksByLakes, waterLanduse)
+                        # remove WATR HRUs if the LSU's water body is a reservoir or pond
+                        # if lsuData.waterBody is not None and not lsuData.waterBody.isUnknown():
+                        #     lsuData.removeWaterHRUs(waterLanduse)
+                    else:
+                        # if we are not redistributing nodata, need to correct the lsu area, cell count and totalSlope, which may be reduced 
+                        # as we are removing nodata area from the model
+                        waterArea = 0 if lsuData.waterBody is None else lsuData.waterBody.area
+                        lsuData.area = lsuData.cropSoilSlopeArea + waterArea
+                        lsuData.cellCount = lsuData.totalHRUCellCount()
+                        lsuData.totalSlope = lsuData.totalHRUSlopes()
+                        
                 lsuData.setCropAreas(isOriginal)
                 lsuData.setSoilAreas(isOriginal)
                 lsuData.setSlopeAreas(isOriginal)
@@ -1105,15 +1193,18 @@ cdef class MergedChannelData:
     
     cdef:
         public double areaC
+        public int order
         public double length
         public double slope
         public double minEl
         public double maxEl
     
-    def __init__(self, double areaC, double length, double slope, double minEl, double maxEl):
+    def __init__(self, double areaC, int order, double length, double slope, double minEl, double maxEl):
         """Initialise class variables for first channel."""
         ## total drainage area in square metres
         self.areaC = areaC
+        ## Strahler order
+        self.order = order
         ## total length in metres
         self.length = length
         ## mean slope in m/m for merged channels
@@ -1123,9 +1214,10 @@ cdef class MergedChannelData:
         ## maximum elevation in metres
         self.maxEl = maxEl
         
-    cpdef void add(self, double areaC, double length, double slope, double minEl, double maxEl):
+    cpdef void add(self, double areaC, int order, double length, double slope, double minEl, double maxEl):
         """Add a channel's data."""
         self.areaC = max(self.areaC, areaC)
+        self.order = max(self.order, order)
         if length > 0:
             newLength = self.length + length
             self.slope = (self.slope * self.length + slope * length) / newLength
@@ -1143,28 +1235,31 @@ cdef class LakeData:
         public tuple outPoint
         public set otherOutChLinks
         public double area
+        public double overrideArea
         public double elevation
         public object centroid
         public int waterRole
         
-    def __init__(self, area, centroid, waterRole):
+    def __init__(self, area, overrideArea, centroid, waterRole):
         ## linknos of inflowing channels mapped to point id, point and elevation of channel outlet
         self.inChLinks = dict()
         ## linknos of channels within lake
         self.lakeChLinks = set()
         ## linkno of outflowing stream. -1 means no outlet stream; outlet is a main outlet
         self.outChLink = -1
-        ## subbasin, point id, point and elevation of outflow point
+        ## subbasin, point id, point and elevation of outflow point (only used for reservoirs, ponds and wetlands)
         self.outPoint = (-1, -1, None, 0)
         ## linknos of other outflowing channels
         self.otherOutChLinks = set()
         ## area in square metres
         self.area = area
-        ## elvation (mean elevation of incoming stream outlets)
+        ## override area from Lakes shapefile area field (defaults to area)
+        self.overrideArea = overrideArea
+        ## elvation (mean elevation of incoming stream outlets, else outlet if no inlets, else elevation of centroid for playa)
         self.elevation = 0
         ##centroid
         self.centroid = centroid
-        ## pond or reservoir
+        ## reservoir, pond, wetland or playa
         self.waterRole = waterRole
         
         

@@ -6,6 +6,7 @@ from helpers import utils, table_mapper
 from database.project import base as project_base, climate
 from database.project.setup import SetupProjectDatabase
 from database.project.config import Project_config
+from database import lib as db_lib
 
 from database.datasets.setup import SetupDatasetsDatabase
 from database.vardefs import Var_range
@@ -20,6 +21,19 @@ class BaseRestModel(Resource):
 
 	def base_get(self, project_db, id, table, description, back_refs=False, max_depth=1):
 		SetupProjectDatabase.init(project_db)
+		try:
+			m = table.get(table.id == id)
+			if back_refs:
+				d = model_to_dict(m, backrefs=True, max_depth=max_depth)
+				self.get_obj_name(d)
+				return d
+			else:
+				return model_to_dict(m, recurse=False)
+		except table.DoesNotExist:
+			abort(404, message='{description} {id} does not exist'.format(description=description, id=id))
+
+	def base_get_datasets(self, datasets_db, id, table, description, back_refs=False, max_depth=1):
+		SetupDatasetsDatabase.init(datasets_db)
 		try:
 			m = table.get(table.id == id)
 			if back_refs:
@@ -57,11 +71,18 @@ class BaseRestModel(Resource):
 		except table.DoesNotExist:
 			abort(404, message='{description} {name} does not exist'.format(description=description, name=name))
 
-	def base_delete(self, project_db, id, table, description):
+	def base_delete(self, project_db, id, table, description, related_col=None, related_table=None):
 		SetupProjectDatabase.init(project_db)
 		try:
 			project_base.db.execute_sql("PRAGMA foreign_keys = ON")
 			m = table.get(table.id == id)
+
+			if related_col is not None and related_table is not None:
+				d = model_to_dict(m, recurse=False)
+				rid = d[related_col]
+				m2 = related_table.get(related_table.id == rid)
+				m2.delete_instance()
+			
 			result = m.delete_instance()
 
 			if result > 0:
@@ -71,7 +92,7 @@ class BaseRestModel(Resource):
 		except table.DoesNotExist:
 			abort(404, message='{description} {id} does not exist'.format(description=description, id=id))
 
-	def base_paged_list(self, project_db, sort, reverse, page, items_per_page, table, list_name, back_refs=False):
+	def base_paged_list_old(self, project_db, sort, reverse, page, items_per_page, table, list_name, back_refs=False):
 		SetupProjectDatabase.init(project_db)
 		total = table.select().count()
 
@@ -89,6 +110,124 @@ class BaseRestModel(Resource):
 			ml = [model_to_dict(v, recurse=False) for v in m]
 
 		return {'total': total, list_name: ml}
+
+	def base_connect_paged_items(self, project_db, table, prop_table, filter_cols=[], table_lookups={}, props_lookups={}):
+		SetupProjectDatabase.init(project_db)
+		args = self.get_table_args()
+
+		total = table.select().count()
+		sort = self.get_arg(args, 'sort', 'name')
+		reverse = self.get_arg(args, 'reverse', 'n')
+		page = self.get_arg(args, 'page', 1)
+		per_page = self.get_arg(args, 'per_page', 50)
+		filter_val = self.get_arg(args, 'filter', None)
+
+		if filter_val is not None:
+			w = None
+			for f in filter_cols:
+				lu = table_lookups.get(f, None)
+				lu2 = props_lookups.get(f, None)
+				if lu is None and lu2 is None:
+					w = w | (f.contains(filter_val))
+				elif lu2 is None:
+					sub = lu.select().where(lu.name.contains(filter_val))
+					w = w | (f.in_(sub))
+				else:
+					sub2 = lu2.select().where(lu2.name.contains(filter_val))
+					w = w | (f.in_(sub2))
+			s = table.select(table, prop_table).join(prop_table).where(w)
+		else:
+			s = table.select(table, prop_table).join(prop_table)
+
+		matches = s.count()
+
+		if sort == 'name':
+			sort_val = table.name if reverse != 'y' else table.name.desc()
+		else:
+			sort_val = SQL('[{}]'.format(sort))
+			if reverse == 'y':
+				sort_val = SQL('[{}]'.format(sort)).desc()
+
+		m = s.order_by(sort_val).paginate(int(page), int(per_page))
+
+		return {
+			'model': m,
+			'total': total,
+			'matches': matches
+		}
+
+	def base_get_con_item_dict(self, v):
+		return {
+			'id': v.id, 
+			'name': v.name, 
+			'area': v.area,  
+			'lat': v.lat, 
+			'lon': v.lon, 
+			'elev': v.elev, 
+			'wst':  None if v.wst is None else { 'id': v.wst.id, 'name': v.wst.name }, 
+			'outflow': len(v.con_outs)
+		}
+
+	def base_get_prop_dict(self, item):
+		return None if item is None else { 'id' : item.id, 'name': item.name }
+
+	def base_paged_items(self, project_db, table, filter_cols=[], back_refs=False, table_lookups={}):
+		SetupProjectDatabase.init(project_db)
+		args = self.get_table_args()
+
+		total = table.select().count()
+		sort = self.get_arg(args, 'sort', 'name')
+		reverse = self.get_arg(args, 'reverse', 'n')
+		page = self.get_arg(args, 'page', 1)
+		per_page = self.get_arg(args, 'per_page', 50)
+		filter_val = self.get_arg(args, 'filter', None)
+
+		if filter_val is not None:
+			w = None
+			for f in filter_cols:
+				lu = table_lookups.get(f, None)
+				if lu is None:
+					w = w | (f.contains(filter_val))
+				else:
+					sub = lu.select().where(lu.name.contains(filter_val))
+					w = w | (f.in_(sub))
+			s = table.select().where(w)
+		else:
+			s = table.select()
+
+		matches = s.count()
+
+		if sort == 'name':
+			sort_val = table.name if reverse != 'y' else table.name.desc()
+		else:
+			sort_val = SQL('[{}]'.format(sort))
+			if reverse == 'y':
+				sort_val = SQL('[{}]'.format(sort)).desc()
+
+		m = s.order_by(sort_val).paginate(int(page), int(per_page))
+
+		return {
+			'model': m,
+			'total': total,
+			'matches': matches
+		}
+
+	def base_paged_list(self, project_db, table, filter_cols=[], back_refs=False, table_lookups={}):
+		items = self.base_paged_items(project_db, table, filter_cols, back_refs)
+		m = items['model']
+
+		if back_refs:
+			ml = [model_to_dict(v, backrefs=True, max_depth=1) for v in m]
+			for d in ml:
+				self.get_obj_name(d)
+		else:
+			ml = [model_to_dict(v, recurse=False) for v in m]
+
+		return {
+			'total': items['total'],
+			'matches': items['matches'],
+			'items': ml
+		}
 
 	def base_list(self, project_db, table):
 		SetupProjectDatabase.init(project_db)
@@ -140,8 +279,7 @@ class BaseRestModel(Resource):
 				if args[key] is not None and key != 'selected_ids':
 					param_dict[key] = args[key]
 
-			query = table.update(param_dict).where(table.id.in_(args['selected_ids']))
-			result = query.execute()
+			result = db_lib.bulk_update_ids(project_base.db, table, param_dict, args['selected_ids'])
 
 			if result > 0:
 				return 200
@@ -149,6 +287,29 @@ class BaseRestModel(Resource):
 			abort(400, message='Unable to update {item}.'.format(item=item_description.lower()))
 		except Exception as ex:
 			abort(400, message="Unexpected error {ex}".format(ex=ex))
+
+	def base_put_many_con(self, args, param_dict, con_table, con_prop_field, prop_table):
+		con_param_dict = {}
+		if args['wst_name'] is not None:
+			con_param_dict['wst_id'] = self.get_id_from_name(climate.Weather_sta_cli, args['wst_name'])
+		if args['elev'] is not None:
+			con_param_dict['elev'] = args['elev']
+
+		con_result = 1
+		if (len(con_param_dict) > 0):
+			con_result = db_lib.bulk_update_ids(project_base.db, con_table, con_param_dict, args['selected_ids'])
+
+		if con_result > 0:
+			result = 1
+			if (len(param_dict) > 0):
+				prop_ids = con_table.select(con_prop_field.alias('prop_id')).where(con_table.id.in_(args['selected_ids']))
+				id_list = [v.prop_id for v in prop_ids]
+				result = db_lib.bulk_update_ids(project_base.db, prop_table, param_dict, id_list)
+
+			if result > 0:
+				return 200
+
+		return 0
 
 	def get_id_from_name(self, table, value):
 		if value is None or value == '':
@@ -167,6 +328,8 @@ class BaseRestModel(Resource):
 		
 		if get_selected_ids:
 			parser.add_argument('selected_ids', type=int, action='append', required=False, location='json')
+			parser.add_argument('elev', type=float, required=False, location='json')
+			parser.add_argument('wst_name', type=str, required=False, location='json')
 		else:
 			parser.add_argument('id', type=int, required=False, location='json')
 			parser.add_argument('name', type=str, required=False, location='json')
@@ -183,7 +346,7 @@ class BaseRestModel(Resource):
 				datasets_db = os.path.normpath(os.path.join(os.path.dirname(project_db), c.reference_db))
 			
 			SetupDatasetsDatabase.init(datasets_db)
-			m = Var_range.select().where(Var_range.table == table_name)
+			m = Var_range.select().where((Var_range.table == table_name) & (Var_range.disabled == False))
 			
 			types = {
 				'float': float,
@@ -250,6 +413,23 @@ class BaseRestModel(Resource):
 		
 		return query.execute()
 
+	def get_table_args(self):
+		parser = reqparse.RequestParser()
+		parser.add_argument('sort', type=str)
+		parser.add_argument('reverse', type=str)
+		parser.add_argument('page', type=int)
+		parser.add_argument('per_page', type=int)
+		parser.add_argument('filter', type=str)
+		args = parser.parse_args(strict=False)
+		return args
+
+	def has_arg(self, args, name):
+		missing = name not in args or args[name] is None or args[name] == ''
+		return not missing
+
+	def get_arg(self, args, name, default):
+		return default if not self.has_arg(args, name) else args[name]
+	
 	def get_con_args(self, prop_name):
 		parser = reqparse.RequestParser()
 		parser.add_argument('id', type=int, required=False, location='json')
@@ -265,7 +445,7 @@ class BaseRestModel(Resource):
 		parser.add_argument('ovfl', type=int, required=False, location='json')
 		parser.add_argument('rule', type=int, required=False, location='json')
 		parser.add_argument(prop_name, type=int, required=False, location='json')
-		parser.add_argument('{prop}_name'.format(prop=prop_name), type=str, required=False, location='json')
+		parser.add_argument('{prop}_id'.format(prop=prop_name), type=str, required=False, location='json')
 		args = parser.parse_args(strict=True)
 		return args
 	
@@ -341,7 +521,7 @@ class BaseRestModel(Resource):
 				'elev': args['elev'],
 			}
 
-			params['{}_id'.format(prop_name)] = self.get_id_from_name(prop_table, args['{}_name'.format(prop_name)])
+			params['{}_id'.format(prop_name)] = args['{}_id'.format(prop_name)]
 
 			if args['wst_name'] is not None:
 				params['wst_id'] = self.get_id_from_name(climate.Weather_sta_cli, args['wst_name'])
@@ -382,7 +562,7 @@ class BaseRestModel(Resource):
 					'rule': 0
 				}
 
-				params['{}_id'.format(prop_name)] = self.get_id_from_name(prop_table, args['{}_name'.format(prop_name)])
+				params['{}_id'.format(prop_name)] = args['{}_id'.format(prop_name)]
 
 				if args['wst_name'] is not None:
 					params['wst_id'] = self.get_id_from_name(climate.Weather_sta_cli, args['wst_name'])
@@ -390,7 +570,7 @@ class BaseRestModel(Resource):
 				result = con_table.insert(params).execute()
 
 				if result > 0:
-					return 201
+					return {'id': result }, 201
 
 				abort(400, message='Unable to create object.')
 			except IntegrityError:

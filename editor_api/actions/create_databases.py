@@ -19,6 +19,10 @@ class CreateDatasetsDb(ExecutableApi):
 		SetupDatasetsDatabase.create_tables()
 		SetupDatasetsDatabase.initialize_data(version)
 
+	def update_2_1_0(self, db_file):
+		SetupDatasetsDatabase.create_tables()
+		SetupDatasetsDatabase.update_2_1_0(db_file)
+
 
 class CreateOutputDb(ExecutableApi):
 	def __init__(self, db_file):
@@ -45,10 +49,10 @@ class CreateProjectDb(ExecutableApi):
 		base_path = os.path.dirname(self.project_db)
 		rel_project_db = os.path.relpath(self.project_db, base_path)
 		rel_reference_db = os.path.relpath(self.reference_db, base_path)
-		print("\n\t> project_db\t\t: {}".format(self.project_db))
-		print("\t> base_path		: {}".format(base_path))
-		print("\t> rel_project_db	: {}".format(rel_project_db))
-		print("\t> rel_reference_db	: {}\n".format(rel_reference_db))
+		print("project_db {}".format(self.project_db))
+		print("base_path {}".format(base_path))
+		print("rel_project_db {}".format(rel_project_db))
+		print("rel_reference_db {}".format(rel_reference_db))
 		
 		Project_config.get_or_create_default(
 			editor_version=self.editor_version,
@@ -56,7 +60,6 @@ class CreateProjectDb(ExecutableApi):
 			#project_db=rel_project_db,
 			reference_db=rel_reference_db
 		)
-
 
 if __name__ == '__main__':
 	sys.stdout = Unbuffered(sys.stdout)
@@ -71,6 +74,9 @@ if __name__ == '__main__':
 	if args.db_type == "datasets":
 		api = CreateDatasetsDb(args.db_file)
 		api.create(args.editor_version)
+	elif args.db_type == "datasets_update_2_1_0":
+		api = CreateDatasetsDb(args.db_file)
+		api.update_2_1_0(args.db_file)
 	elif args.db_type == "output":
 		api = CreateOutputDb(args.db_file)
 		api.create()

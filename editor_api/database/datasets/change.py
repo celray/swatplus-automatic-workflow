@@ -3,7 +3,7 @@ from . import base
 
 
 class Cal_parms_cal(base.BaseModel):
-	name = CharField(unique=True)
+	name = CharField()
 	obj_typ = CharField()
 	abs_min = DoubleField()
 	abs_max = DoubleField()

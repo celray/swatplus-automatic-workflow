@@ -29,7 +29,7 @@ def write_header(file, elem_name, has_con_out):
 	file.write("\n")
 
 
-def write_row(file, con, index, con_to_index, con_outs):
+def write_row(file, con, index, con_to_index, con_outs, con_out_id_dict):
 	file.write(utils.int_pad(index))
 	file.write(utils.string_pad(con.name, direction="left"))
 	file.write(utils.int_pad(con.gis_id))
@@ -49,7 +49,8 @@ def write_row(file, con, index, con_to_index, con_outs):
 
 		elem_table = table_mapper.obj_typs.get(out.obj_typ, None)
 		if elem_table is not None:
-			obj_id = elem_table.select().where(elem_table.id <= out.obj_id).count()
+			obj_id = con_out_id_dict[out.obj_typ].index(out.obj_id) + 1
+			#obj_id = elem_table.select().where(elem_table.id <= out.obj_id).count()
 
 		file.write(utils.code_pad(out.obj_typ))
 		file.write(utils.int_pad(obj_id))
@@ -64,6 +65,14 @@ def write_con_table(file_name, meta_line, con_table, con_out_table, elem_name, e
 		with open(file_name, 'w') as file:
 			file.write(meta_line)
 			write_header(file, elem_name, con_out_table.select().count() > 0)
+
+			con_out_types = con_out_table.select(con_out_table.obj_typ).distinct()
+			con_out_id_dict = {}
+			for out_typ in con_out_types:
+				obj_table = table_mapper.obj_typs.get(out_typ.obj_typ, None)
+				con_out_id_dict[out_typ.obj_typ] = [o.id for o in obj_table.select(obj_table.id).order_by(obj_table.id)]
+
+			elem_ids = [o.id for o in elem_table.select(elem_table.id).order_by(elem_table.id)]
 
 			i = 1
 			for con in con_table.select().order_by(con_table.id):
@@ -90,15 +99,17 @@ def write_con_table(file_name, meta_line, con_table, con_out_table, elem_name, e
 
 				con_to_index = elem_id
 				if con.id != elem_id:
-					con_to_index = elem_table.select().where(elem_table.id <= elem_id).count()
-				write_row(file, con, i, con_to_index, con.con_outs.order_by(con_out_table.order))
+					con_to_index = elem_ids.index(elem_id) + 1
+					#con_to_index = elem_table.select().where(elem_table.id <= elem_id).count()
+				write_row(file, con, i, con_to_index, con.con_outs.order_by(con_out_table.order), con_out_id_dict)
 				i += 1
 
 
 class Hru_con(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -108,9 +119,10 @@ class Hru_con(BaseFileModel):
 
 
 class Hru_lte_con(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -120,9 +132,10 @@ class Hru_lte_con(BaseFileModel):
 
 
 class Rout_unit_con(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -132,9 +145,10 @@ class Rout_unit_con(BaseFileModel):
 
 
 class Aquifer_con(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -144,9 +158,10 @@ class Aquifer_con(BaseFileModel):
 
 
 class Channel_con(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -156,9 +171,10 @@ class Channel_con(BaseFileModel):
 
 
 class Chandeg_con(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -168,9 +184,10 @@ class Chandeg_con(BaseFileModel):
 
 
 class Reservoir_con(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -180,33 +197,91 @@ class Reservoir_con(BaseFileModel):
 
 
 class Recall_con(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
 
 	def write(self):
-		write_con_table(self.file_name, self.get_meta_line(), db.Recall_con, db.Recall_con_out, "rec", recall.Recall_rec)
+		#write_con_table(self.file_name, self.get_meta_line(), db.Recall_con, db.Recall_con_out, "rec", recall.Recall_rec)
+		con_table = db.Recall_con
+		con_out_table = db.Recall_con_out
+		elem_table = recall.Recall_rec
+		data = con_table.select(con_table, elem_table).join(elem_table).where(elem_table.rec_typ != 4)
+		elem_data = elem_table.select(elem_table.id).where(elem_table.rec_typ != 4).order_by(elem_table.id)
+
+		if data.count() > 0:
+			with open(self.file_name, 'w') as file:
+				file.write(self.get_meta_line())
+				write_header(file, "rec", con_out_table.select().count() > 0)
+
+				con_out_types = con_out_table.select(con_out_table.obj_typ).distinct()
+				con_out_id_dict = {}
+				for out_typ in con_out_types:
+					obj_table = table_mapper.obj_typs.get(out_typ.obj_typ, None)
+					con_out_id_dict[out_typ.obj_typ] = [o.id for o in obj_table.select(obj_table.id).order_by(obj_table.id)]
+
+				elem_ids = [o.id for o in elem_data]
+
+				i = 1
+				for con in data.order_by(con_table.id):
+					elem_id = con.rec_id
+					con_to_index = elem_ids.index(elem_id) + 1
+					write_row(file, con, i, con_to_index, con.con_outs.order_by(con_out_table.order), con_out_id_dict)
+					i += 1
 
 
 class Exco_con(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
 
 	def write(self):
-		write_con_table(self.file_name, self.get_meta_line(), db.Exco_con, db.Exco_con_out, "exco", exco.Exco_exc)
+		#write_con_table(self.file_name, self.get_meta_line(), db.Exco_con, db.Exco_con_out, "exco", exco.Exco_exc)
+		con_table = db.Recall_con
+		con_out_table = db.Recall_con_out
+		elem_table = recall.Recall_rec
+		data_table = recall.Recall_dat
+		#data = con_table.select(con_table, elem_table, data_table).join(elem_table).join(data_table).where((elem_table.rec_typ == 4) & (data_table.flo != 0))
+
+		valid_recs = data_table.select(data_table.recall_rec_id).join(elem_table).where((elem_table.rec_typ == 4) & (data_table.flo != 0))
+		valid_ids = [r.recall_rec_id for r in valid_recs]
+		data = con_table.select(con_table, elem_table).join(elem_table).where(elem_table.id.in_(valid_ids))
+		elem_data = elem_table.select(elem_table.id).where(elem_table.id.in_(valid_ids)).order_by(elem_table.id)
+
+		if data.count() > 0:
+			with open(self.file_name, 'w') as file:
+				file.write(self.get_meta_line())
+				write_header(file, "exco", con_out_table.select().count() > 0)
+
+				con_out_types = con_out_table.select(con_out_table.obj_typ).distinct()
+				con_out_id_dict = {}
+				for out_typ in con_out_types:
+					obj_table = table_mapper.obj_typs.get(out_typ.obj_typ, None)
+					con_out_id_dict[out_typ.obj_typ] = [o.id for o in obj_table.select(obj_table.id).order_by(obj_table.id)]
+
+				elem_ids = [o.id for o in elem_data]
+
+				i = 1
+				for con in data.order_by(con_table.id):
+					elem_id = con.rec_id
+					con_to_index = elem_ids.index(elem_id) + 1
+					write_row(file, con, i, con_to_index, con.con_outs.order_by(con_out_table.order), con_out_id_dict)
+					i += 1
 
 
 class Delratio_con(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')

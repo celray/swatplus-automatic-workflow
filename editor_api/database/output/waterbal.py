@@ -16,8 +16,12 @@ class Waterbal(OutputBase):
 	esoil = DoubleField(null=True)
 	surq_cont = DoubleField(null=True)
 	cn = DoubleField(null=True)
-	sw = DoubleField(null=True)
+	sw_init = DoubleField(null=True)
+	sw_final = DoubleField(null=True)
+	sw_ave = DoubleField(null=True)
 	sw_300 = DoubleField(null=True)
+	sno_init = DoubleField(null=True)
+	sno_final = DoubleField(null=True)
 	snopack = DoubleField(null=True)
 	pet = DoubleField(null=True)
 	qtile = DoubleField(null=True)
@@ -31,6 +35,13 @@ class Waterbal(OutputBase):
 	latq_cha = DoubleField(null=True)
 	latq_res = DoubleField(null=True)
 	latq_ls = DoubleField(null=True)
+	gwtranq = DoubleField(null=True)
+	satex = DoubleField(null=True)
+	satex_chan = DoubleField(null=True)
+	sw_change = DoubleField(null=True)
+	lagsurf = DoubleField(null=True)
+	laglatq = DoubleField(null=True)
+	lagsatex = DoubleField(null=True)
 
 
 class Basin_wb_day(Waterbal):

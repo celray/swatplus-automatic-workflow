@@ -10,9 +10,10 @@ import database.project.hru_parm_db as db
 
 
 class Plants_plt(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database='project', csv=False):
 		if database == 'project':
@@ -33,9 +34,10 @@ class Plants_plt(BaseFileModel):
 
 
 class Fertilizer_frt(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database ='project'):
 		if database == 'project':
@@ -48,9 +50,10 @@ class Fertilizer_frt(BaseFileModel):
 
 
 class Tillage_til(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database ='project'):
 		if database == 'project':
@@ -63,9 +66,10 @@ class Tillage_til(BaseFileModel):
 
 
 class Pesticide_pst(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database ='project'):
 		if database == 'project':
@@ -78,9 +82,10 @@ class Pesticide_pst(BaseFileModel):
 
 
 class Urban_urb(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database ='project'):
 		if database == 'project':
@@ -93,9 +98,10 @@ class Urban_urb(BaseFileModel):
 
 
 class Septic_sep(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database ='project'):
 		"""
@@ -140,9 +146,10 @@ class Septic_sep(BaseFileModel):
 
 
 class Snow_sno(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database='project'):
 		if database == 'project':
@@ -155,9 +162,10 @@ class Snow_sno(BaseFileModel):
 		
 		
 class Pathogens_pth(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database ='project'):
 		if database == 'project':

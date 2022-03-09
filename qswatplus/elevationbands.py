@@ -20,12 +20,13 @@
  ***************************************************************************/
 '''
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import * # @UnusedWildImport
-from PyQt5.QtGui import * # @UnusedWildImport
-from qgis.core import * # @UnusedWildImport
+from qgis.PyQt.QtCore import Qt
+from qgis.PyQt.QtGui import QIntValidator
+#from qgis.PyQt.QtGui import *
+#from qgis.core import *
 # Import the code for the dialog
-from elevationbandsdialog import ElevatioBandsDialog
-from QSWATUtils import QSWATUtils
+from .elevationbandsdialog import ElevatioBandsDialog
+from .QSWATUtils import QSWATUtils # type: ignore 
 
 class ElevationBands:
     
@@ -39,6 +40,7 @@ class ElevationBands:
         self._dlg.move(self._gv.elevationBandsPos)
         self._dlg.okButton.clicked.connect(self.setBands)
         self._dlg.cancelButton.clicked.connect(self._dlg.close)
+        self._dlg.elevBandsThreshold.setValidator(QIntValidator())
         if self._gv.elevBandsThreshold > 0:
             self._dlg.elevBandsThreshold.setText(str(self._gv.elevBandsThreshold))
             if 2 <= self._gv.numElevBands <= 10:

@@ -2,13 +2,15 @@ from .base import BaseFileModel, FileColumn as col
 from peewee import *
 from helpers import utils
 from database.project import soils
+from database.project.simulation import Constituents_cs
 import database.project.init as db
 
 
 class Plant_ini(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -54,9 +56,10 @@ class Plant_ini(BaseFileModel):
 
 
 class Om_water_ini(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -66,9 +69,10 @@ class Om_water_ini(BaseFileModel):
 
 
 class Soil_plant_ini(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -104,140 +108,168 @@ class Soil_plant_ini(BaseFileModel):
 
 
 class Pest_hru_ini(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
 
 	def write(self):
-		table = db.Pest_hru_ini
-		order_by = db.Pest_hru_ini.id
+		table = db.Pest_hru_ini.select().order_by(db.Pest_hru_ini.id)
+		items = db.Pest_hru_ini_item.select().order_by(db.Pest_hru_ini_item.name)
+		query = prefetch(table, items)
 
-		if table.select().count() > 0:
-			with open(self.file_name, 'w') as file:
-				file.write(self.get_meta_line())				
+		if table.count() > 0 and Constituents_cs.select().count() > 0:
+			constits_row = Constituents_cs.select().first()
+			constits = [] if constits_row.pest_coms is None else sorted(constits_row.pest_coms.split(','))
+			if len(constits) > 0:
+				with open(self.file_name, 'w') as file:
+					file.write(self.get_meta_line())
 
-				for row in table.select().order_by(order_by):
 					file.write(utils.string_pad("name", direction="left", default_pad=25))
-					file.write(utils.num_pad("plant"))
-					file.write(utils.num_pad("soil"))
+					for c in constits:
+						file.write(utils.num_pad(c))
 					file.write("\n")
 
-					file.write(utils.string_pad(row.name, direction="left", default_pad=25))
-					file.write("\n")
+					for row in query:
+						file.write(utils.string_pad(row.name, direction="left", default_pad=25))
+						file.write("\n")
 
-					for item in row.pest_hrus:
-						file.write(utils.string_pad("", text_if_null="", default_pad=1))
-						file.write(utils.key_name_pad(item.name, default_pad=22))
-						file.write(utils.num_pad(item.plant))
-						file.write(utils.num_pad(item.soil))
+						soil_line = "  " + utils.string_pad("soil", direction="left", default_pad=23)
+						plant_line = "  " + utils.string_pad("plant", direction="left", default_pad=23)
+						for item in row.pest_hrus:
+							soil_line += utils.num_pad(item.soil, decimals=3)
+							plant_line += utils.num_pad(item.plant, decimals=3)
+
+						file.write(soil_line)
+						file.write("\n")
+						file.write(plant_line)
 						file.write("\n")
 
 
 class Pest_water_ini(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
 
 	def write(self):
-		table = db.Pest_water_ini
-		order_by = db.Pest_water_ini.id
+		table = db.Pest_water_ini.select().order_by(db.Pest_water_ini.id)
+		items = db.Pest_water_ini_item.select().order_by(db.Pest_water_ini_item.name)
+		query = prefetch(table, items)
 
-		if table.select().count() > 0:
-			with open(self.file_name, 'w') as file:
-				file.write(self.get_meta_line())				
+		if table.count() > 0 and Constituents_cs.select().count() > 0:
+			constits_row = Constituents_cs.select().first()
+			constits = [] if constits_row.pest_coms is None else sorted(constits_row.pest_coms.split(','))
+			if len(constits) > 0:
+				with open(self.file_name, 'w') as file:
+					file.write(self.get_meta_line())
 
-				for row in table.select().order_by(order_by):
 					file.write(utils.string_pad("name", direction="left", default_pad=25))
-					file.write(utils.num_pad("water_sol"))
-					file.write(utils.num_pad("water_sor"))
-					file.write(utils.num_pad("benthic_sol"))
-					file.write(utils.num_pad("benthic_sor"))
+					for c in constits:
+						file.write(utils.num_pad(c))
 					file.write("\n")
 
-					file.write(utils.string_pad(row.name, direction="left", default_pad=25))
-					file.write("\n")
+					for row in query:
+						file.write(utils.string_pad(row.name, direction="left", default_pad=25))
+						file.write("\n")
 
-					for item in row.pest_waters:
-						file.write(utils.string_pad("", text_if_null="", default_pad=1))
-						file.write(utils.key_name_pad(item.name, default_pad=22))
-						file.write(utils.num_pad(item.water_sol))
-						file.write(utils.num_pad(item.water_sor))
-						file.write(utils.num_pad(item.benthic_sol))
-						file.write(utils.num_pad(item.benthic_sor))
+						water_line = "  " + utils.string_pad("water", direction="left", default_pad=23)
+						benthic_line = "  " + utils.string_pad("benthic", direction="left", default_pad=23)
+						for item in row.pest_waters:
+							water_line += utils.num_pad(item.water, decimals=3)
+							benthic_line += utils.num_pad(item.benthic, decimals=3)
+
+						file.write(water_line)
+						file.write("\n")
+						file.write(benthic_line)
 						file.write("\n")
 
 
 class Path_hru_ini(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
 
 	def write(self):
-		table = db.Path_hru_ini
-		order_by = db.Path_hru_ini.id
+		table = db.Path_hru_ini.select().order_by(db.Path_hru_ini.id)
+		items = db.Path_hru_ini_item.select().order_by(db.Path_hru_ini_item.name)
+		query = prefetch(table, items)
 
-		if table.select().count() > 0:
-			with open(self.file_name, 'w') as file:
-				file.write(self.get_meta_line())				
+		if table.count() > 0 and Constituents_cs.select().count() > 0:
+			constits_row = Constituents_cs.select().first()
+			constits = [] if constits_row.path_coms is None else sorted(constits_row.path_coms.split(','))
+			if len(constits) > 0:
+				with open(self.file_name, 'w') as file:
+					file.write(self.get_meta_line())
 
-				for row in table.select().order_by(order_by):
 					file.write(utils.string_pad("name", direction="left", default_pad=25))
-					file.write(utils.num_pad("plant"))
-					file.write(utils.num_pad("soil"))
+					for c in constits:
+						file.write(utils.num_pad(c))
 					file.write("\n")
 
-					file.write(utils.string_pad(row.name, direction="left", default_pad=25))
-					file.write("\n")
+					for row in query:
+						file.write(utils.string_pad(row.name, direction="left", default_pad=25))
+						file.write("\n")
 
-					for item in row.path_hrus:
-						file.write(utils.string_pad("", text_if_null="", default_pad=1))
-						file.write(utils.key_name_pad(item.name, default_pad=22))
-						file.write(utils.num_pad(item.plant))
-						file.write(utils.num_pad(item.soil))
+						soil_line = "  " + utils.string_pad("soil", direction="left", default_pad=23)
+						plant_line = "  " + utils.string_pad("plant", direction="left", default_pad=23)
+						for item in row.path_hrus:
+							soil_line += utils.num_pad(item.soil, decimals=3)
+							plant_line += utils.num_pad(item.plant, decimals=3)
+
+						file.write(soil_line)
+						file.write("\n")
+						file.write(plant_line)
 						file.write("\n")
 
 
 class Path_water_ini(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
 
 	def write(self):
-		table = db.Path_water_ini
-		order_by = db.Path_water_ini.id
+		table = db.Path_water_ini.select().order_by(db.Path_water_ini.id)
+		items = db.Path_water_ini_item.select().order_by(db.Path_water_ini_item.name)
+		query = prefetch(table, items)
 
-		if table.select().count() > 0:
-			with open(self.file_name, 'w') as file:
-				file.write(self.get_meta_line())				
+		if table.count() > 0 and Constituents_cs.select().count() > 0:
+			constits_row = Constituents_cs.select().first()
+			constits = [] if constits_row.path_coms is None else sorted(constits_row.path_coms.split(','))
+			if len(constits) > 0:
+				with open(self.file_name, 'w') as file:
+					file.write(self.get_meta_line())
 
-				for row in table.select().order_by(order_by):
 					file.write(utils.string_pad("name", direction="left", default_pad=25))
-					file.write(utils.num_pad("water_sol"))
-					file.write(utils.num_pad("water_sor"))
-					file.write(utils.num_pad("benthic_sol"))
-					file.write(utils.num_pad("benthic_sor"))
+					for c in constits:
+						file.write(utils.num_pad(c))
 					file.write("\n")
 
-					file.write(utils.string_pad(row.name, direction="left", default_pad=25))
-					file.write("\n")
+					for row in query:
+						file.write(utils.string_pad(row.name, direction="left", default_pad=25))
+						file.write("\n")
 
-					for item in row.path_waters:
-						file.write(utils.string_pad("", text_if_null="", default_pad=1))
-						file.write(utils.key_name_pad(item.name, default_pad=22))
-						file.write(utils.num_pad(item.water_sol))
-						file.write(utils.num_pad(item.water_sor))
-						file.write(utils.num_pad(item.benthic_sol))
-						file.write(utils.num_pad(item.benthic_sor))
+						water_line = "  " + utils.string_pad("water", direction="left", default_pad=23)
+						benthic_line = "  " + utils.string_pad("benthic", direction="left", default_pad=23)
+						for item in row.path_waters:
+							water_line += utils.num_pad(item.water, decimals=3)
+							benthic_line += utils.num_pad(item.benthic, decimals=3)
+
+						file.write(water_line)
+						file.write("\n")
+						file.write(benthic_line)
 						file.write("\n")

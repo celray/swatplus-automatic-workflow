@@ -1,4 +1,4 @@
-1# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 '''
 /***************************************************************************
  QSWAT
@@ -20,13 +20,12 @@
  ***************************************************************************/
 '''
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import *  # @UnusedWildImport
-from PyQt5.QtGui import *  # @UnusedWildImport
-from qgis.core import * # @UnusedWildImport
-from qgis.gui import * # @UnusedWildImport
+from qgis.PyQt.QtCore import pyqtSignal, QObject, QRunnable
+#from qgis.PyQt.QtGui import *  # @UnusedWildImport
+from qgis.core import QgsGeometry, QgsPointXY
 # from multiprocessing import Pool
 import time
-from QSWATUtils import QSWATUtils
+from .QSWATUtils import QSWATUtils # type: ignore 
 
 
     
@@ -56,10 +55,16 @@ class Polygonize:
     _DOWN = 2
     _LEFT = 3
     
-    def __init__(self, p, dX, dY):
+    def __init__(self, connected4, numCols, noData, p, dX, dY):
         """Initialise class variables."""
         ## shapes data
         self.shapesTable = dict()
+        ## flag to show if using 4connectedness (or, if false, 8)
+        self.connected4 = connected4
+        ## number of columns in row of data
+        self.numCols = numCols
+        ## noData value
+        self.noData = noData
         ## Top left corner and dimensions of grid
         self.offset = Polygonize.OffSet(p, dX, dY)
         ## last error message
@@ -105,7 +110,7 @@ class Polygonize:
     # we only need to be concerned with left-right links  because initial boxes 
     # consumed any up-down complementary links
     def complements(link1, link2):
-        (x1,y1,d1) = link1
+        (x1, y1, d1) = link1
         (x2, y2, d2) = link2
         if d1 == Polygonize._LEFT and d2 == Polygonize._RIGHT and x1 == x2 + 1 and y1 == y2:
             return True
@@ -143,7 +148,7 @@ class Polygonize:
         """
         Return the first index of p in range(start, finish) for which the item satisfies the predicate f, else -1.
         
-        Assumes start .. finish-1 is a subrange of the indexes of l
+        Assumes start .. finish-1 is a subrange of the indexes of p
         """
         for i in  range(start, finish):
             if f(p[i]):
@@ -209,10 +214,18 @@ class Polygonize:
         """
         limit = len(l) - 1
         assert 0 <= i < limit
-        if Polygonize.complements(l[i], l[i+1]):
-            del l[i:i+2]
-            if 0 < i < limit - 1:
-                Polygonize.removePairs(l, i-1)
+    # replaced recursion with a loop (which also only deletes once)
+    #===========================================================================
+    #    if Polygonize.complements(l[i], l[i+1]):
+    #        del l[i:i+2]
+    #        if 0 < i < limit - 1:
+    #            Polygonize.removePairs(l, i-1)
+    #===========================================================================
+        j = 0
+        while i - j >= 0 and i+j < limit and Polygonize.complements(l[i-j], l[i+j+1]):
+            j += 1
+        if j > 0:
+            del l[i-j+1 : i+j+1]
 
     @staticmethod
     def removeFirstLast(l):
@@ -452,15 +465,16 @@ class Polygonize:
             done = []
             while len(self.polygons) > 0:
                 p0 = self.polygons.pop(0)[0]
-                changed = False
                 i = 0
+                changed = False
                 while i < len(self.polygons):
-                    i0, i1 = Polygonize.canMerge(p0, self.polygons[i][0])
+                    pi = self.polygons[i][0]
+                    i0, i1 = Polygonize.canMerge(p0, pi)
                     if i0 >= 0:
-                        p = Polygonize.merge(p0, i0, self.polygons[i][0], i1)
-                        # QSWATUtils.loginfo('Merged {0!s} and {1!s} at {2!s} and {3!s} to make {4!s}'.format(p0.perimeter, self.polygons[i][0].perimeter, i0, i1, p.perimeter)) 
+                        p0 = Polygonize.merge(p0, i0, pi, i1)
+                        #QSWATUtils.loginfo('Merged {0!s} and {1!s} at {2!s} and {3!s} to make {4!s}'.format(perim0, perimi, i0, i1, p0.perimeter))
                         del self.polygons[i]
-                        self.polygons.append([p])
+                        self.polygons.append([p0])
                         changed = True
                         break
                     else:
@@ -578,7 +592,7 @@ class Polygonize:
     #===========================================================================
         
         # Sequential version
-    def finishShapes(self, progressBar):
+    def finishShapes(self, progressBar=None):
                  
         """
         Finish by creating polygons, merging shapes and making holes for each set of data in the ShapesTable.
@@ -640,7 +654,7 @@ class Polygonize:
             res += '\n'
         return res
     
-    def addRow(self, row, rowNum, length, noData):
+    def addRow(self, row, rowNum):
         """
         Add boxes from row.
         
@@ -651,18 +665,18 @@ class Polygonize:
         col = 0
         width = 1
         last = row[0]
-        bound = length - 1
+        bound = self.numCols - 1
         while col < bound:
             nxt = row[col+1]
             if nxt == last:
                 width += 1
             else:
-                if last != noData:
+                if last != self.noData:
                     self.addBox(last, (col + 1 - width, rowNum, width))
                 last = nxt
                 width = 1
             col += 1
-        if last != noData:
+        if last != self.noData:
             self.addBox(last, (col + 1 - width, rowNum, width))
         
     class OffSet:

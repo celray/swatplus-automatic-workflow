@@ -9,6 +9,7 @@ from actions.import_export_data import ImportExportData
 from actions.update_project import UpdateProject
 from actions.reimport_gis import ReimportGis
 from actions.run_all import RunAll
+from actions.load_scenarios import LoadScenarios
 from database import soils
 
 import sys
@@ -40,6 +41,8 @@ if __name__ == '__main__':
 	parser.add_argument("--db_file2", type=str, help="full path of SQLite database file", nargs="?")
 	parser.add_argument("--project_name", type=str, help="project name", nargs="?")
 	parser.add_argument("--editor_version", type=str, help="editor version", nargs="?")
+	parser.add_argument("--swat_version", type=str, help="editor version", nargs="?")
+	parser.add_argument("--project_description", type=str, help="project name", nargs="?")
 
 	# import / export csv files
 	parser.add_argument("--file_name", type=str, help="full path of csv file", nargs="?")
@@ -49,8 +52,7 @@ if __name__ == '__main__':
 
 	# setup project
 	parser.add_argument("--datasets_db_file", type=str, help="full path of datasets SQLite database file", nargs="?")
-	parser.add_argument("--settings_file", type=str, help="editor version", nargs="?")
-	parser.add_argument("--constant_ps", type=str, help="y/n constant point source values (default y)", nargs="?")
+	parser.add_argument("--constant_ps", type=str, help="y/n constant point source values (default n)", nargs="?")
 	parser.add_argument("--is_lte", type=str, help="y/n use lte version of SWAT+ (default n)", nargs="?")
 	parser.add_argument("--update_project_values", type=str, help="y/n update project values (default n)", nargs="?")
 	parser.add_argument("--reimport_gis", type=str, help="y/n re-import GIS data (default n)", nargs="?")
@@ -81,11 +83,11 @@ if __name__ == '__main__':
 	reimport_gis = True if args.reimport_gis == "y" else False
 
 	if args.action == "setup_project":
-		api = SetupProject(args.project_db_file, args.editor_version, args.settings_file, args.project_name, args.datasets_db_file, constant_ps, is_lte)
+		api = SetupProject(args.project_db_file, args.editor_version, args.project_name, args.datasets_db_file, constant_ps, is_lte, args.project_description)
 	elif args.action == "update_project":
 		api = UpdateProject(args.project_db_file, args.editor_version, args.datasets_db_file, update_project_values, reimport_gis)
 	elif args.action == "reimport_gis":
-		api = ReimportGis(args.project_db_file, args.editor_version, args.settings_file, args.project_name, args.datasets_db_file, constant_ps, is_lte)
+		api = ReimportGis(args.project_db_file, args.editor_version, args.project_name, args.datasets_db_file, constant_ps, is_lte)
 	elif args.action == "import_gis":
 		api = GisImport(args.project_db_file, del_ex)
 		api.insert_default()
@@ -102,15 +104,18 @@ if __name__ == '__main__':
 			api = WgnImport(args.project_db_file, del_ex, cre_sta, args.import_method, args.file1, args.file2)
 			api.import_data()
 	elif args.action == "read_output":
-		api = ReadOutput(args.output_files_dir, args.output_db_file)
+		api = ReadOutput(args.output_files_dir, args.output_db_file, args.swat_version, args.editor_version, args.project_name)
 		api.read()
 	elif args.action == "write_files":
-		api = WriteFiles(args.project_db_file)
+		api = WriteFiles(args.project_db_file, args.swat_version)
 		api.write()
 	elif args.action == "create_database":
 		if args.db_type == "datasets":
 			api = CreateDatasetsDb(args.db_file)
 			api.create(args.editor_version)
+		elif args.db_type == "datasets_update_2_1_0":
+			api = CreateDatasetsDb(args.db_file)
+			api.update_2_1_0(args.db_file)
 		elif args.db_type == "output":
 			api = CreateOutputDb(args.db_file)
 			api.create()
@@ -124,18 +129,32 @@ if __name__ == '__main__':
 			soils.db.init(args.db_file)
 			api = soils.ImportSoils()
 			api.ssurgo(args.db_file2)
-	elif args.action == "import_csv" or args.action == "export_csv":
+	elif args.action == "import_csv" or args.action == "export_csv" or args.action == "export_text":
 		related_id = 0 if args.related_id is None else args.related_id
 		ignore_id = False if args.ignore_id == "n" else True
-		api = ImportExportData(args.file_name, args.table_name, args.db_file, del_ex, related_id, ignore_id)
+		api = ImportExportData(args.file_name, args.table_name, args.db_file, del_ex, related_id, ignore_id, args.editor_version)
 	
 		if args.action == "import_csv":
 			api.import_csv()
 		elif args.action == "export_csv":
 			api.export_csv()
+		elif args.action == "export_text":
+			api.export_text()
+	elif args.action == "import_recall":
+		api = ImportExportData('', 'rec_dat', args.db_file, del_ex, 0, True, args.editor_version, args.input_files_dir)
+		api.import_recall()
+	elif args.action == "export_recall":
+		api = ImportExportData('', 'rec_dat', args.db_file, del_ex, 0, True, args.editor_version, args.input_files_dir)
+		api.export_recall()
 	elif args.action == "run":
 		api = RunAll(args.project_db_file, args.editor_version, args.swat_exe_file,
 			args.weather_dir, args.weather_save_dir, args.weather_import_format,
 			args.wgn_import_method, args.wgn_db, args.wgn_table, args.wgn_csv_sta_file, args.wgn_csv_mon_file,
 			args.year_start, args.day_start, args.year_end, args.day_end,
 			args.input_files_dir)
+	elif args.action == "save_scenario":
+		api = LoadScenarios()
+		api.save(args.project_db_file, args.input_files_dir, args.output_files_dir, args.project_name)
+	elif args.action == "load_scenario":
+		api = LoadScenarios()
+		api.load(args.project_db_file, args.project_name)

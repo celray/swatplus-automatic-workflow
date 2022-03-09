@@ -4,9 +4,10 @@ import database.project.hydrology as db
 
 
 class Field_fld(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -16,9 +17,10 @@ class Field_fld(BaseFileModel):
 
 
 class Topography_hyd(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -50,9 +52,10 @@ class Topography_hyd(BaseFileModel):
 
 
 class Hydrology_hyd(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -69,13 +72,13 @@ class Hydrology_hyd(BaseFileModel):
 				file.write(utils.num_pad("epco"))
 				file.write(utils.num_pad("orgn_enrich"))
 				file.write(utils.num_pad("orgp_enrich"))
-				file.write(utils.num_pad("evap_pothole"))
+				file.write(utils.num_pad("cn3_swf"))
 				file.write(utils.num_pad("bio_mix"))
 				file.write(utils.num_pad("perco"))
 				file.write(utils.num_pad("lat_orgn"))
 				file.write(utils.num_pad("lat_orgp"))
 				file.write(utils.num_pad("harg_pet"))
-				file.write(utils.num_pad("cn_plntet"))
+				file.write(utils.num_pad("latq_co"))
 				file.write("\n")
 
 				for row in db.Hydrology_hyd.select().order_by(db.Hydrology_hyd.id):
@@ -87,11 +90,11 @@ class Hydrology_hyd(BaseFileModel):
 					file.write(utils.num_pad(row.epco))
 					file.write(utils.num_pad(row.orgn_enrich))
 					file.write(utils.num_pad(row.orgp_enrich))
-					file.write(utils.num_pad(row.evap_pothole))
+					file.write(utils.num_pad(row.cn3_swf))
 					file.write(utils.num_pad(row.bio_mix))
 					file.write(utils.num_pad(row.perco))
 					file.write(utils.num_pad(row.lat_orgn))
 					file.write(utils.num_pad(row.lat_orgp))
 					file.write(utils.num_pad(row.harg_pet))
-					file.write(utils.num_pad(row.cn_plntet))
+					file.write(utils.num_pad(row.latq_co))
 					file.write("\n")

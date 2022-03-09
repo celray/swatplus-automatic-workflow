@@ -4,13 +4,13 @@ from .base import OutputBase
 
 class Aquifer(OutputBase):
 	flo = DoubleField(null=True)
+	dep_wt = DoubleField(null=True)
 	stor = DoubleField(null=True)
 	rchrg = DoubleField(null=True)
 	seep = DoubleField(null=True)
 	revap = DoubleField(null=True)
-	dep_wt = DoubleField(null=True)
 	no3_st = DoubleField(null=True)
-	min = DoubleField(null=True)
+	minp = DoubleField(null=True)
 	orgn = DoubleField(null=True)
 	orgp = DoubleField(null=True)
 	rchrgn = DoubleField(null=True)

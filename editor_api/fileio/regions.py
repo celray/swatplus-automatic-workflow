@@ -7,9 +7,10 @@ from peewee import *
 
 
 class Ls_unit_def(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -18,6 +19,11 @@ class Ls_unit_def(BaseFileModel):
 		table = db.Ls_unit_def
 		order_by = db.Ls_unit_def.id
 		count = table.select().count()
+
+		element_table = db.Ls_unit_ele
+		first_elem = element_table.get()
+		obj_table = table_mapper.obj_typs.get(first_elem.obj_typ, None)
+		obj_ids = [o.id for o in obj_table.select(obj_table.id).order_by(obj_table.id)]
 
 		if count > 0:
 			with open(self.file_name, 'w') as file:
@@ -38,14 +44,15 @@ class Ls_unit_def(BaseFileModel):
 					file.write(utils.string_pad(row.name))
 					file.write(utils.num_pad(row.area))
 
-					self.write_ele_ids(file, table, db.Ls_unit_ele, row.elements, use_obj_id=False)
+					self.write_ele_ids2(file, table, element_table, row.elements, obj_table, obj_ids, use_obj_id=False)
 					file.write("\n")
 
 
 class Ls_unit_ele(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -79,9 +86,10 @@ class Ls_unit_ele(BaseFileModel):
 					file.write("\n")
 
 class Aqu_catunit_ele(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')

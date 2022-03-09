@@ -4,9 +4,10 @@ import database.project.dr as db
 
 
 class Dr_om_del(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database='project'):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -16,9 +17,10 @@ class Dr_om_del(BaseFileModel):
 
 
 class Delratio_del(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database='project'):
 		raise NotImplementedError('Reading not implemented yet.')

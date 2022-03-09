@@ -20,17 +20,12 @@
  ***************************************************************************/
 """
 
-import os
+from qgis.PyQt import QtWidgets
 
-from PyQt5 import uic
-from PyQt5 import QtWidgets
+from .ui_outlets import Ui_OutletsDialog
 
-pdir = os.path.dirname(__file__)
-FORM_CLASS, _ = uic.loadUiType(os.path.join(pdir, 'ui_outlets.ui'), 
-                               from_imports=True, 
-                               import_from=os.path.basename(pdir))
 
-class OutletsDialog(QtWidgets.QDialog, FORM_CLASS):
+class OutletsDialog(QtWidgets.QDialog, Ui_OutletsDialog):
     """Set up dialog from designer."""
     def __init__(self, parent=None):
         """Constructor."""
@@ -41,4 +36,3 @@ class OutletsDialog(QtWidgets.QDialog, FORM_CLASS):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
-

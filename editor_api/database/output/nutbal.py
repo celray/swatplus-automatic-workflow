@@ -18,6 +18,10 @@ class Nutbal(OutputBase):
 	rsd_laborg_p = DoubleField(null=True)
 	no3atmo = DoubleField(null=True)
 	nh4atmo = DoubleField(null=True)
+	nuptake = DoubleField(null=True)
+	puptake = DoubleField(null=True)
+	gwtrann = DoubleField(null=True)
+	gwtranp = DoubleField(null=True)
 
 
 class Basin_nb_day(Nutbal):

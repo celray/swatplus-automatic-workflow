@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.join(os.environ["swatplus_wf_dir"], "packages"))
 sys.path.append(os.path.join(os.environ["swatplus_wf_dir"]))
 sys.path.insert(0, sys.argv[1])
 
+
 from sqlite_tools import sqlite_connection
 import model_options
 from editor_api.weather2012_to_weather import list_files, read_from, write_to, copy_file
@@ -79,8 +80,8 @@ class swat_plus_editor:
             "api": self.api,
             "weather_format": "observed",
             "txt_in_out_dir": self.txt_in_out_dir,
-            "swat_exe_release": "rev59.3_64rel.exe" if platform.system() == "Windows" else "./swatplusrev59-static.exe",
-            "swat_exe_debug": "rev59.3_64debug.exe" if platform.system() == "Windows" else "./swatplusrev59-static.exe",
+            "swat_exe_release": "rev60.5.4_64rel.exe" if platform.system() == "Windows" else "./rev60.5.2_64rel_linux",
+            "swat_exe_debug": "rev60.5.4_64debug.exe" if platform.system() == "Windows" else "./rev60.5.2_64rel_linux",
             "python_exe": python_exe,
             "import_typ_wgn": "wgn",
             "api_dir": self.api_dir,
@@ -100,68 +101,162 @@ class swat_plus_editor:
         "correct bug in plants_plt days_mat"
         self.db = sqlite_connection(self.prj_database)
         self.db.connect()
-        # self.db.delete_table("plants_plt")
-        # sql_command = """CREATE TABLE plants_plt (
-        #     id          INTEGER       NOT NULL
-        #                               PRIMARY KEY,
-        #     name        VARCHAR (255) NOT NULL,
-        #     plnt_typ    VARCHAR (255) NOT NULL,
-        #     gro_trig    VARCHAR (255) NOT NULL,
-        #     nfix_co     REAL          NOT NULL,
-        #     days_mat    REAL          NOT NULL,
-        #     bm_e        REAL          NOT NULL,
-        #     harv_idx    REAL          NOT NULL,
-        #     lai_pot     REAL          NOT NULL,
-        #     frac_hu1    REAL          NOT NULL,
-        #     lai_max1    REAL          NOT NULL,
-        #     frac_hu2    REAL          NOT NULL,
-        #     lai_max2    REAL          NOT NULL,
-        #     hu_lai_decl REAL          NOT NULL,
-        #     dlai_rate   REAL          NOT NULL,
-        #     can_ht_max  REAL          NOT NULL,
-        #     rt_dp_max   REAL          NOT NULL,
-        #     tmp_opt     REAL          NOT NULL,
-        #     tmp_base    REAL          NOT NULL,
-        #     frac_n_yld  REAL          NOT NULL,
-        #     frac_p_yld  REAL          NOT NULL,
-        #     frac_n_em   REAL          NOT NULL,
-        #     frac_n_50   REAL          NOT NULL,
-        #     frac_n_mat  REAL          NOT NULL,
-        #     frac_p_em   REAL          NOT NULL,
-        #     frac_p_50   REAL          NOT NULL,
-        #     frac_p_mat  REAL          NOT NULL,
-        #     harv_idx_ws REAL          NOT NULL,
-        #     usle_c_min  REAL          NOT NULL,
-        #     stcon_max   REAL          NOT NULL,
-        #     vpd         REAL          NOT NULL,
-        #     frac_stcon  REAL          NOT NULL,
-        #     ru_vpd      REAL          NOT NULL,
-        #     co2_hi      REAL          NOT NULL,
-        #     bm_e_hi     REAL          NOT NULL,
-        #     plnt_decomp REAL          NOT NULL,
-        #     lai_min     REAL          NOT NULL,
-        #     bm_tree_acc REAL          NOT NULL,
-        #     yrs_mat     REAL          NOT NULL,
-        #     bm_tree_max REAL          NOT NULL,
-        #     ext_co      REAL          NOT NULL,
-        #     leaf_tov_mn REAL          NOT NULL,
-        #     leaf_tov_mx REAL          NOT NULL,
-        #     bm_dieoff   REAL          NOT NULL,
-        #     rt_st_beg   REAL          NOT NULL,
-        #     rt_st_end   REAL          NOT NULL,
-        #     plnt_pop1   REAL          NOT NULL,
-        #     frac_lai1   REAL          NOT NULL,
-        #     plnt_pop2   REAL          NOT NULL,
-        #     frac_lai2   REAL          NOT NULL,
-        #     frac_sw_gro REAL          NOT NULL,
-        #     wnd_live    REAL          NOT NULL,
-        #     wnd_dead    REAL          NOT NULL,
-        #     wnd_flat    REAL          NOT NULL,
-        #     description TEXT
-        # );
-        # """
-        # self.db.cursor.execute(sql_command)
-        # self.db.commit_changes()
+
+        if self.db.table_exists('codes_bsn'):
+            self.db.delete_table('codes_bsn')
+
+        sql_command = '''CREATE TABLE codes_bsn (
+                    id         INTEGER       NOT NULL
+                                            PRIMARY KEY,
+                    pet_file   VARCHAR (255),
+                    wq_file    VARCHAR (255),
+                    pet        INTEGER       NOT NULL,
+                    event      INTEGER       NOT NULL,
+                    crack      INTEGER       NOT NULL,
+                    rtu_wq     INTEGER       NOT NULL,
+                    sed_det    INTEGER       NOT NULL,
+                    rte_cha    INTEGER       NOT NULL,
+                    deg_cha    INTEGER       NOT NULL,
+                    wq_cha     INTEGER       NOT NULL,
+                    nostress   INTEGER       NOT NULL,
+                    cn         INTEGER       NOT NULL,
+                    c_fact     INTEGER       NOT NULL,
+                    carbon     INTEGER       NOT NULL,
+                    lapse      INTEGER       NOT NULL,
+                    uhyd       INTEGER       NOT NULL,
+                    sed_cha    INTEGER       NOT NULL,
+                    tiledrain  INTEGER       NOT NULL,
+                    wtable     INTEGER       NOT NULL,
+                    soil_p     INTEGER       NOT NULL,
+                    gampt      INTEGER       NOT NULL,
+                    atmo_dep   VARCHAR (255) NOT NULL,
+                    stor_max   INTEGER       NOT NULL,
+                    i_fpwet    INTEGER       NOT NULL
+                );
+                '''
+        self.db.cursor.execute(sql_command)
+        self.db.commit_changes()
+
+        if self.db.table_exists('parameters_bsn'):
+            self.db.delete_table('parameters_bsn')
+
+        sql_command = '''CREATE TABLE parameters_bsn (
+                id           INTEGER NOT NULL
+                                    PRIMARY KEY,
+                lai_noevap   REAL    NOT NULL,
+                sw_init      REAL    NOT NULL,
+                surq_lag     REAL    NOT NULL,
+                adj_pkrt     REAL    NOT NULL,
+                adj_pkrt_sed REAL    NOT NULL,
+                lin_sed      REAL    NOT NULL,
+                exp_sed      REAL    NOT NULL,
+                orgn_min     REAL    NOT NULL,
+                n_uptake     REAL    NOT NULL,
+                p_uptake     REAL    NOT NULL,
+                n_perc       REAL    NOT NULL,
+                p_perc       REAL    NOT NULL,
+                p_soil       REAL    NOT NULL,
+                p_avail      REAL    NOT NULL,
+                rsd_decomp   REAL    NOT NULL,
+                pest_perc    REAL    NOT NULL,
+                msk_co1      REAL    NOT NULL,
+                msk_co2      REAL    NOT NULL,
+                msk_x        REAL    NOT NULL,
+                nperco_lchtile REAL    NOT NULL,
+                evap_adj     REAL    NOT NULL,
+                scoef        REAL    NOT NULL,
+                denit_exp    REAL    NOT NULL,
+                denit_frac   REAL    NOT NULL,
+                man_bact     REAL    NOT NULL,
+                adj_uhyd     REAL    NOT NULL,
+                cn_froz      REAL    NOT NULL,
+                dorm_hr      REAL    NOT NULL,
+                plaps        REAL    NOT NULL,
+                tlaps        REAL    NOT NULL,
+                n_fix_max    REAL    NOT NULL,
+                rsd_decay    REAL    NOT NULL,
+                rsd_cover    REAL    NOT NULL,
+                urb_init_abst REAL    NOT NULL,
+                petco_pmpt   REAL    NOT NULL,
+                uhyd_alpha   REAL    NOT NULL,
+                splash       REAL    NOT NULL,
+                rill         REAL    NOT NULL,
+                surq_exp     REAL    NOT NULL,
+                cov_mgt      REAL    NOT NULL,
+                cha_d50      REAL    NOT NULL,
+                co2          REAL    NOT NULL,
+                day_lag_max  REAL    NOT NULL,
+                igen         INTEGER NOT NULL
+            );
+            '''
+        self.db.cursor.execute(sql_command)
+        self.db.commit_changes()
+
+        
+        if self.db.table_exists('plants_plt'):
+            self.db.delete_table('plants_plt')
+
+        sql_command = """CREATE TABLE plants_plt (
+            id          INTEGER NOT NULL
+                                PRIMARY KEY,
+            name        TEXT    NOT NULL,
+            plnt_typ    TEXT    NOT NULL,
+            gro_trig    TEXT    NOT NULL,
+            nfix_co     REAL    NOT NULL,
+            days_mat    REAL    NOT NULL,
+            bm_e        REAL    NOT NULL,
+            harv_idx    REAL    NOT NULL,
+            lai_pot     REAL    NOT NULL,
+            frac_hu1    REAL    NOT NULL,
+            lai_max1    REAL    NOT NULL,
+            frac_hu2    REAL    NOT NULL,
+            lai_max2    REAL    NOT NULL,
+            hu_lai_decl REAL    NOT NULL,
+            dlai_rate   REAL    NOT NULL,
+            can_ht_max  REAL    NOT NULL,
+            rt_dp_max   REAL    NOT NULL,
+            tmp_opt     REAL    NOT NULL,
+            tmp_base    REAL    NOT NULL,
+            frac_n_yld  REAL    NOT NULL,
+            frac_p_yld  REAL    NOT NULL,
+            frac_n_em   REAL    NOT NULL,
+            frac_n_50   REAL    NOT NULL,
+            frac_n_mat  REAL    NOT NULL,
+            frac_p_em   REAL    NOT NULL,
+            frac_p_50   REAL    NOT NULL,
+            frac_p_mat  REAL    NOT NULL,
+            harv_idx_ws REAL    NOT NULL,
+            usle_c_min  REAL    NOT NULL,
+            stcon_max   REAL    NOT NULL,
+            vpd         REAL    NOT NULL,
+            frac_stcon  REAL    NOT NULL,
+            ru_vpd      REAL    NOT NULL,
+            co2_hi      REAL    NOT NULL,
+            bm_e_hi     REAL    NOT NULL,
+            plnt_decomp REAL    NOT NULL,
+            lai_min     REAL    NOT NULL,
+            bm_tree_acc REAL    NOT NULL,
+            yrs_mat     REAL    NOT NULL,
+            bm_tree_max REAL    NOT NULL,
+            ext_co      REAL    NOT NULL,
+            leaf_tov_mn REAL    NOT NULL,
+            leaf_tov_mx REAL    NOT NULL,
+            bm_dieoff   REAL    NOT NULL,
+            rt_st_beg   REAL    NOT NULL,
+            rt_st_end   REAL    NOT NULL,
+            plnt_pop1   REAL    NOT NULL,
+            frac_lai1   REAL    NOT NULL,
+            plnt_pop2   REAL    NOT NULL,
+            frac_lai2   REAL    NOT NULL,
+            frac_sw_gro REAL    NOT NULL,
+            aeration    REAL    NOT NULL,
+            wnd_dead    REAL    NOT NULL,
+            wnd_flat    REAL    NOT NULL,
+            description TEXT
+        );
+        """
+        self.db.cursor.execute(sql_command)
+        self.db.commit_changes()
 
         # import GIS
         os.chdir(self.api_dir)
@@ -183,7 +278,7 @@ class swat_plus_editor:
 
 
         config_info[1] = self.model_name
-        config_info[3] = "1.2.3"
+        config_info[3] = "2.1.0"
         config_info[6] = self.prj_database
         config_info[7] = self.ref_database
         config_info[8] = self.wgn_db

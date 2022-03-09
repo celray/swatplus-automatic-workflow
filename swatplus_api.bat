@@ -1,7 +1,7 @@
 @echo off
 
 REM set the directory of QGIS
-set QGIS_Dir=C:\Program Files\QGIS 3.10
+set QGIS_Dir=C:\Program Files\QGIS 3.22.3
 REM set ERRORLEVEL=0
 
 REM set variables for project initialisation
@@ -18,5 +18,5 @@ REM change directory to the python-qgis-ltr.bat
 cd %QGIS_Dir%\bin
 
 REM start runing the workflow using PyQGIS
-call python-qgis-ltr.bat %api_script% %BASE_DIR% %1
+call python-qgis.bat %api_script% %BASE_DIR% %1
 

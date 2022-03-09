@@ -7,12 +7,14 @@ import database.project.simulation as db
 from database.project.regions import Ls_unit_def
 from database.project.connect import Rout_unit_con, Hru_con, Hru_lte_con, Modflow_con, Aquifer2d_con, Aquifer_con, Channel_con, Reservoir_con, Recall_con, Exco_con, Delratio_con, Outlet_con, Chandeg_con
 from database.project.gis import Gis_subbasins, Gis_lsus
+from database.project.recall import Recall_dat, Recall_rec
 
 
 class Time_sim(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -22,9 +24,10 @@ class Time_sim(BaseFileModel):
 
 
 class Object_prt(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -32,11 +35,57 @@ class Object_prt(BaseFileModel):
 	def write(self):
 		self.write_default_table(db.Object_prt)
 
-
-class Print_prt(BaseFileModel):
-	def __init__(self, file_name, version=None):
+"""
+constituents.cs
+     2              !pesticides
+	 dacamine	roundup
+     2              !pathogens
+        fecal_coliform     e_coli
+     1              !metals
+        mercury
+     8              !salts
+        sulfate-SO4	calcium-Ca	magnesium-Mg	sodium-Na	potassium-K	chloride-Cl	carbonate-CO3	bicarbonate-HCO3
+"""
+class Constituents_cs(BaseFileModel):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
+
+	def read(self):
+		raise NotImplementedError('Reading not implemented yet.')
+
+	def write(self):
+		table = db.Constituents_cs
+
+		if table.select().count() > 0:
+			row = table.select().first()
+			with open(self.file_name, 'w') as file:
+				self.write_meta_line(file)
+				self.write_constit(file, row.pest_coms, "pesticides")
+				self.write_constit(file, row.path_coms, "pathogens")
+				self.write_constit(file, row.hmet_coms, "metals")
+				self.write_constit(file, row.salt_coms, "salts")
+
+	def write_constit(self, file, values, label):
+		items = [] if values is None else values.split(",")
+		items.sort()
+		file.write(utils.int_pad(len(items), default_pad=6, direction="right"))
+		file.write("              ")
+		file.write(utils.string_pad("!{}".format(label), direction="left"))
+		file.write("\n")
+		file.write("        ")
+		for item in items:
+			file.write(item)
+			file.write(" ")
+		file.write("\n")
+
+
+class Print_prt(BaseFileModel):
+	def __init__(self, file_name, version=None, swat_version=None):
+		self.file_name = file_name
+		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -121,9 +170,10 @@ class Print_prt(BaseFileModel):
 
 
 class Object_cnt(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -174,8 +224,12 @@ class Object_cnt(BaseFileModel):
 					aqu = self.get_value_or_count(row.aqu, Aquifer_con)
 					cha = self.get_value_or_count(row.cha, Channel_con)
 					res = self.get_value_or_count(row.res, Reservoir_con)
-					rec = self.get_value_or_count(row.rec, Recall_con)
-					exco = self.get_value_or_count(row.exco, Exco_con)
+					#rec = self.get_value_or_count(row.rec, Recall_con)
+					#exco = self.get_value_or_count(row.exco, Exco_con)
+					#exco = Recall_con.select().join(Recall_rec).join(Recall_dat).where((Recall_rec.rec_typ == 4) & (Recall_dat.flo != 0)).count()
+					#rec = Recall_con.select().join(Recall_rec).join(Recall_dat).where(Recall_rec.rec_typ != 4).count()
+					rec = Recall_rec.select().where(Recall_rec.rec_typ != 4).count()
+					exco = Recall_dat.select().join(Recall_rec).where((Recall_rec.rec_typ == 4) & (Recall_dat.flo != 0)).count()
 					dlr = self.get_value_or_count(row.dlr, Delratio_con)
 					out = self.get_value_or_count(row.out, Outlet_con)
 					lcha = self.get_value_or_count(row.lcha, Chandeg_con)

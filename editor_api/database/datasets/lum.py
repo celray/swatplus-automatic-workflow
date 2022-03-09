@@ -9,6 +9,8 @@ class Management_sch(base.BaseModel):
 class Management_sch_auto(base.BaseModel):
 	management_sch = ForeignKeyField(Management_sch, on_delete='CASCADE', related_name='auto_ops')
 	d_table = ForeignKeyField(decision_table.D_table_dtl, on_delete='CASCADE')
+	plant1 = CharField(null=True)
+	plant2 = CharField(null=True)
 
 
 class Management_sch_op(base.BaseModel):

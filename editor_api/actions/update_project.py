@@ -23,6 +23,16 @@ from playhouse.migrate import *
 import datetime
 
 available_to_update = [
+	'2.0.4',
+	'2.0.3',
+	'2.0.2',
+	'2.0.1',
+	'2.0.0',
+	'1.4.0',
+	'1.3.0',
+	'1.2.3',
+	'1.2.2',
+	'1.2.1',
 	'1.2.0',
 	'1.1.2',
 	'1.1.1',
@@ -65,25 +75,49 @@ class UpdateProject(ExecutableApi):
 				sys.exit(err)
 			
 			did_update = False
-			if m.editor_version == '1.2.0':
-				self.updates_for_1_2_1(project_db, backup_db_file)
+			if m.editor_version.startswith('2.0.'):
+				self.updates_for_2_1_0(project_db, datasets_db, backup_db_file)
 				did_update = True
 				reimport_gis = False
-			if m.editor_version == '1.1.0' or m.editor_version == '1.1.1' or m.editor_version == '1.1.2':
+			elif m.editor_version == '1.3.0' or m.editor_version == '1.4.0':
+				self.updates_for_2_0_0(project_db, datasets_db, backup_db_file)
+				self.updates_for_2_1_0(project_db, datasets_db, backup_db_file)
+				did_update = True
+				reimport_gis = False
+			elif m.editor_version == '1.2.1' or m.editor_version == '1.2.2' or m.editor_version == '1.2.3':
+				self.updates_for_1_3_0(project_db, datasets_db, backup_db_file)
+				self.updates_for_2_0_0(project_db, datasets_db, backup_db_file)
+				self.updates_for_2_1_0(project_db, datasets_db, backup_db_file)
+				did_update = True
+				reimport_gis = False
+			elif m.editor_version == '1.2.0':
+				self.updates_for_1_2_1(project_db, backup_db_file)
+				self.updates_for_1_3_0(project_db, datasets_db, backup_db_file)
+				self.updates_for_2_0_0(project_db, datasets_db, backup_db_file)
+				self.updates_for_2_1_0(project_db, datasets_db, backup_db_file)
+				did_update = True
+				reimport_gis = False
+			elif m.editor_version == '1.1.0' or m.editor_version == '1.1.1' or m.editor_version == '1.1.2':
 				self.updates_for_1_2_0(project_db, update_project_values, backup_db_file)
 				self.updates_for_1_2_1(project_db, backup_db_file)
+				self.updates_for_1_3_0(project_db, datasets_db, backup_db_file)
+				self.updates_for_2_0_0(project_db, datasets_db, backup_db_file)
+				self.updates_for_2_1_0(project_db, datasets_db, backup_db_file)
 				did_update = True
 			elif m.editor_version == '1.0.0':
 				self.updates_for_1_1_0(project_db, datasets_db, backup_db_file)
 				self.updates_for_1_2_0(project_db, update_project_values, backup_db_file)
 				self.updates_for_1_2_1(project_db, backup_db_file)
+				self.updates_for_1_3_0(project_db, datasets_db, backup_db_file)
+				self.updates_for_2_0_0(project_db, datasets_db, backup_db_file)
+				self.updates_for_2_1_0(project_db, datasets_db, backup_db_file)
 				did_update = True
 			
 			m.editor_version = new_version
 			result = m.save()
 
 			if did_update and reimport_gis:
-				ReimportGis(project_db, new_version, None, m.project_name, datasets_db, True, m.is_lte)
+				ReimportGis(project_db, new_version, m.project_name, datasets_db, False, m.is_lte)
 		except Project_config.DoesNotExist:
 			sys.exit("Could not retrieve project configuration data.")
 
@@ -93,6 +127,325 @@ class UpdateProject(ExecutableApi):
 			sys.exit("Unable to update this project to {new_version}. Updates from {current_version} unavailable.".format(new_version=new_version, current_version=m.editor_version))
 			
 		return m
+
+	def updates_for_2_1_0(self, project_db, datasets_db, rollback_db):
+		try:
+			self.emit_progress(5, 'Running migrations...')
+			migrator = SqliteMigrator(SqliteDatabase(project_db))
+			migrate(
+				#migrator.add_column('project_config', 'project_description', CharField(null=True)),
+
+				migrator.rename_column('codes_bsn', 'baseflo', 'lapse'),
+				migrator.rename_column('codes_bsn', 'abstr_init', 'gampt'),
+				migrator.rename_column('codes_bsn', 'headwater', 'i_fpwet'),
+
+				migrator.rename_column('parameters_bsn', 'trans_loss', 'nperco_lchtile'),
+				migrator.rename_column('parameters_bsn', 's_max', 'plaps'),
+				migrator.rename_column('parameters_bsn', 'n_fix', 'tlaps'),
+				migrator.rename_column('parameters_bsn', 'vel_crit', 'urb_init_abst'),
+				migrator.rename_column('parameters_bsn', 'res_sed', 'petco_pmpt'),
+				migrator.rename_column('parameters_bsn', 'cha_part_sd', 'co2'),
+				migrator.rename_column('parameters_bsn', 'adj_cn', 'day_lag_max'),
+				
+				migrator.rename_column('hyd_sed_lte_cha', 't_conc', 'fps'),
+				migrator.rename_column('hyd_sed_lte_cha', 'shear_bnk', 'fpn'),
+				migrator.rename_column('hyd_sed_lte_cha', 'hc_erod', 'n_conc'),
+				migrator.rename_column('hyd_sed_lte_cha', 'hc_ht', 'p_conc'),
+				migrator.rename_column('hyd_sed_lte_cha', 'hc_len', 'p_bio'),
+				
+				migrator.rename_column('nutrients_sol', 'dp_co', 'exp_co'),
+				migrator.rename_column('nutrients_sol', 'tot_n', 'lab_p'),
+				migrator.rename_column('nutrients_sol', 'min_n', 'nitrate'),
+				migrator.rename_column('nutrients_sol', 'org_n', 'fr_hum_act'),
+				migrator.rename_column('nutrients_sol', 'tot_p', 'hum_c_n'),
+				migrator.rename_column('nutrients_sol', 'min_p', 'hum_c_p'),
+				migrator.rename_column('nutrients_sol', 'org_p', 'inorgp'),
+				migrator.rename_column('nutrients_sol', 'sol_p', 'watersol_p'),
+				migrator.rename_column('nutrients_sol', 'mehl_p', 'mehlich_p'),
+				migrator.rename_column('nutrients_sol', 'bray_p', 'bray_strong_p'),
+				
+				migrator.rename_column('water_balance_sft_item', 'orgp', 'wyr'),
+				migrator.rename_column('water_balance_sft_item', 'no3', 'bfr'),
+				
+				migrator.rename_column('plants_plt', 'wnd_live', 'aeration'),
+
+				migrator.rename_column('recall_dat', 't_step', 'jday'),
+				migrator.rename_column('recall_dat', 'ptl_n', 'orgn'),
+				migrator.rename_column('recall_dat', 'ptl_p', 'sedp'),
+				migrator.rename_column('recall_dat', 'no3_n', 'no3'),
+				migrator.rename_column('recall_dat', 'sol_p', 'solp'),
+				migrator.rename_column('recall_dat', 'nh3_n', 'nh3'),
+				migrator.rename_column('recall_dat', 'no2_n', 'no2'),
+				migrator.rename_column('recall_dat', 'cbn_bod', 'cbod'),
+				migrator.rename_column('recall_dat', 'oxy', 'dox'),
+				migrator.rename_column('recall_dat', 'sm_agg', 'sag'),
+				migrator.rename_column('recall_dat', 'lg_agg', 'lag'),
+				migrator.add_column('recall_dat', 'mo', IntegerField(default=1)),
+				migrator.add_column('recall_dat', 'day_mo', IntegerField(default=1)),
+				migrator.add_column('recall_dat', 'ob_typ', CharField(null=True)),
+				migrator.add_column('recall_dat', 'ob_name', CharField(null=True)),
+
+				migrator.add_column('management_sch_auto', 'plant1', CharField(null=True)),
+				migrator.add_column('management_sch_auto', 'plant2', CharField(null=True)),
+
+				migrator.add_column('d_table_dtl', 'description', CharField(null=True)),
+				migrator.add_column('d_table_dtl_cond', 'description', CharField(null=True)),
+			)
+
+			#Datasets DB - Ignore error if already done
+			try:
+				migrator = SqliteMigrator(SqliteDatabase(datasets_db))
+				migrate(
+					migrator.rename_column('codes_bsn', 'baseflo', 'lapse'),
+					migrator.rename_column('codes_bsn', 'abstr_init', 'gampt'),
+					migrator.rename_column('codes_bsn', 'headwater', 'i_fpwet'),
+
+					migrator.rename_column('parameters_bsn', 'trans_loss', 'nperco_lchtile'),
+					migrator.rename_column('parameters_bsn', 's_max', 'plaps'),
+					migrator.rename_column('parameters_bsn', 'n_fix', 'tlaps'),
+					migrator.rename_column('parameters_bsn', 'vel_crit', 'urb_init_abst'),
+					migrator.rename_column('parameters_bsn', 'res_sed', 'petco_pmpt'),
+					migrator.rename_column('parameters_bsn', 'cha_part_sd', 'co2'),
+					migrator.rename_column('parameters_bsn', 'adj_cn', 'day_lag_max'),
+
+					migrator.rename_column('plants_plt', 'wnd_live', 'aeration'),
+
+					migrator.add_column('management_sch_auto', 'plant1', CharField(null=True)),
+					migrator.add_column('management_sch_auto', 'plant2', CharField(null=True)),
+					
+					migrator.add_column('d_table_dtl', 'description', CharField(null=True)),
+					migrator.add_column('d_table_dtl_cond', 'description', CharField(null=True)),
+					migrator.alter_column_type('d_table_dtl_act', 'const', DoubleField())
+				)
+			except Exception:
+				pass
+
+			self.emit_progress(10, 'Updating database with new defaults...')
+
+			basin.Parameters_bsn.update({
+				basin.Parameters_bsn.nperco_lchtile: 0.5, 
+				basin.Parameters_bsn.plaps: 0, 
+				basin.Parameters_bsn.tlaps: 6.5, 
+				basin.Parameters_bsn.urb_init_abst: 1, 
+				basin.Parameters_bsn.petco_pmpt: 1, 
+				basin.Parameters_bsn.co2: 400, 
+				basin.Parameters_bsn.day_lag_max: 0, 
+			}).execute()
+
+			datasets_basin.Parameters_bsn.update({
+				basin.Parameters_bsn.nperco_lchtile: 0.5, 
+				basin.Parameters_bsn.plaps: 0, 
+				basin.Parameters_bsn.tlaps: 6.5, 
+				basin.Parameters_bsn.urb_init_abst: 1, 
+				basin.Parameters_bsn.petco_pmpt: 1, 
+				basin.Parameters_bsn.co2: 400, 
+				basin.Parameters_bsn.day_lag_max: 0, 
+			}).execute()
+
+			channel.Hyd_sed_lte_cha.update({
+				channel.Hyd_sed_lte_cha.fps: 0.00001,
+				channel.Hyd_sed_lte_cha.fpn: 0.1,
+				channel.Hyd_sed_lte_cha.n_conc: 0,
+				channel.Hyd_sed_lte_cha.p_conc: 0,
+				channel.Hyd_sed_lte_cha.p_bio: 0
+			}).execute()
+
+			soils.Nutrients_sol.update({
+				soils.Nutrients_sol.exp_co: 0.0005,
+				soils.Nutrients_sol.lab_p: 5,
+				soils.Nutrients_sol.nitrate: 7,
+				soils.Nutrients_sol.fr_hum_act: 0.02,
+				soils.Nutrients_sol.hum_c_n: 10,
+				soils.Nutrients_sol.hum_c_p: 80,
+				soils.Nutrients_sol.inorgp: 3.5,
+				soils.Nutrients_sol.watersol_p: 0.15,
+				soils.Nutrients_sol.h3a_p: 0.25,
+				soils.Nutrients_sol.mehlich_p: 1.2,
+			}).execute()
+
+			plaps = change.Cal_parms_cal.get_or_none((change.Cal_parms_cal.name == 'plaps') & (change.Cal_parms_cal.obj_typ == 'bsn'))
+			if plaps is None:
+				change.Cal_parms_cal.insert(name='plaps', obj_typ='bsn', abs_min=0, abs_max=200, units=None).execute()
+
+			tlaps = change.Cal_parms_cal.get_or_none((change.Cal_parms_cal.name == 'tlaps') & (change.Cal_parms_cal.obj_typ == 'bsn'))
+			if tlaps is None:
+				change.Cal_parms_cal.insert(name='tlaps', obj_typ='bsn', abs_min=-10, abs_max=10, units=None).execute()
+
+			deep_seep = change.Cal_parms_cal.get_or_none((change.Cal_parms_cal.name == 'deep_seep') & (change.Cal_parms_cal.obj_typ == 'aqu'))
+			if deep_seep is None:
+				change.Cal_parms_cal.insert(name='deep_seep', obj_typ='aqu', abs_min=0.001, abs_max=0.4, units='m/m').execute()
+
+			sp_yld = change.Cal_parms_cal.get_or_none((change.Cal_parms_cal.name == 'sp_yld') & (change.Cal_parms_cal.obj_typ == 'aqu'))
+			if sp_yld is None:
+				change.Cal_parms_cal.insert(name='sp_yld', obj_typ='aqu', abs_min=0, abs_max=0.5, units='fraction').execute()
+
+			change.Cal_parms_cal.update({
+				change.Cal_parms_cal.abs_max: 50, 
+				change.Cal_parms_cal.units: 'm'
+			}).where((change.Cal_parms_cal.name == 'flo_min') & (change.Cal_parms_cal.obj_typ == 'aqu')).execute()
+
+			change.Cal_parms_cal.update({
+				change.Cal_parms_cal.name: 'ch_clay'
+			}).where((change.Cal_parms_cal.name == 'clay') & (change.Cal_parms_cal.obj_typ == 'rte')).execute()
+
+			change.Cal_parms_cal.update({
+				change.Cal_parms_cal.name: 'ch_bd'
+			}).where((change.Cal_parms_cal.name == 'bd') & (change.Cal_parms_cal.obj_typ == 'rte')).execute()
+
+			change.Cal_parms_cal.delete().where((change.Cal_parms_cal.name == 'trnsrch') & (change.Cal_parms_cal.obj_typ == 'bsn')).execute()
+
+			#Datasets changes for cal_parms.cal
+			ds_plaps = datasets_change.Cal_parms_cal.get_or_none((datasets_change.Cal_parms_cal.name == 'plaps') & (datasets_change.Cal_parms_cal.obj_typ == 'bsn'))
+			if ds_plaps is None:
+				datasets_change.Cal_parms_cal.insert(name='plaps', obj_typ='bsn', abs_min=0, abs_max=200, units=None).execute()
+
+			ds_tlaps = datasets_change.Cal_parms_cal.get_or_none((datasets_change.Cal_parms_cal.name == 'tlaps') & (datasets_change.Cal_parms_cal.obj_typ == 'bsn'))
+			if ds_tlaps is None:
+				datasets_change.Cal_parms_cal.insert(name='tlaps', obj_typ='bsn', abs_min=-10, abs_max=10, units=None).execute()
+
+			ds_deep_seep = datasets_change.Cal_parms_cal.get_or_none((datasets_change.Cal_parms_cal.name == 'deep_seep') & (datasets_change.Cal_parms_cal.obj_typ == 'aqu'))
+			if ds_deep_seep is None:
+				datasets_change.Cal_parms_cal.insert(name='deep_seep', obj_typ='aqu', abs_min=0.001, abs_max=0.4, units='m/m').execute()
+
+			ds_sp_yld = datasets_change.Cal_parms_cal.get_or_none((datasets_change.Cal_parms_cal.name == 'sp_yld') & (datasets_change.Cal_parms_cal.obj_typ == 'aqu'))
+			if ds_sp_yld is None:
+				datasets_change.Cal_parms_cal.insert(name='sp_yld', obj_typ='aqu', abs_min=0, abs_max=0.5, units='fraction').execute()
+
+			datasets_change.Cal_parms_cal.update({
+				datasets_change.Cal_parms_cal.abs_max: 50, 
+				datasets_change.Cal_parms_cal.units: 'm'
+			}).where((datasets_change.Cal_parms_cal.name == 'flo_min') & (datasets_change.Cal_parms_cal.obj_typ == 'aqu')).execute()
+
+			datasets_change.Cal_parms_cal.update({
+				datasets_change.Cal_parms_cal.name: 'ch_clay'
+			}).where((datasets_change.Cal_parms_cal.name == 'clay') & (datasets_change.Cal_parms_cal.obj_typ == 'rte')).execute()
+
+			datasets_change.Cal_parms_cal.update({
+				datasets_change.Cal_parms_cal.name: 'ch_bd'
+			}).where((datasets_change.Cal_parms_cal.name == 'bd') & (datasets_change.Cal_parms_cal.obj_typ == 'rte')).execute()
+
+			datasets_change.Cal_parms_cal.delete().where((datasets_change.Cal_parms_cal.name == 'trnsrch') & (datasets_change.Cal_parms_cal.obj_typ == 'bsn')).execute()
+
+			self.emit_progress(80, 'Updating recall data where applicable...')
+			ob_typs = {
+				1: 'pt_day',
+				2: 'pt_mon',
+				3: 'pt_yr',
+				4: 'pt_const'
+			}
+			with base.db.atomic():
+				for row in recall.Recall_dat.select().join(recall.Recall_rec).where(recall.Recall_rec.rec_typ == 1):
+					dt = datetime.datetime(row.yr, 1, 1) + datetime.timedelta(row.jday - 1)
+					tt = dt.timetuple()
+					row.mo = tt.tm_mon
+					row.day_mo = tt.tm_mday
+					row.ob_typ = 'pt_day'
+					row.ob_name = row.recall_rec.name
+					row.save()
+				for row in recall.Recall_dat.select().join(recall.Recall_rec).where(recall.Recall_rec.rec_typ != 1):
+					row.mo = row.jday if row.jday != 0 else 1
+					row.jday = 1
+					row.day_mo = 1
+					row.yr = row.yr if row.yr != 0 else 1
+					row.ob_typ = ob_typs.get(row.recall_rec.rec_typ, 'pt')
+					row.ob_name = row.recall_rec.name
+					row.save()
+		except Exception as ex:
+			if rollback_db is not None:
+				self.emit_progress(50, "Error occurred. Rolling back database...")
+				SetupProjectDatabase.rollback(project_db, rollback_db)
+				self.emit_progress(100, "Error occurred.")
+			sys.exit(str(ex))
+
+	def updates_for_2_0_0(self, project_db, datasets_db, rollback_db):
+		try:
+			self.emit_progress(5, 'Running migrations...')
+			migrator = SqliteMigrator(SqliteDatabase(project_db))
+			migrate(
+				migrator.drop_column('water_balance_sft_item', 'orgn'),
+				migrator.drop_column('plant_parms_sft', 'chg_typ'),
+				migrator.drop_column('plant_parms_sft', 'neg'),
+				migrator.drop_column('plant_parms_sft', 'pos'),
+				migrator.drop_column('plant_parms_sft', 'lo'),
+				migrator.drop_column('plant_parms_sft', 'up'),
+				migrator.rename_column('hyd_sed_lte_cha', 'hc_cov', 'wd_rto'),
+				migrator.drop_index('cal_parms_cal', 'cal_parms_cal_name')
+			)
+
+			base.db.create_tables([change.Plant_parms_sft_item])
+			base.db.create_tables([init.Pest_hru_ini, init.Pest_hru_ini_item, init.Pest_water_ini, init.Pest_water_ini_item, 
+								init.Path_hru_ini, init.Path_hru_ini_item, init.Path_water_ini, init.Path_water_ini_item, 
+								init.Hmet_hru_ini, init.Hmet_hru_ini_item, init.Hmet_water_ini, init.Hmet_water_ini_item, 
+								init.Salt_hru_ini, init.Salt_hru_ini_item, init.Salt_water_ini, init.Salt_water_ini_item])
+
+			self.emit_progress(80, 'Updating decision table bugs from previous version...')
+			d_act = decision_table.D_table_dtl_act
+			d_act.update(const2=1).where(((d_act.act_typ == 'plant') | (d_act.act_typ == 'harvest_kill')) & (d_act.const2 == 0)).execute()
+			d_act.update(fp='grain').where((d_act.act_typ == 'harvest_kill') & (d_act.fp == 'null')).execute()
+
+			self.emit_progress(80, 'Updating channel width/depth ratio...')
+			with base.db.atomic():
+				for row in channel.Hyd_sed_lte_cha.select():
+					row.wd_rto = 4 if row.dp == 0 else row.wd / row.dp
+					row.save()
+
+		except Exception as ex:
+			if rollback_db is not None:
+				self.emit_progress(50, "Error occurred. Rolling back database...")
+				SetupProjectDatabase.rollback(project_db, rollback_db)
+				self.emit_progress(100, "Error occurred.")
+			sys.exit(str(ex))
+
+	def updates_for_1_3_0(self, project_db, datasets_db, rollback_db):
+		try:
+			self.emit_progress(5, 'Running migrations...')
+			migrator = SqliteMigrator(SqliteDatabase(project_db))
+			migrate(
+				migrator.rename_column('codes_bsn', 'rte_pest', 'nostress'),
+				migrator.rename_column('aquifer_aqu', 'ptl_n', 'carbon'),
+				migrator.rename_column('aquifer_aqu', 'ptl_p', 'flo_dist'),
+				migrator.rename_column('parameters_bsn', 'cn_co', 'scoef'),
+				migrator.rename_column('hydrology_hyd', 'evap_pothole', 'cn3_swf'),
+				migrator.rename_column('hydrology_hyd', 'cn_plntet', 'latq_co'),
+				migrator.add_column('water_balance_sft_item', 'pet', DoubleField(default=0))
+			)
+
+			#Ignore error if already done
+			try:
+				migrator = SqliteMigrator(SqliteDatabase(datasets_db))
+				migrate(
+					migrator.rename_column('codes_bsn', 'rte_pest', 'nostress'),
+					migrator.rename_column('parameters_bsn', 'cn_co', 'scoef')
+				)
+			except Exception:
+				pass
+
+			self.emit_progress(10, 'Updating database...')
+			lum.Ovn_table_lum.update({
+				lum.Ovn_table_lum.ovn_mean: 0.011, 
+				lum.Ovn_table_lum.ovn_min: 0.011, 
+				lum.Ovn_table_lum.ovn_max: 0.011
+			}).where(lum.Ovn_table_lum.name == 'urban_asphalt').execute()
+
+			datasets_lum.Ovn_table_lum.update({
+				datasets_lum.Ovn_table_lum.ovn_mean: 0.011, 
+				datasets_lum.Ovn_table_lum.ovn_min: 0.011, 
+				datasets_lum.Ovn_table_lum.ovn_max: 0.011
+			}).where(datasets_lum.Ovn_table_lum.name == 'urban_asphalt').execute()
+
+			aquifer.Aquifer_aqu.update({
+				aquifer.Aquifer_aqu.carbon: 0.5,
+				aquifer.Aquifer_aqu.flo_dist: 50
+			}).execute()
+
+			basin.Parameters_bsn.update({basin.Parameters_bsn.scoef: 1}).execute()
+			datasets_basin.Parameters_bsn.update({datasets_basin.Parameters_bsn.scoef: 1}).execute()
+		except Exception as ex:
+			if rollback_db is not None:
+				self.emit_progress(50, "Error occurred. Rolling back database...")
+				SetupProjectDatabase.rollback(project_db, rollback_db)
+				self.emit_progress(100, "Error occurred.")
+			sys.exit(str(ex))
 
 	def updates_for_1_2_1(self, project_db, rollback_db):
 		try:
@@ -125,7 +478,7 @@ class UpdateProject(ExecutableApi):
 			if datasets_change.Cal_parms_cal.select().where(datasets_change.Cal_parms_cal.name == 'dep_bot').count() < 1:
 				datasets_change.Cal_parms_cal.insert(name='dep_bot', obj_typ='aqu', abs_min=0, abs_max=10, units='m').execute()
 
-			Var_range.update({Var_range.max_value: 2, Var_range.default_value: 0.05}).where((Var_range.table == 'aquifer_aqu') & (Var_range.variable == 'gw_flo')).execute()
+			"""Var_range.update({Var_range.max_value: 2, Var_range.default_value: 0.05}).where((Var_range.table == 'aquifer_aqu') & (Var_range.variable == 'gw_flo')).execute()
 			Var_range.update({Var_range.max_value: 10, Var_range.default_value: 10}).where((Var_range.table == 'aquifer_aqu') & (Var_range.variable == 'dep_wt')).execute()
 			Var_range.update({
 				Var_range.max_value: 10, 
@@ -141,7 +494,7 @@ class UpdateProject(ExecutableApi):
 			}).where((Var_range.table == 'aquifer_aqu') & (Var_range.variable == 'revap_min')).execute()
 			Var_range.update({
 				Var_range.description: 'Fraction of years to maturity'
-			}).where((Var_range.table == 'plant_ini') & (Var_range.variable == 'yrs_init')).execute()
+			}).where((Var_range.table == 'plant_ini') & (Var_range.variable == 'yrs_init')).execute()"""
 
 			datasets_init.Plant_ini_item.update({
 				datasets_init.Plant_ini_item.yrs_init: 1

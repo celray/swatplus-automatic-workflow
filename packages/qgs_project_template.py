@@ -9,7 +9,7 @@ licence     : MIT 2020
 '''
 
 template = '''<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
-<qgis projectname="{project_name}" version="3.10.10-A Coruña">
+<qgis projectname="{project_name}" version="3.24.10">
   <homePath path=""/>
   <title>{project_name}</title>
   <autotransaction active="0"/>

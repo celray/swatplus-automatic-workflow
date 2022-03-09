@@ -6,6 +6,7 @@ from database.project.config import Project_config
 from database.project.setup import SetupProjectDatabase
 from database.datasets.setup import SetupDatasetsDatabase
 from database.datasets.definitions import Version
+from database.project.simulation import Time_sim, Print_prt, Print_prt_object, Object_cnt
 from database import lib
 
 from database.project import gis, climate, connect, simulation, regions
@@ -83,6 +84,30 @@ class ConfigApi(Resource):
 			return get_model_to_dict_dates(m, project_db)
 		except Project_config.DoesNotExist:
 			abort(404, message="Could not retrieve project configuration data.")
+	def put(self, project_db):
+		parser = reqparse.RequestParser()
+		parser.add_argument('name', type=str, required=True, location='json')
+		parser.add_argument('description', type=str, required=True, location='json')
+		args = parser.parse_args(strict=False)
+		
+		SetupProjectDatabase.init(project_db)
+		try:
+			m = Project_config.get()			
+			m.project_name = args['name']
+			result = m.save()
+
+			oc = Object_cnt.get()			
+			oc.name = args['description']
+			result = oc.save()
+			
+			if result > 0:
+				return 200
+			
+			abort(400, message="Unable to update project configuration table.")
+		except Project_config.DoesNotExist:
+			abort(404, message="Could not retrieve project configuration data.")
+		except Object_cnt.DoesNotExist:
+			abort(404, message="Could not retrieve project configuration data.")
 
 
 class CheckImportConfigApi(Resource):
@@ -94,11 +119,19 @@ class CheckImportConfigApi(Resource):
 			m = Project_config.get()
 			d = get_model_to_dict_dates(m, project_db)
 
-			if not import_gis.is_supported_version(m.gis_version) and not import_gis_legacy.is_supported_version(m.gis_version):
+			if m.gis_version is not None and not import_gis.is_supported_version(m.gis_version) and not import_gis_legacy.is_supported_version(m.gis_version):
 				abort(400, message="This version of SWAT+ Editor does not support QSWAT+ {uv}.".format(uv=m.gis_version))
 
-			d["has_ps"] = gis.Gis_points.select().where((gis.Gis_points.ptype == 'P') | (gis.Gis_points.ptype == 'I')).count() > 0
-			d["has_res"] = gis.Gis_water.select().count() > 0
+			#d["has_ps"] = gis.Gis_points.select().where((gis.Gis_points.ptype == 'P') | (gis.Gis_points.ptype == 'I')).count() > 0
+			#d["has_res"] = gis.Gis_water.select().count() > 0
+
+			description = None
+			conn = lib.open_db(project_db)
+			if lib.exists_table(conn, 'object_cnt'):
+				oc = Object_cnt.get_or_none()
+				if oc is not None:
+					description = oc.name
+			d["project_description"] = description
 
 			return d
 		except Project_config.DoesNotExist:
@@ -123,7 +156,7 @@ class InputFilesSettingsApi(Resource):
 		parser = reqparse.RequestParser()
 		parser.add_argument('input_files_dir', type=str, required=False, location='json')
 		parser.add_argument('input_files_last_written', type=str, required=False, location='json')
-		args = parser.parse_args(strict=True)
+		args = parser.parse_args(strict=False)
 
 		SetupProjectDatabase.init(project_db)
 		try:
@@ -177,22 +210,48 @@ class SaveOutputReadSettingsApi(Resource):
 class InfoApi(Resource):
 	def get(self, project_db):
 		SetupProjectDatabase.init(project_db)
+
+		conn = lib.open_db(project_db)
+		if not lib.exists_table(conn, 'chandeg_con'):
+			abort(400, message='Project has not been set up.')
+
 		try:
 			m = Project_config.get()
 
 			gis_type = 'QSWAT+ ' if m.gis_type == 'qgis' else 'GIS '
+			gis_text = '' if m.gis_version is None else gis_type + m.gis_version
+
+			landuse_distrib = []
+			if m.gis_version is not None:
+				landuse_distrib = gis.Gis_hrus.select(fn.Lower(gis.Gis_hrus.landuse).alias('name'), fn.Sum(gis.Gis_hrus.arslp).alias('y')).group_by(gis.Gis_hrus.landuse)
+
+			current_path = os.path.dirname(project_db)
+			scenarios_path = os.path.join(current_path, 'Scenarios')
+			scenarios = []
+			if os.path.isdir(scenarios_path):
+				for p in os.listdir(scenarios_path):
+					if os.path.isdir(os.path.join(scenarios_path, p)) and p != 'Default' and p != 'default':
+						db_files = [f for f in os.listdir(os.path.join(scenarios_path, p)) if f.endswith('.sqlite')]
+						if len(db_files) > 0:
+							scenarios.append({'name': p, 'path': os.path.join(scenarios_path, p, db_files[0])})
+
+			oc = Object_cnt.get_or_none()
 
 			info = {
 				'name': m.project_name,
+				'description': oc.name,
+				'file_path': current_path,
+				'last_modified': utils.json_encode_datetime(datetime.fromtimestamp(os.path.getmtime(project_db))),
 				'is_lte': m.is_lte,
 				'status': {
 					'imported_weather': climate.Weather_sta_cli.select().count() > 0 and climate.Weather_wgn_cli.select().count() > 0,
 					'wrote_inputs': m.input_files_last_written is not None,
 					'ran_swat': m.swat_last_run is not None,
-					'imported_output': m.output_last_imported is not None
+					'imported_output': m.output_last_imported is not None,
+					'using_gis': m.gis_version is not None
 				},
 				'simulation': model_to_dict(simulation.Time_sim.get_or_none()),
-				'total_area': gis.Gis_subbasins.select(fn.Sum(gis.Gis_subbasins.area)).scalar(),
+				'total_area': connect.Rout_unit_con.select(fn.Sum(connect.Rout_unit_con.area)).scalar(), #gis.Gis_subbasins.select(fn.Sum(gis.Gis_subbasins.area)).scalar(),
 				'totals': {
 					'hru': connect.Hru_con.select().count(),
 					'lhru': connect.Hru_lte_con.select().count(),
@@ -211,9 +270,96 @@ class InfoApi(Resource):
 					'subs': gis.Gis_subbasins.select().count()
 				},
 				'editor_version': m.editor_version,
-				'gis_version': gis_type + m.gis_version
+				'gis_version': gis_text,
+				'charts': {
+					'landuse': [{'name': o.name, 'y': o.y} for o in landuse_distrib]
+				},
+				'scenarios': scenarios
 			}
 
 			return info
+		except Project_config.DoesNotExist:
+			abort(404, message="Could not retrieve project configuration data.")
+
+
+class RunInfoApi(Resource):
+	def get(self, project_db):
+		SetupProjectDatabase.init(project_db)
+		try:
+			c = Project_config.get()
+			config = get_model_to_dict_dates(c, project_db)
+
+			t = Time_sim.get_or_create_default()
+			time =  model_to_dict(t)
+
+			m = Print_prt.get()
+			prt = model_to_dict(m, recurse=False)
+
+			o = Print_prt_object.select()
+			objects = [model_to_dict(v, recurse=False) for v in o]
+
+			prt = {'prt': prt, 'objects': objects}
+
+			return {
+				'config': config,
+				'time': time,
+				'print': prt,
+				'imported_weather': climate.Weather_sta_cli.select().count() > 0 and climate.Weather_wgn_cli.select().count() > 0,
+				'has_observed_weather': climate.Weather_sta_cli.observed_count() > 0
+			}
+		except Project_config.DoesNotExist:
+			abort(404, message="Could not retrieve project configuration data.")
+		except Print_prt.DoesNotExist:
+			abort(404, message="Could not retrieve print_prt data.")
+
+	def put(self, project_db):
+		parser = reqparse.RequestParser()
+		parser.add_argument('input_files_dir', type=str, required=False, location='json')
+		parser.add_argument('time', type=dict, required=False, location='json')
+		parser.add_argument('print', type=dict, required=False, location='json')
+		parser.add_argument('print_objects', type=list, required=False, location='json')
+		args = parser.parse_args(strict=False)
+
+		SetupProjectDatabase.init(project_db)
+		try:
+			m = Project_config.get()			
+			m.input_files_dir = utils.rel_path(project_db, args['input_files_dir'])
+			result = m.save()
+
+			time = args['time']
+			result = Time_sim.update_and_exec(time['day_start'], time['yrc_start'], time['day_end'], time['yrc_end'], time['step'])
+
+			prt = args['print']
+			q = Print_prt.update(
+				nyskip=prt['nyskip'],
+				day_start=prt['day_start'],
+				day_end=prt['day_end'],
+				yrc_start=prt['yrc_start'],
+				yrc_end=prt['yrc_end'],
+				interval=prt['interval'],
+				csvout=prt['csvout'],
+				dbout=prt['dbout'],
+				cdfout=prt['cdfout'],
+				soilout=prt['soilout'],
+				mgtout=prt['mgtout'],
+				hydcon=prt['hydcon'],
+				fdcout=prt['fdcout']
+			)
+			result = q.execute()
+
+			prtObj = args['print_objects']
+			if prtObj is not None:
+				for o in prtObj:
+					Print_prt_object.update(
+						daily=o['daily'],
+						monthly=o['monthly'],
+						yearly=o['yearly'],
+						avann=o['avann']
+					).where(Print_prt_object.id == o['id']).execute()
+
+			if result > 0:
+				return 200
+
+			abort(400, message="Unable to update project configuration table.")
 		except Project_config.DoesNotExist:
 			abort(404, message="Could not retrieve project configuration data.")

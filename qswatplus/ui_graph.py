@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'ui_graph.ui'
+# Form implementation generated from reading ui file 'G:/Users/Public/QSWATPlus3/QSWATPlus\ui_graph.ui'
 #
 # Created by: PyQt5 UI code generator 5.11.3
 #
@@ -90,14 +90,4 @@ class Ui_GraphDlg(object):
         self.label.setText(_translate("GraphDlg", "Chart Type"))
         self.updateButton.setText(_translate("GraphDlg", "Update"))
 
-import resources_rc  # @UnresolvedImport
-
-if __name__ == "__main__":
-    import sys
-    app = QtWidgets.QApplication(sys.argv)
-    GraphDlg = QtWidgets.QDialog()
-    ui = Ui_GraphDlg()
-    ui.setupUi(GraphDlg)
-    GraphDlg.show()
-    sys.exit(app.exec_())
-
+from . import resources_rc

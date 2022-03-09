@@ -20,35 +20,40 @@
  ***************************************************************************/
 '''
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import *  # @UnusedWildImport
-from PyQt5.QtGui import *  # @UnusedWildImport
-from PyQt5.QtWidgets import * # @UnusedWildImport
-from PyQt5.QtXml import * # @UnusedWildImport
-from qgis.core import * # @UnusedWildImport
-from qgis.gui import * # @UnusedWildImport
+from qgis.PyQt.QtCore import QFile, QIODevice, QObject, QRectF, Qt, QTimer, QVariant
+from qgis.PyQt.QtGui import QColor, QKeySequence, QGuiApplication, QFont, QFontMetricsF, QPainter, QTextDocument, QIntValidator, QDoubleValidator
+from qgis.PyQt.QtWidgets import QAbstractItemView, QComboBox, QFileDialog, QListWidget, QListWidgetItem, QMessageBox, QTableWidgetItem, QWidget, QShortcut, QStyleOptionGraphicsItem
+from qgis.PyQt.QtXml import QDomDocument
+from qgis.core import QgsLineSymbol, QgsFillSymbol, QgsColorRamp, QgsFields, QgsPrintLayout, QgsProviderRegistry, QgsRendererRange, QgsRendererRangeLabelFormat, QgsStyle, QgsGraduatedSymbolRenderer, QgsField, QgsMapLayer, QgsVectorLayer, QgsProject, QgsLayerTree, QgsReadWriteContext, QgsLayoutExporter, QgsSymbol, QgsExpression, QgsFeatureRequest, QgsRectangle  # @UnresolvedImport
+from qgis.gui import QgsMapCanvas, QgsMapCanvasItem  # @UnresolvedImport
 import os
 # import random
 import numpy
 import sqlite3
 import subprocess
-from osgeo.gdalconst import * # @UnusedWildImport
 import glob
 from datetime import date
 # from PIL import Image
 import math
 import csv
 import traceback
+import locale
 # from collections import OrderedDict
+from typing import Dict, List, Set, Tuple, Optional, Union, Any, TYPE_CHECKING, cast  # @UnusedImport
 
 # Import the code for the dialog
-from visualisedialog import VisualiseDialog
-from QSWATUtils import QSWATUtils
-from QSWATTopology import QSWATTopology
-from swatgraph import SWATGraph
-from parameters import Parameters
-from jenks import jenks  # @UnresolvedImport
-# from images2gif import writeGif
-from  import imageio
+from .visualisedialog import VisualiseDialog  # type: ignore
+from .QSWATUtils import QSWATUtils, FileTypes  # type: ignore
+from .QSWATTopology import QSWATTopology  # type: ignore
+from .swatgraph import SWATGraph  # type: ignore
+from .parameters import Parameters  # type: ignore
+from .jenks import jenks    # type: ignore # @UnresolvedImport 
+from .globals import GlobalVars  # type: ignore # @UnusedImport 
+# from .images2gif import writeGif
+if TYPE_CHECKING:
+    from globals import GlobalVars  # @UnresolvedImport @Reimport
+if not TYPE_CHECKING:
+    from . import imageio
 
 class Visualise(QObject):
     """Support visualisation of SWAT outputs, using data in SWAT output database."""
@@ -61,10 +66,10 @@ class Visualise(QObject):
     _MINIMA = 'Minima'
     _AREA = 'AREAkm2'
     _MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-    _NORTHARROW = 'apps/qgis/svg/wind_roses/WindRose_01.svg'
+    _NORTHARROW = 'wind_roses/WindRose_01.svg'
     _EFLOWTABLE = 'channel_sdmorph_day'
     
-    def __init__(self, gv):
+    def __init__(self, gv: GlobalVars):
         """Initialise class variables."""
         QObject.__init__(self)
         self._gv = gv
@@ -84,7 +89,7 @@ class Visualise(QObject):
         ## Current output database
         self.db = ''
         ## Current connection
-        self.conn = None
+        self.conn: Any = None
         ## Current table
         self.table = ''
         ## Number of subbasins in current watershed TODO:
@@ -105,15 +110,15 @@ class Visualise(QObject):
         #
         # data takes the form
         # layerId -> gis_id -> variable_name -> year -> time -> value
-        self.staticData = dict()
+        self.staticData: Dict[str, Dict[int, Dict[str,  Dict[int, Dict[int, float]]]]] = dict()
         ## Data to write to shapefile
         #
         # takes the form subbasin number -> variable_name -> value for static use
         # takes the form layerId -> date -> subbasin number -> val for animation
         # where date is YYYY or YYYYMM or YYYYDDD according to period of input
-        self.resultsData = dict()
+        self.resultsData: Union[Dict[int, Dict[str, float]], Dict[str, Dict[int, Dict[int, float]]]] = dict()  # type: ignore
         ## Areas of subbasins (drainage area for reaches)
-        self.areas = dict()
+        self.areas: Dict[int, float] = dict()
 #         ## Flag to indicate areas available
 #         self.hasAreas = False
         ## true if output is daily
@@ -143,40 +148,44 @@ class Visualise(QObject):
         ## length of simulation in days
         self.periodDays = 0
         ## length of simulation in months (may be fractional)
-        self.periodMonths = 0
+        self.periodMonths = 0.0
         ## length of simulation in years (may be fractional)
-        self.periodYears = 0
+        self.periodYears = 0.0
         ## print interval
         self.interval = 1 # default value
         ## map canvas title
-        self.mapTitle = None
+        self.mapTitle: Optional[MapTitle] = None
         ## flag to decide if we need to create a new results file:
         # changes to summary method or result variable don't need a new file
         self.resultsFileUpToDate = False
         ## flag to decide if we need to reread data because period has changed
         self.periodsUpToDate = False
         ## current streams results layer
-        self.rivResultsLayer = None
+        self.rivResultsLayer: Optional[QgsVectorLayer] = None
+        ## current aquifers results layer
+        self.aquResultsLayer: Optional[QgsVectorLayer] = None
+        ## current deep aquifers results layer
+        self.deepAquResultsLayer: Optional[QgsVectorLayer] = None
         ## current subbasins results layer
-        self.subResultsLayer = None
+        self.subResultsLayer: Optional[QgsVectorLayer] = None
         ## current LSUs results layer
-        self.lsuResultsLayer = None
+        self.lsuResultsLayer: Optional[QgsVectorLayer] = None
         ## current HRUs results layer
-        self.hruResultsLayer = None
+        self.hruResultsLayer: Optional[QgsVectorLayer] = None
         ## current results layer: equal to one of the riv, sub, lsu or hruResultsLayer
-        self.currentResultsLayer = None
+        self.currentResultsLayer: Optional[QgsVectorLayer] = None
         ## current resultsFile
         self.resultsFile = ''
         ## flag to indicate if summary has changed since last write to results file
         self.summaryChanged = True
         ## current animation layer
-        self.animateLayer = None
+        self.animateLayer: Optional[QgsVectorLayer] = None
         ## current animation file (a temporary file)
         self.animateFile = ''
         ## map layerId -> index of animation variable in results file
-        self.animateIndexes = dict()
+        self.animateIndexes: Dict[str, int] = dict()
         ## all values involved in animation, for calculating Jenks breaks
-        self.allAnimateVals = []
+        self.allAnimateVals: List[float] = []
         ## timer used to run animation
         self.animateTimer = QTimer()
         ## flag to indicate if animation running
@@ -203,6 +212,8 @@ class Visualise(QObject):
         self.internalChangeToHRURenderer = False
         ## flag to indicate if aquifer renderer being changed by code
         self.internalChangeToAquRenderer = False
+        ## flag to indicate if deep aquifer renderer being changed by code
+        self.internalChangeToDeepAquRenderer = False
         ## flag to indicate if colours for rendering streams should be inherited from existing results layer
         self.keepRivColours = False
         ## flag to indicate if colours for rendering subbasins should be inherited from existing results layer
@@ -213,8 +224,10 @@ class Visualise(QObject):
         self.keepHRUColours = False
         ## flag to indicate if colours for rendering aquifers should be inherited from existing results layer
         self.keepAquColours = False
+        ## flag to indicate if colours for rendering deep aquifers should be inherited from existing results layer
+        self.keepDeepAquColours = False
         ## map sub -> LSU -> HRU numbers
-        self.hruNums = dict()
+        self.hruNums: Dict[int, Dict[int, int]] = dict()
         ## file with observed data for plotting
         self.observedFileName = ''
         ## project title
@@ -222,15 +235,15 @@ class Visualise(QObject):
         ## count to keep layout titles unique
         self.compositionCount = 0
         ## animation layout
-        self.animationLayout = None
+        self.animationLayout: Optional[QgsPrintLayout] = None
         ## animation template DOM document
-        self.animationDOM = None
+        self.animationDOM: Optional[QDomDocument] = None
         ## animation template file
         self.animationTemplate = ''
         ## flag to show when user has perhaps changed the animation template
         self.animationTemplateDirty = False
         ## map from subbasin to outlet channel
-        self.subbasinOutletChannels = dict()
+        self.subbasinOutletChannels: Dict[int, int] = dict()
         ## last file used for Qq results
         self.lastQqResultsFile = ''
         ## last file used for dQp results
@@ -238,14 +251,14 @@ class Visualise(QObject):
         ## last file used for Qb results
         self.lastQbResultsFile = ''
         ## dQp result
-        self.dQpResult = -1  # negative means not yet calculated
+        self.dQpResult = -1.0  # negative means not yet calculated
         ## Qb result
-        self.QbResult = -1
+        self.QbResult = -1.0
         # empty animation and png directories
         self.clearAnimationDir()
         self.clearPngDir()
         
-    def init(self):
+    def init(self) -> None:
         """Initialise the visualise form."""
         self._dlg.tabWidget.setCurrentIndex(0)
         self._dlg.QtabWidget.setCurrentIndex(0)
@@ -259,6 +272,9 @@ class Visualise(QObject):
         self._dlg.variableList.setMouseTracking(True)
         self._dlg.outputCombo.activated.connect(self.setVariables)
         self._dlg.variableCombo.activated.connect(self.changeVariableCombo)
+        self._dlg.startYear.setValidator(QIntValidator())
+        self._dlg.finishYear.setValidator(QIntValidator())
+        self._dlg.unitEdit.setValidator(QIntValidator())
         self._dlg.summaryCombo.activated.connect(self.changeSummary)
         self._dlg.addButton.clicked.connect(self.addClick)
         self._dlg.allButton.clicked.connect(self.allClick)
@@ -284,6 +300,7 @@ class Visualise(QObject):
         self.animateTimer.timeout.connect(self.doStep)
         self.setupTable()
         self._dlg.unitPlot.activated.connect(self.plotSetUnit)
+        self._dlg.unitPlot.highlighted.connect(self.plotSelectUnit)
         self._dlg.unitEdit.textEdited.connect(self.plotEditUnit)
         self._dlg.unitEdit.returnPressed.connect(self.plotEditUnit)
         self._dlg.variablePlot.activated.connect(self.plotSetVar)
@@ -318,28 +335,36 @@ class Visualise(QObject):
         self.setBackgroundLayers(root)
         leftShortCut = QShortcut(QKeySequence(Qt.Key_Left), self._dlg)
         rightShortCut = QShortcut(QKeySequence(Qt.Key_Right), self._dlg)
-        leftShortCut.activated.connect(self.animateStepLeft)
-        rightShortCut.activated.connect(self.animateStepRight)
+        leftShortCut.activated.connect(self.animateStepLeft)  # type: ignore
+        rightShortCut.activated.connect(self.animateStepRight)  # type: ignore
         self.title = proj.title()
         observedFileName, found = proj.readEntry(self.title, 'observed/observedFile', '')
         if found:
             self.observedFileName = observedFileName
             self._dlg.observedFileEdit.setText(observedFileName)
         animationGroup = root.findGroup(QSWATUtils._ANIMATION_GROUP_NAME)
+        assert animationGroup is not None
         animationGroup.visibilityChanged.connect(self.setAnimateLayer)
         animationGroup.removedChildren.connect(self.setAnimateLayer)
         animationGroup.addedChildren.connect(self.setAnimateLayer)
+        resultsGroup = root.findGroup(QSWATUtils._RESULTS_GROUP_NAME)
+        assert resultsGroup is not None
+        resultsGroup.visibilityChanged.connect(self.setResultsLayer)
+        resultsGroup.removedChildren.connect(self.setResultsLayer)
+        resultsGroup.addedChildren.connect(self.setResultsLayer)
         # in case restart with existing animation layers
         self.setAnimateLayer()
+        # in case restart with existing results layers
+        self.setResultsLayer()
             
-    def run(self):
+    def run(self) -> None:
         """Do visualisation."""
         self.init()
         self._dlg.show()
         self._dlg.exec_()
         self._gv.visualisePos = self._dlg.pos()
         
-    def fillScenarios(self):
+    def fillScenarios(self) -> None:
         """Put scenarios in scenariosCombo and months in start and finish month combos."""
         pattern = QSWATUtils.join(self._gv.scenariosDir, '*')
         for direc in glob.iglob(pattern):
@@ -354,8 +379,9 @@ class Visualise(QObject):
             self._dlg.startDay.addItem(str(i+1))
             self._dlg.finishDay.addItem(str(i+1))
             
-    def setBackgroundLayers(self, root):
-        """Reduce visible layers to channels, actual LSUs and subbasins by making all others not visible.
+    def setBackgroundLayers(self, root: QgsLayerTree) -> None:
+        """Reduce visible layers to channels, LSUs, HRUs, aquifers and subbasins by making all others not visible,
+        loading LSUs, HRUs, aquifers if necessary.
         Leave Results group in case we already have some layers there."""
         slopeGroup = root.findGroup(QSWATUtils._SLOPE_GROUP_NAME)
         if slopeGroup is not None:
@@ -366,20 +392,51 @@ class Visualise(QObject):
         landuseGroup = root.findGroup(QSWATUtils._LANDUSE_GROUP_NAME)
         if landuseGroup is not None:
             landuseGroup.setItemVisibilityCheckedRecursive(False)
+        # laod HRUS, LSUS and Aquifers layers if necessary
+        hrusLayer = QSWATUtils.getLayerByLegend(QSWATUtils._FULLHRUSLEGEND, root.findLayers())
+        hrusFile = QSWATUtils.join(self._gv.resultsDir, Parameters._HRUS + '.shp')
+        hasHRUs = os.path.isfile(hrusFile)
+        lsusLayer = QSWATUtils.getLayerByLegend(QSWATUtils._FULLLSUSLEGEND, root.findLayers())
+        aquifersLayer = QSWATUtils.getLayerByLegend(QSWATUtils._AQUIFERSLEGEND, root.findLayers())
+        if (hrusLayer is None and hasHRUs) or lsusLayer is None or aquifersLayer is None:
+            # set sublayer as hillshade or DEM
+            hillshadeLayer = QSWATUtils.getLayerByLegend(QSWATUtils._HILLSHADELEGEND, root.findLayers())
+            demLayer = QSWATUtils.getLayerByLegend(QSWATUtils._DEMLEGEND, root.findLayers())
+            subLayer = None
+            if hillshadeLayer is not None:
+                subLayer = hillshadeLayer
+            elif demLayer is not None:
+                subLayer = demLayer
+            if hrusLayer is None and hasHRUs:
+                hrusLayer = QSWATUtils.getLayerByFilename(root.findLayers(), hrusFile, FileTypes._HRUS, 
+                                                            self._gv, subLayer, QSWATUtils._WATERSHED_GROUP_NAME)
+            if lsusLayer is None:
+                lsusFile = QSWATUtils.join(self._gv.resultsDir, Parameters._LSUS + '.shp')
+                lsusLayer = QSWATUtils.getLayerByFilename(root.findLayers(), lsusFile, FileTypes._LSUS, 
+                                                            self._gv, subLayer, QSWATUtils._WATERSHED_GROUP_NAME)
+            if aquifersLayer is None:
+                aquifersFile = QSWATUtils.join(self._gv.resultsDir, Parameters._AQUIFERS + '.shp')
+                aquifersLayer = QSWATUtils.getLayerByFilename(root.findLayers(), aquifersFile, FileTypes._AQUIFERS, 
+                                                            self._gv, subLayer, QSWATUtils._WATERSHED_GROUP_NAME)
         watershedLayers = QSWATUtils.getLayersInGroup(QSWATUtils._WATERSHED_GROUP_NAME, root)
+        # make subbasins, channels, LSUs, HRUs and aquifers visible
         if self._gv.useGridModel:
-            # make grid and grid streams visible
             keepVisible = lambda n: n.startswith(QSWATUtils._GRIDSTREAMSLEGEND) or \
-                                    n.startswith(QSWATUtils._GRIDLEGEND)
+                                    n.startswith(QSWATUtils._DRAINSTREAMSLEGEND) or \
+                                    n.startswith(QSWATUtils._GRIDLEGEND) or \
+                                    n.startswith(QSWATUtils._AQUIFERSLEGEND) or \
+                                    n.startswith(QSWATUtils._LSUSLEGEND) or \
+                                    n.startswith(QSWATUtils._HRUSLEGEND)
         else:  
-            # make subbasins, channels and actual LSUs visible
             keepVisible = lambda n: n.startswith(QSWATUtils._SUBBASINSLEGEND) or \
-                                    n.startswith(QSWATUtils._CHANNELSLEGEND) or \
-                                    n.startswith(QSWATUtils._ACTLSUSLEGEND)
+                                    n.startswith(QSWATUtils._CHANNELREACHESLEGEND) or \
+                                    n.startswith(QSWATUtils._ACTLSUSLEGEND) or \
+                                    n.startswith(QSWATUtils._ACTHRUSLEGEND) or \
+                                    n.startswith(QSWATUtils._AQUIFERSLEGEND)
         for layer in watershedLayers:
             layer.setItemVisibilityChecked(keepVisible(layer.name()))
     
-    def setupDb(self):
+    def setupDb(self) -> None:
         """Set current database and connection to it; put table names in outputCombo."""
         self.resultsFileUpToDate = False
         self.scenario = self._dlg.scenariosCombo.currentText()
@@ -406,12 +463,12 @@ class Visualise(QObject):
 #         self.topology, self.reservoirs, self.ponds = self._gv.db.createTopology()
         self.populateOutputTables()
 
-    def populateOutputTables(self):
+    def populateOutputTables(self) -> None:
         """Add daily, monthly and annual output tables to output combo.
         For post processing find subbasin outlet channels."""
         self._dlg.outputCombo.clear()
         self._dlg.outputCombo.addItem('')
-        tables = []
+        tables: List[str] = []
         # if we are plotting and have at least one non-observed row, only include tables of same frequency
         isPlot = self._dlg.tabWidget.currentIndex() == 2
         plotTable = self.getPlotTable() if isPlot else ''
@@ -428,6 +485,7 @@ class Visualise(QObject):
                 self.addTablesByTerminator(tables, '_aa')
         for table in tables:
             self._dlg.outputCombo.addItem(table)
+        self.makeDeepAquiferTables()
         self._dlg.outputCombo.setCurrentIndex(0)
         self.table = ''
         self.plotSetUnit()
@@ -445,9 +503,29 @@ class Visualise(QObject):
             tip = self.getTableTip(self._dlg.outputCombo.itemText(row))
             if tip != '':
                 item.setToolTip(tip)
-                         
+                
+    def makeDeepAquiferTables(self) -> None:
+        """For every table aquifer_... in output tables, if there is no corresponding deep_aquifer
+        table, create it by removing deepe aquifer entries from first table."""
+        count = self._dlg.outputCombo.count()
+        # ignore first row since it is empty
+        row = 1
+        while row < count:
+            txt = self._dlg.outputCombo.itemText(row)
+            if txt.startswith('aquifer_'):
+                deeptxt = 'deep_' + txt
+                deepIndx = self._dlg.outputCombo.findText(deeptxt, Qt.MatchExactly)
+                if deepIndx < 0:
+                    sql1 = "CREATE TABLE {0} AS SELECT * FROM {1} WHERE name LIKE 'aqu_deep%'".format(deeptxt, txt)
+                    self.conn.execute(sql1)
+                    sql2 = "DELETE FROM {0} WHERE name LIKE 'squ_deep%'".format(txt)
+                    self.conn.execute(sql2)
+                    row += 1
+                    self._dlg.outputCombo.insertItem(row, deeptxt)
+                    count += 1
+            row += 1     
             
-    def setConnection(self, scenario):
+    def setConnection(self, scenario: str) -> None:
         """Set connection to scenario output database."""
         scenDir = QSWATUtils.join(self._gv.scenariosDir, scenario)
         outDir = QSWATUtils.join(scenDir, Parameters._RESULTS)
@@ -459,12 +537,12 @@ class Visualise(QObject):
             #self.conn.isolation_level = None # means autocommit
             self.conn.row_factory = sqlite3.Row
         
-    def addTablesByTerminator(self, tables, terminator):
+    def addTablesByTerminator(self, tables: List[str], terminator: str) -> None:
         """Add to tables table names terminating with terminator, provided they have data.
         
         The names added are sorted."""
         sql = 'SELECT name FROM sqlite_master WHERE TYPE="table"'
-        tempTables = []
+        tempTables: List[str] = []
         for row in self.conn.execute(sql):
             table = row[0]
             if self._dlg.tabWidget.currentIndex() != 2 and table.startswith('basin_'):
@@ -493,9 +571,9 @@ class Visualise(QObject):
                     tempTables.append(table)
         tables.extend(sorted(tempTables))    
         
-    def restrictOutputTablesByTerminator(self, terminator):
+    def restrictOutputTablesByTerminator(self, terminator: str) -> None:
         """RestrictOutputTables combo to those ending with terminator."""
-        toDelete = []
+        toDelete: List[int] = []
         for indx in range(self._dlg.outputCombo.count()):
             txt = self._dlg.outputCombo.itemText(indx)
             if txt == '' or txt.endswith(terminator):
@@ -505,7 +583,7 @@ class Visualise(QObject):
         for indx in reversed(toDelete):
             self._dlg.outputCombo.removeItem(indx)
         
-    def setupTable(self):
+    def setupTable(self) -> None:
         """Initialise the plot table."""
         # designer makes this false
         self._dlg.tableWidget.horizontalHeader().setVisible(True)
@@ -517,7 +595,7 @@ class Visualise(QObject):
         self._dlg.tableWidget.setColumnWidth(2, 45)
         self._dlg.tableWidget.setColumnWidth(4, 90)
         
-    def setVariables(self):
+    def setVariables(self) -> None:
         """Fill variables combos from selected table; set default results file name."""
         table = self._dlg.outputCombo.currentText()
         self.table = table 
@@ -556,15 +634,15 @@ class Visualise(QObject):
         self.setVarComboTips(self._dlg.variablePlot, 'Select the current plot\'s variable')
         self.updateCurrentPlotRow(1)
         
-    def changeVariableCombo(self):
+    def changeVariableCombo(self) -> None:
         """Set tool tip according to selection."""
-        var = self.variableCombo.currentText()
+        var = self._dlg.variableCombo.currentText()
         if var == '':
-            self.variableCombo.setToolTip('Select variable to be added to list')
+            self._dlg.variableCombo.setToolTip('Select variable to be added to list')
         else:
-            self.variableCombo.setToolTip(self.getVarTip(var))
+            self._dlg.variableCombo.setToolTip(self.getVarTip(var))
         
-    def setVarComboTips(self, combo, initTip):
+    def setVarComboTips(self, combo: QComboBox, initTip: str) -> None:
         """Set tool tips for each variable in combo."""
         model = combo.model()
         view = combo.view()
@@ -572,7 +650,7 @@ class Visualise(QObject):
         for row in range(combo.count()):
             var = combo.itemText(row)
             if var != '':
-                item = model.item(row)
+                item = cast(QListWidget, model).item(row)
                 tip = self.getVarTip(var)
                 if tip != '':
                     item.setToolTip(tip)
@@ -581,14 +659,14 @@ class Visualise(QObject):
         else:
             combo.setToolTip(self.getVarTip(combo.currentText()))
         
-    def plotting(self):
+    def plotting(self) -> bool:
         """Return true if plot tab open and plot table has a selected row."""
         if self._dlg.tabWidget.currentIndex() != 2:
             return False
         indexes = self._dlg.tableWidget.selectedIndexes()
         return indexes is not None and len(indexes) > 0
                 
-    def setSummary(self):
+    def setSummary(self) -> None:
         """Fill summary combo."""
         self._dlg.summaryCombo.clear()
         self._dlg.summaryCombo.addItem(Visualise._TOTALS)
@@ -598,7 +676,7 @@ class Visualise(QObject):
         self._dlg.summaryCombo.addItem(Visualise._MAXIMA)
         self._dlg.summaryCombo.addItem(Visualise._MINIMA)
         
-    def readSim(self, simFile):
+    def readSim(self, simFile: str) -> bool:
         """Read time.sim file.  This just sets outer limits for start and end dates.  Return true if no errors."""
         try:
             with open(simFile, 'r') as sim:
@@ -624,7 +702,7 @@ class Visualise(QObject):
             return False
                     
 
-    def readPrt(self, prtFile, simFile):
+    def readPrt(self, prtFile: str, simFile: str) -> bool:
         """Read print.prt file to get print period and print interval.  Return true if no errors."""
         # first read time.sim to reset start/finish dates to simulation
         if not self.readSim(simFile):
@@ -659,10 +737,10 @@ class Visualise(QObject):
             self.setDates()
             return True
         except Exception:
-            QSWATUtils.exceptionError('Failed to read {0}: {1}'.format(prtFile), self._gv.isBatch)
+            QSWATUtils.exceptionError('Failed to read {0}: {1}'.format(prtFile, traceback.format_exc()), self._gv.isBatch)
             return False
         
-    def setDates(self):
+    def setDates(self) -> None:
         """Set requested start and finish dates to smaller period of length of scenario and requested dates (if any)."""
         startDate = self.julianToDate(self.julianStartDay, self.startYear)
         finishDate = self.julianToDate(self.julianFinishDay, self.finishYear)
@@ -681,7 +759,7 @@ class Visualise(QObject):
                 QSWATUtils.information('Chosen period finishes later than scenario {0} period: changing chosen finish'.format(self.scenario), self._gv.isBatch)
                 self.setFinishDate(finishDate)
         
-    def setPeriods(self):
+    def setPeriods(self) -> bool:
         """Define period of current scenario in days, months and years.  Return true if OK."""
         requestedStartDate = self.readStartDate()
         requestedFinishDate = self.readFinishDate()
@@ -723,7 +801,7 @@ class Visualise(QObject):
         # QSWATUtils.loginfo('Period is {0} days, {1} months, {2} years'.format(self.periodDays, self.periodMonths, self.periodYears))
         return True
                 
-    def  readStartDate(self):
+    def  readStartDate(self) -> Optional[date]:
         """Return date from start date from form.  None if any problems."""
         try:
             day = int(self._dlg.startDay.currentText())
@@ -733,7 +811,7 @@ class Visualise(QObject):
         except Exception:
             return None
                 
-    def  readFinishDate(self):
+    def  readFinishDate(self) -> Optional[date]:
         """Return date from finish date from form.  None if any problems."""
         try:
             day = int(self._dlg.finishDay.currentText())
@@ -743,20 +821,20 @@ class Visualise(QObject):
         except Exception:
             return None
         
-    def setStartDate(self, date):
+    def setStartDate(self, date: date) -> None:
         """Set start date on form."""
         self._dlg.startDay.setCurrentIndex(date.day - 1)
         self._dlg.startYear.setText(str(date.year))
         self._dlg.startMonth.setCurrentIndex(date.month - 1)
             
-    def setFinishDate(self, date):
+    def setFinishDate(self, date: date) -> None:
         """Set finish date on form."""        
         self._dlg.finishDay.setCurrentIndex(date.day - 1)
         self._dlg.finishYear.setText(str(date.year))
         self._dlg.finishMonth.setCurrentIndex(date.month - 1)
             
         
-    def addClick(self):
+    def addClick(self) -> None:
         """Append item to variableList."""
         self.resultsFileUpToDate = False
         var = self._dlg.variableCombo.currentText()
@@ -769,7 +847,7 @@ class Visualise(QObject):
                 item.setToolTip(tip)
             self._dlg.variableList.addItem(item)
             
-    def allClick(self):
+    def allClick(self) -> None:
         """Clear variableList and insert all items from variableCombo."""
         self.resultsFileUpToDate = False
         self._dlg.variableList.clear()
@@ -782,7 +860,7 @@ class Visualise(QObject):
                 item.setToolTip(tip)
             self._dlg.variableList.addItem(item)
         
-    def delClick(self):
+    def delClick(self) -> None:
         """Delete item from variableList."""
         self.resultsFileUpToDate = False
         items = self._dlg.variableList.selectedItems()
@@ -790,12 +868,12 @@ class Visualise(QObject):
             row = self._dlg.variableList.indexFromItem(items[0]).row()
             self._dlg.variableList.takeItem(row)
     
-    def clearClick(self):
+    def clearClick(self) -> None:
         """Clear variableList."""
         self.resultsFileUpToDate = False
         self._dlg.variableList.clear()
         
-    def getVarTip(self, var):
+    def getVarTip(self, var: str) -> str:
         """Return tool tip based on units and description from looking up current table and var in table column_description."""
         sql = 'SELECT [units], [description] FROM column_description WHERE table_name=? AND column_name=?'
         try:
@@ -806,7 +884,7 @@ class Visualise(QObject):
         except Exception:
             return ''
         
-    def getTableTip(self, table):
+    def getTableTip(self, table: str) -> str:
         """Return tool tip based on description from looking up table in table table_description."""
         sql = 'SELECT [description] FROM table_description WHERE table_name=?'
         try:
@@ -815,26 +893,97 @@ class Visualise(QObject):
         except Exception:
             return ''
         
-    def doClose(self):
-        """Close the db connection, timer, clean up from animation, and close the form."""
-        self.conn = None
+    def doClose(self) -> None:
+        """Close the db connection, timer, clean up from animation, remove title, and close the form."""
         self.animateTimer.stop()
         # empty animation and png directories
         self.clearAnimationDir()
         self.clearPngDir()
+        self.clearMapTitle()
         # remove animation layers
         proj = QgsProject.instance()
         for animation in QSWATUtils.getLayersInGroup(QSWATUtils._ANIMATION_GROUP_NAME, proj.layerTreeRoot()):
             proj.removeMapLayer(animation.layerId())
+        # only close connection after removing animation layers as the map title is affected and recalculation needs connection
+        self.conn = None
         self._dlg.close()
         
-    def plotSetUnit(self):
+    def plotSetUnit(self) -> None:
         """Update the unitEdit box and set the unit value in the current row."""
         unitStr = self._dlg.unitPlot.currentText()
         self._dlg.unitEdit.setText(unitStr)
         self.updateCurrentPlotRow(2)
         
-    def plotEditUnit(self):
+    def plotSelectUnit(self, index: int) -> None:
+        """Load file for showing unit as a selection if necessary.  Select chosen unt."""
+        if index < 1 or self.conn is None or self.table == '':
+            return
+        QSWATUtils.loginfo('Index is {0}'.format(index))
+        root = QgsProject.instance().layerTreeRoot()
+        if self.table.startswith('channel'):
+            if self._gv.useGridModel:
+                treeLayer = QSWATUtils.getLayerByLegend(QSWATUtils._GRIDSTREAMSLEGEND, root.findLayers())
+                if treeLayer is None:
+                    treeLayer = QSWATUtils.getLayerByLegend(QSWATUtils._DRAINSTREAMSLEGEND, root.findLayers())
+                layer = None if treeLayer is None else treeLayer.layer()
+                field = QSWATTopology._LINKNO
+            else:
+                treeLayer = QSWATUtils.getLayerByLegend(QSWATUtils._CHANNELREACHESLEGEND, root.findLayers())
+                layer = None if treeLayer is None else treeLayer.layer()
+                field = QSWATTopology._CHANNEL
+        elif self.table.startswith('lsunit'):
+            if self._gv.useGridModel:
+                treeLayer = QSWATUtils.getLayerByLegend(QSWATUtils._LSUSLEGEND, root.findLayers())
+                layer = None if treeLayer is None else treeLayer.layer()
+            else:
+                lsuFile = QSWATUtils.join(self._gv.shapesDir, 'lsus2.shp')
+                if not os.path.isfile(lsuFile):
+                    lsuFile = QSWATUtils.join(self._gv.shapesDir, 'lsus1.shp')
+                layer, _ = QSWATUtils.getLayerByFilename(root.findLayers(), lsuFile, FileTypes._LSUS, 
+                                                                  None, None, None)
+            field = QSWATTopology._LSUID
+        elif self.table.startswith('aquifer'):
+            aquFile = QSWATUtils.join(self._gv.resultsDir, 'aquifers.shp')
+            layer, _ = QSWATUtils.getLayerByFilename(root.findLayers(), aquFile, FileTypes._AQUIFERS, 
+                                                     None, None, None)
+            field = QSWATTopology._AQUIFER
+        elif self.table.startswith('hru'):
+            if self._gv.useGridModel:
+                treeLayer = QSWATUtils.getLayerByLegend(QSWATUtils._HRUSLEGEND, root.findLayers())
+                layer = None if treeLayer is None else treeLayer.layer()
+            else:
+                hruFile = QSWATUtils.join(self._gv.shapesDir, 'hrus2.shp')
+                if not os.path.isfile(hruFile):
+                    hruFile = QSWATUtils.join(self._gv.shapesDir, 'hrus1.shp')
+                    if not os.path.isfile(hruFile):
+                        return
+                layer, _ = QSWATUtils.getLayerByFilename(root.findLayers(), hruFile, FileTypes._HRUS, 
+                                                         None, None, None)
+            field = QSWATTopology._HRUS
+        else:
+            return
+        if layer is None:
+            return
+        QSWATUtils.loginfo('Layer is {0!s}'.format(layer))
+        val = self._dlg.unitPlot.itemText(index)
+        QSWATUtils.loginfo('Value is {0}'.format(val))
+        QSWATUtils.setLayerVisibility(layer, True, root)
+        layer.removeSelection()
+        QSWATUtils.loginfo('Selection removed')
+        if field == QSWATTopology._HRUS:
+            # need to match n or n1, n2 or n1, n2, n3
+            strng = '"{0}" = {1} OR "{0}" LIKE \'{1},%\' OR  "{0}" LIKE \'%, {1}\' OR  "{0}"  LIKE \'%, {1},%\''.format(field, val)
+        else:
+            strng = '"{0}" = {1}'.format(field, val)
+        expr = QgsExpression(strng)
+        request = QgsFeatureRequest(expr).setFlags(QgsFeatureRequest.NoGeometry)
+        featureId = None
+        for targetFeature in layer.getFeatures(request):
+            featureId = targetFeature.id()
+            QSWATUtils.loginfo('Feature id is {0!s}'.format(featureId))
+            layer.select(featureId)
+        
+    def plotEditUnit(self) -> None:
         """If the unitEdit contains a string in the unitPlot combo box, 
         Update the current index of the combo box, and set the unit value in the current row."""
         unitStr = self._dlg.unitEdit.text()
@@ -843,7 +992,7 @@ class Visualise(QObject):
             self._dlg.unitPlot.setCurrentIndex(index)
             self.updateCurrentPlotRow(2)
         
-    def plotSetVar(self):
+    def plotSetVar(self) -> None:
         """Update the variable in the current plot row."""
         var = self._dlg.variablePlot.currentText()
         if var == '':
@@ -852,7 +1001,7 @@ class Visualise(QObject):
             self._dlg.variablePlot.setToolTip(self.getVarTip(var))
         self.updateCurrentPlotRow(3)
         
-    def writePlotData(self):
+    def writePlotData(self) -> None:
         """Write data for plot rows to csv file."""
         if not self.conn:
             return
@@ -862,9 +1011,9 @@ class Visualise(QObject):
             QSWATUtils.error(u'All rows in the table must have the same frequency: annual, monthly or daily', self._gv.isBatch)
             return
         numRows = self._dlg.tableWidget.rowCount()
-        plotData = dict()
-        labels = dict()
-        dates = []
+        plotData: Dict[int, List[str]] = dict()
+        labels: Dict[int, str] = dict()
+        dates: List[str] = []
         datesDone = False
         for i in range(numRows):
             plotData[i] = []
@@ -889,11 +1038,13 @@ class Visualise(QObject):
                 if scenario != self.scenario:
                     # need to change database
                     self.setConnection(scenario)
-                    self.readData('', False, table, var, where)
+                    if not self.readData('', False, table, var, where):
+                        return
                     # restore database
                     self.setConnection(self.scenario)
                 else:
-                    self.readData('', False, table, var, where)
+                    if not self.readData('', False, table, var, where):
+                        return
                 isDaily, isMonthly, isAnnual, _ = Visualise.tableIsDailyMonthlyOrAnnual(table)
                 (year, tim) = self.startYearTime(isDaily, isMonthly)
                 (finishYear, finishTime) = self.finishYearTime(isDaily, isMonthly)
@@ -924,7 +1075,7 @@ class Visualise(QObject):
                             if isDaily:
                                 ref = 'day {0!s}'.format(tim)
                             else:
-                                ref = 'month (0!s)'.format(tim)
+                                ref = 'month {0!s}'.format(tim)
                             QSWATUtils.error(u'Insufficient data for {0} for year {1} for plot {2!s}'.format(ref, year, i+1), self._gv.isBatch)
                             return
                         val = yearData[tim]
@@ -964,19 +1115,19 @@ class Visualise(QObject):
         graph = SWATGraph(csvFile)
         graph.run()
     
-    def readData(self, layerId, isStatic, table, var, where):
-        """Read data from database table into staticData."""
+    def readData(self, layerId: str, isStatic: bool, table: str, var: str, where: str) -> bool:
+        """Read data from database table into staticData.  Return True if no error detected."""
         if not self.conn:
-            return
+            return False
         # clear existing data for layerId
         self.staticData[layerId] = dict()
         layerData = self.staticData[layerId]
         #self.areas = dict()
         #self.hasAreas = False
-        self.resultsData[layerId] = dict()
         if isStatic:
             varz = self.varList(True)
         else:
+            cast(Dict[str, Dict[int, Dict[int, float]]], self.resultsData)[layerId] = dict()
             varz = ['[' + var + ']']
         numVars = len(varz)
         isDaily = Visualise.tableIsDaily(table)
@@ -1017,7 +1168,7 @@ class Visualise(QObject):
                 var = varz[i][1:-1]
                 rawVal = row[i+preLen]
                 if rawVal is None:
-                    val = 0
+                    val = 0.0
                 else:
                     val = float(rawVal)
                 if not var in layerData[gisId]:
@@ -1025,13 +1176,17 @@ class Visualise(QObject):
                 if not year in layerData[gisId][var]:
                     layerData[gisId][var][year] = dict()
                 layerData[gisId][var][year][tim] = val
+        if len(layerData) == 0:
+            QSWATUtils.error('No data has nbeen read.  Perhaps your dates are outside the dates of the table', self._gv.isBatch)
+            return False
         self.summaryChanged = True
+        return True
         
-    def readDailyFlowData(self, table, channel, monthData):
-        """Read data from table for channhel, organised by month."""
+#     def readDailyFlowData(self, table: str, channel: int, monthData):
+#         """Read data from table for channel, organised by month."""
         
         
-    def inPeriod(self, year, tim, table, isDaily, isMonthly):
+    def inPeriod(self, year: int, tim: int, table: str, isDaily: bool, isMonthly: bool) -> bool:
         """
         Return true if year and tim are within requested period.
         
@@ -1057,7 +1212,7 @@ class Visualise(QObject):
         # annual or average annual
         return True
     
-    def checkFrequencyConsistent(self):
+    def checkFrequencyConsistent(self) -> bool:
         """Check all non-observed rows are daily, monthly or annual."""
         isDaily = False
         isMonthly = False
@@ -1095,18 +1250,20 @@ class Visualise(QObject):
         return True  # no problem found
             
                 
-    def summariseData(self, layerId, isStatic):
+    def summariseData(self, layerId: str, isStatic: bool) -> None:
         """if isStatic, summarise data in staticData, else store all data for animate variable, saving in resultsData."""
         layerData = self.staticData[layerId]
         if isStatic:
             for index, vym in layerData.items():
                 for var, ym in vym.items():
                     val = self.summarise(ym)
+                    self.resultsData = cast(Dict[int, Dict[str, float]], self.resultsData)
                     if index not in self.resultsData:
                         self.resultsData[index] = dict()
                     self.resultsData[index][var] = val
         else:
             self.allAnimateVals = []
+            self.resultsData = cast(Dict[str, Dict[int, Dict[int, float]]], self.resultsData)
             if not layerId in self.resultsData:
                 self.resultsData[layerId] = dict()
             results = self.resultsData[layerId]
@@ -1120,7 +1277,7 @@ class Visualise(QObject):
                             results[dat][index] = val
                             self.allAnimateVals.append(val)
                             
-    def makeDate(self, year, tim):
+    def makeDate(self, year: int, tim: int) -> int:
         """
         Make date number from year and tim according to period.
         
@@ -1134,7 +1291,7 @@ class Visualise(QObject):
             return year
             
         
-    def startYearTime(self, isDaily, isMonthly):
+    def startYearTime(self, isDaily: bool, isMonthly: bool) -> Tuple[int, int]:
         """Return (year, tim) pair for start date according to period."""
         if isDaily:
             return (self.startYear, self.julianStartDay)
@@ -1144,7 +1301,7 @@ class Visualise(QObject):
             return (self.startYear, self.startYear)
             
         
-    def finishYearTime(self, isDaily, isMonthly):
+    def finishYearTime(self, isDaily: bool, isMonthly: bool) -> Tuple[int, int]:
         """Return (year, tim) pair for finish date according to period."""
         if isDaily:
             return (self.finishYear, self.julianFinishDay)
@@ -1154,7 +1311,7 @@ class Visualise(QObject):
             return (self.finishYear, self.finishYear)
             
         
-    def nextDate(self, year, tim, isDaily, isMonthly, isAnnual):
+    def nextDate(self, year: int, tim: int, isDaily: bool, isMonthly: bool, isAnnual: bool) -> Tuple[int, int]:
         """Get next (year, tim) pair according to period.
         
         self.interval only used for daily data"""
@@ -1178,37 +1335,37 @@ class Visualise(QObject):
             return (year, tim)
     
     @staticmethod
-    def tableIsDailyMonthlyOrAnnual(table):
+    def tableIsDailyMonthlyOrAnnual(table: str) -> Tuple[bool, bool, bool, bool]:
         """Return isdaily, isMonthly, isAnnual, isAverageAnnual tuple of booleans for table."""
         return Visualise.tableIsDaily(table), Visualise.tableIsMonthly(table), \
             Visualise.tableIsAnnual(table), Visualise.tableIsAvAnnual(table)
     
     @staticmethod
-    def tableIsDaily(table):
+    def tableIsDaily(table: str) -> bool:
         """Return true if daily."""
         return table.endswith('_day')
     
     @staticmethod
-    def tableIsMonthly(table):
+    def tableIsMonthly(table: str) -> bool:
         """Return true if monthly."""
         return table.endswith('_mon')
     
     @staticmethod
-    def tableIsAnnual(table):
+    def tableIsAnnual(table: str) -> bool:
         """Return true if annual."""
         return table.endswith('_yr')
     
     @staticmethod
-    def tableIsAvAnnual(table):
+    def tableIsAvAnnual(table: str) -> bool:
         """Return true if average annual."""
         return table.endswith('_aa')
     
     @staticmethod
-    def tableIsYearly(table):
+    def tableIsYearly(table: str) -> bool:
         """Return true if annual or average annual."""
         return Visualise.tableIsAnnual(table) or Visualise.tableIsAvAnnual(table)
         
-    def summarise(self, data):
+    def summarise(self, data: Dict[Any, Dict[Any, float]]) -> float:
         """Summarise values according to summary method."""
         if self.isAA:
             # there will only be one value, so total will simply return it
@@ -1227,36 +1384,37 @@ class Visualise(QObject):
             return self.summariseMinima(data)
         else:
             QSWATUtils.error('Internal error: unknown summary method: please report', self._gv.isBatch)
+            return 0
             
-    def summariseTotal(self, data):
+    def summariseTotal(self, data: Dict[Any, Dict[Any, float]]) -> float:
         """Sum values and return."""
-        total = 0
+        total = 0.0
         for mv in data.values():
             for v in mv.values():
                 total += v
         return total
         
-    def summariseAnnual(self, data):
+    def summariseAnnual(self, data: Dict[Any, Dict[Any, float]]) -> float:
         """Return total divided by period in years."""
         return self.summariseTotal(data) / self.periodYears
         
-    def summariseMonthly(self, data):
+    def summariseMonthly(self, data: Dict[Any, Dict[Any, float]]) -> float:
         """Return total divided by period in months."""
         return self.summariseTotal(data) / self.periodMonths
         
-    def summariseDaily(self, data):
+    def summariseDaily(self, data: Dict[Any, Dict[Any, float]]) -> float:
         """Return total divided by period in days."""
         return self.summariseTotal(data) / self.periodDays
         
-    def summariseMaxima(self, data):
+    def summariseMaxima(self, data: Dict[Any, Dict[Any, float]]) -> float:
         """Return maximum of values."""
-        maxv = 0
+        maxv = 0.0
         for mv in data.values():
             for v in mv.values():
                 maxv = max(maxv, v)
         return maxv
         
-    def summariseMinima(self, data):
+    def summariseMinima(self, data: Dict[Any, Dict[Any, float]]) -> float:
         """Return minimum of values."""
         minv = float('inf')
         for mv in data.values():
@@ -1265,7 +1423,7 @@ class Visualise(QObject):
         return minv
                 
     @staticmethod
-    def isLeap(year):
+    def isLeap(year: int) -> bool:
         """Return true if year is a leap year."""
         if year % 4 == 0:
             if year % 100 == 0:
@@ -1275,7 +1433,7 @@ class Visualise(QObject):
         else:
             return False
             
-    def setGisIdPlot(self):
+    def setGisIdPlot(self) -> None:
         """Add gis id numbers to unitPlot combo."""
         if self.conn is None or self.table == '':
             return
@@ -1295,9 +1453,9 @@ class Visualise(QObject):
         except sqlite3.OperationalError:
             QSWATUtils.error('Table {0} in {1} has no gis_id column'.format(self.table, self.db), self._gv.isBatch)
             
-    def varList(self, bracket):
+    def varList(self, bracket: bool) -> List[str]:
         """Return variables in variableList as a list of strings, with square brackets if bracket is true."""
-        result = []
+        result: List[str] = []
         numRows = self._dlg.variableList.count()
         for row in range(numRows):
             var = self._dlg.variableList.item(row).text()
@@ -1307,7 +1465,7 @@ class Visualise(QObject):
             result.append(var)
         return result
     
-    def setResultsFile(self):
+    def setResultsFile(self) -> None:
         """Set results file by asking user."""
         try:
             path = os.path.split(self._dlg.resultsFileEdit.text())[0]
@@ -1316,7 +1474,7 @@ class Visualise(QObject):
         base = self.selectBase()
         if base is None:
             return
-        resultsFileName, _ = QFileDialog.getSaveFileName(None, base + 'results', path, QgsProject.instance().fileVectorFilters())
+        resultsFileName, _ = QFileDialog.getSaveFileName(None, base + 'results', path, QgsProviderRegistry.instance().fileVectorFilters())
         if resultsFileName == '':
             return
         direc, resName = os.path.split(resultsFileName)
@@ -1326,7 +1484,7 @@ class Visualise(QObject):
             direcUpUp = os.path.split(direcUp)[0]
             if QSWATUtils.samePath(direcUpUp, self._gv.scenariosDir):
                 base = os.path.splitext(resName)[0]
-                if base == Parameters._SUBS or base == Parameters._RIVS or base == Parameters._HRUS or base == Parameters._LSUS:
+                if base in {Parameters._SUBS, Parameters._RIVS, Parameters._HRUS, Parameters._LSUS, Parameters._AQUIFERS, Parameters._DEEPAQUIFERS}:
                     QSWATUtils.information('The file {0} should not be overwritten: please choose another file name.'.format(os.path.splitext(resultsFileName)[0] + '.shp'), self._gv.isBatch)
                     return
         elif direcName == Parameters._ANIMATION:
@@ -1338,7 +1496,7 @@ class Visualise(QObject):
         self._dlg.resultsFileEdit.setText(resultsFileName)
         self.resultsFileUpToDate = False
         
-    def setObservedFile(self):
+    def setObservedFile(self) -> None:
         """Get an observed data file from the user."""
         try:
             path = os.path.split(self._dlg.observedFileEdit.text())[0]
@@ -1353,22 +1511,26 @@ class Visualise(QObject):
         proj.writeEntry(self.title, 'observed/observedFile', self.observedFileName)
         proj.write()
         
-    def selectBase(self):
+    def selectBase(self) -> Optional[str]:
         """Return base name of shapefile used for results according to table name and availability of actual hrus file"""
         if self.table.startswith('channel_'):
-            return Parameters._RIVS
+            return cast(str, Parameters._RIVS)
+        if self.table.startswith('aquifer_'):
+            return cast(str, Parameters._AQUIFERS)
+        if self.table.startswith('deep_aquifer_'):
+            return cast(str, Parameters._DEEPAQUIFERS)
         if self.table.startswith('lsunit_'):
-            return Parameters._LSUS
+            return cast(str, Parameters._LSUS)
         if self.table.startswith('hru_'):
             if self.hasHRUs:
-                return Parameters._HRUS
+                return cast(str, Parameters._HRUS)
             else:
                 QSWATUtils.error('Cannot show results for HRUs since no full HRUs file was created', self._gv.isBatch)
                 return None
         QSWATUtils.error('Do not know how to show results for table {0}'.format(self.table), self._gv.isBatch)
         return None
         
-    def createResultsFile(self):
+    def createResultsFile(self) -> bool:
         """
         Create results shapefile.
         
@@ -1386,9 +1548,8 @@ class Visualise(QObject):
                 return False
             if nextResultsFile == self.resultsFile:
                 # remove existing layer so new one replaces it
-                QSWATUtils.tryRemoveLayerAndFiles(self.resultsFile, root)
+                QSWATUtils.removeLayer(self.resultsFile, root)
             else:
-                QSWATUtils.tryRemoveFiles(nextResultsFile)
                 self.resultsFile = nextResultsFile
         else:
             self.resultsFile = nextResultsFile
@@ -1421,6 +1582,18 @@ class Visualise(QObject):
             self.internalChangeToHRURenderer = True
             self.keepHRUColours = False
             self.currentResultsLayer = self.hruResultsLayer
+        elif baseName == Parameters._AQUIFERS:
+            self.aquResultsLayer = QgsVectorLayer(self.resultsFile, legend, 'ogr')
+            self.aquResultsLayer.rendererChanged.connect(self.changeAquRenderer)
+            self.internalChangeToAquRenderer = True
+            self.keepAquColours = False
+            self.currentResultsLayer = self.aquResultsLayer
+        elif baseName == Parameters._DEEPAQUIFERS:
+            self.deepAquResultsLayer = QgsVectorLayer(self.resultsFile, legend, 'ogr')
+            self.deepAquResultsLayer.rendererChanged.connect(self.changeDeepAquRenderer)
+            self.internalChangeToDeepAquRenderer = True
+            self.keepDeepAquColours = False
+            self.currentResultsLayer = self.deepAquResultsLayer
         else:
             self.rivResultsLayer = QgsVectorLayer(self.resultsFile, legend, 'ogr')
             self.rivResultsLayer.rendererChanged.connect(self.changeRivRenderer)
@@ -1440,36 +1613,54 @@ class Visualise(QObject):
                 return False
         self.currentResultsLayer.updateFields()
         self.updateResultsFile() 
-        self.currentResultsLayer = proj.addMapLayer(self.currentResultsLayer, False)
+        
+        self.currentResultsLayer = cast(QgsVectorLayer, proj.addMapLayer(self.currentResultsLayer, False))
         resultsGroup = root.findGroup(QSWATUtils._RESULTS_GROUP_NAME)
+        assert resultsGroup is not None
         resultsGroup.insertLayer(0, self.currentResultsLayer)
+        self._gv.iface.setActiveLayer(self.currentResultsLayer)
         if baseName == Parameters._SUBS:
             # add labels
-            self.subResultsLayer.loadNamedStyle(QSWATUtils.join(self._gv.plugin_dir, 'subresults.qml'))
+            self.currentResultsLayer.loadNamedStyle(QSWATUtils.join(self._gv.plugin_dir, 'subresults.qml'))
             self.internalChangeToSubRenderer = False
+            baseMapTip = FileTypes.mapTip(FileTypes._SUBBASINS)
         elif baseName == Parameters._LSUS:
             self.internalChangeToLSURenderer = False
+            baseMapTip = FileTypes.mapTip(FileTypes._LSUS)
         elif baseName == Parameters._HRUS:
             self.internalChangeToHRURenderer = False
+            baseMapTip = FileTypes.mapTip(FileTypes._HRUS)
+        elif baseName == Parameters._AQUIFERS:
+            self.internalChangeToAquRenderer = False
+            baseMapTip = FileTypes.mapTip(FileTypes._AQUIFERS)
+        elif baseName == Parameters._DEEPAQUIFERS:
+            self.internalChangeToDeepAquRenderer = False
+            baseMapTip = FileTypes.mapTip(FileTypes._AQUIFERS)
         else:
             self.internalChangeToRivRenderer = False
+            baseMapTip = FileTypes.mapTip(FileTypes._CHANNELREACHES)
+        self.currentResultsLayer.setMapTipTemplate(baseMapTip + '<br/><b>{0}:</b> [% "{0}" %]'.format(selectVar))
         self.currentResultsLayer.updatedFields.connect(self.addResultsVars)
         return True
         
-    def updateResultsFile(self):
+    def updateResultsFile(self) -> None:
         """Write resultsData to resultsFile."""
         base = self.selectBase()
         if base is None:
             return
         layer = self.subResultsLayer if base == Parameters._SUBS \
                 else self.lsuResultsLayer if base == Parameters._LSUS \
-                else self.hruResultsLayer if base == Parameters._HRUS else self.rivResultsLayer
+                else self.hruResultsLayer if base == Parameters._HRUS \
+                else self.aquResultsLayer if base == Parameters._AQUIFERS \
+                else self.deepAquResultsLayer if base == Parameters._DEEPAQUIFERS \
+                else self.rivResultsLayer
         varz = self.varList(False)
         varIndexes = dict()
 #         if self.hasAreas:
 #             varIndexes[Visualise._AREA] = self._gv.topo.getIndex(layer, Visualise._AREA)
         for var in varz:
             varIndexes[var] = self._gv.topo.getIndex(layer, var)
+        assert layer is not None
         layer.startEditing()
         for f in layer.getFeatures():
             fid = f.id()
@@ -1484,6 +1675,8 @@ class Visualise(QObject):
                 unit = f[QSWATTopology._LSUID]
             elif base == Parameters._SUBS:
                 unit = f[QSWATTopology._SUBBASIN]
+            elif base == Parameters._AQUIFERS or base == Parameters._DEEPAQUIFERS:
+                unit = f[QSWATTopology._AQUIFER]
             else:
                 unit = f[QSWATTopology._CHANNEL]
 #             if self.hasAreas:
@@ -1501,7 +1694,7 @@ class Visualise(QObject):
 #                     QSWATUtils.error('Could not set attribute {0} in results file {1}'.format(Visualise._AREA, self.resultsFile), self._gv.isBatch)
 #                     return
             for var in varz:
-                subData = self.resultsData.get(unit, None)
+                subData = cast(Dict[int, Dict[str, float]], self.resultsData).get(unit, None)
                 if subData is not None:
                     data = subData.get(var, None)
                 else:
@@ -1513,9 +1706,14 @@ class Visualise(QObject):
                         ref = 'LSU {0!s}'.format(unit)
                     elif base == Parameters._SUBS:
                         ref = 'subbasin {0!s}'.format(unit)
+                    elif base == Parameters._AQUIFERS:
+                        ref = 'aquifer {0!s}'.format(unit)
+                    elif base == Parameters._DEEPAQUIFERS:
+                        ref = 'deep aquifer {0!s}'.format(unit)
                     else:
                         ref = 'channel {0!s}'.format(unit)
-                    QSWATUtils.error('Cannot get data for variable {0} in {1}: have you run SWAT+ and saved data since running QSWAT+?'.format(var, ref), self._gv.isBatch)
+                    QSWATUtils.error('Cannot get data for variable {0} for {1} in table {2} in {3}: have you run SWAT+ and saved data since running QSWAT+?'.
+                                     format(var, ref, self.table, self.db), self._gv.isBatch)
                     return
                 if not layer.changeAttributeValue(fid, varIndexes[var], float(data) if isinstance(data, numpy.float64) else data):
                     QSWATUtils.error('Could not set attribute {0} in results file {1}'.format(var, self.resultsFile), self._gv.isBatch)
@@ -1523,7 +1721,7 @@ class Visualise(QObject):
         layer.commitChanges()
         self.summaryChanged = False
         
-    def colourResultsFile(self):
+    def colourResultsFile(self) -> None:
         """
         Colour results layer according to current results variable and update legend.
         
@@ -1535,7 +1733,7 @@ class Visualise(QObject):
         if base == Parameters._SUBS:
             layer = self.subResultsLayer
             keepColours = self.keepSubColours
-            symbol = QgsFillSymbol()
+            symbol: QgsSymbol = QgsFillSymbol()
         elif base == Parameters._LSUS:
             layer = self.lsuResultsLayer
             keepColours = self.keepLSUColours
@@ -1543,6 +1741,14 @@ class Visualise(QObject):
         elif base == Parameters._HRUS:
             layer = self.hruResultsLayer
             keepColours = self.keepHRUColours
+            symbol = QgsFillSymbol()
+        elif base == Parameters._AQUIFERS:
+            layer = self.aquResultsLayer
+            keepColours = self.keepAquColours
+            symbol = QgsFillSymbol()
+        elif base == Parameters._DEEPAQUIFERS:
+            layer = self.deepAquResultsLayer
+            keepColours = self.keepDeepAquColours
             symbol = QgsFillSymbol()
         else:
             layer = self.rivResultsLayer
@@ -1553,14 +1759,15 @@ class Visualise(QObject):
         selectVar = self._dlg.variableList.selectedItems()[0].text()
         selectVarShort = selectVar[:10]
         summary = Visualise._ANNUALMEANS if self.isAA else self._dlg.summaryCombo.currentText()
+        assert layer is not None
         layer.setName('{0} {1} {2}'.format(self.scenario, selectVar, summary))
         if not keepColours:
             count = 5
-            opacity = 1 if base == Parameters._RIVS else 65
+            opacity = 1.0 if base == Parameters._RIVS else 0.65
         else:
             # same layer as currently - try to use same range size and colours, and same opacity
             try:
-                oldRenderer = layer.renderer()
+                oldRenderer = cast(QgsGraduatedSymbolRenderer, layer.renderer())
                 oldRanges = oldRenderer.ranges()
                 count = len(oldRanges)
                 ramp = oldRenderer.sourceColorRamp()
@@ -1569,7 +1776,7 @@ class Visualise(QObject):
                 # don't care if no suitable colours, so no message, just revert to defaults
                 keepColours = False
                 count = 5
-                opacity = 1 if base == Parameters._RIVS else 65
+                opacity = 1.0 if base == Parameters._RIVS else 0.65
         if not keepColours:
             ramp = self.chooseColorRamp(self.table, selectVar)
         labelFmt = QgsRendererRangeLabelFormat('%1 - %2', 0)
@@ -1586,12 +1793,25 @@ class Visualise(QObject):
         renderer = QgsGraduatedSymbolRenderer.createRenderer(layer, selectVarShort, count, 
                                                              QgsGraduatedSymbolRenderer.Jenks, symbol, 
                                                              ramp, labelFmt)
+        # new method causes crash
+#         method = QgsClassificationJenks()
+#         method.setLabelFormat('%1 - %2')
+#         classes = method.classes(layer, selectVarShort, count)
+#         ranges = [QgsRendererRange(clas, symbol) for clas in classes]
+#         renderer = QgsGraduatedSymbolRenderer(selectVarShort, ranges)
+#         renderer.setSourceColorRamp(ramp)
+#         renderer.setClassificationMethod(method)
+#         renderer.updateColorRamp(ramp)
         if base == Parameters._SUBS:
             self.internalChangeToSubRenderer = True
         elif base == Parameters._LSUS:
             self.internalChangeToLSURenderer = True
         elif base == Parameters._HRUS:
             self.internalChangeToHRURenderer = True
+        elif base == Parameters._AQUIFERS:
+            self.internalChangeToAquRenderer = True
+        elif base == Parameters._DEEPAQUIFERS:
+            self.internalChangeToDeepAquRenderer = True
         else:
             self.internalChangeToRivRenderer = True
         layer.setRenderer(renderer)
@@ -1599,10 +1819,9 @@ class Visualise(QObject):
         layer.triggerRepaint()
         self._gv.iface.layerTreeView().refreshLayerSymbology(layer.id())
         canvas = self._gv.iface.mapCanvas()
-        if self.mapTitle is not None:
-            canvas.scene().removeItem(self.mapTitle)
-        self.mapTitle = MapTitle(canvas, self.title, layer)
-        canvas.update()
+        self.clearMapTitle()
+        self.mapTitle = MapTitle(self.conn, canvas, self.table, self.title, layer)
+        canvas.refresh()
         if base == Parameters._SUBS:
             self.internalChangeToSubRenderer = False
             self.keepSubColours = keepColours
@@ -1612,15 +1831,22 @@ class Visualise(QObject):
         elif base == Parameters._HRUS:
             self.internalChangeToHRURenderer = False
             self.keepHRUColours = keepColours
+        elif base == Parameters._AQUIFERS:
+            self.internalChangeToAquRenderer = False
+            self.keepAquColours = keepColours
+        elif base == Parameters._DEEPAQUIFERS:
+            self.internalChangeToDeepAquRenderer = False
+            self.keepDeepAquColours = keepColours
         else:
             self.internalChangeToRivRenderer = False
             self.keepRivColours = keepColours
             
-    def addResultsVars(self):
+    def addResultsVars(self) -> None:
         """Add any extra fields to variableList."""
         if not self.resultsLayerExists():
             return
         newVars = []
+        assert self.currentResultsLayer is not None
         fields = self.currentResultsLayer.fields()
         indexes = fields.allAttributesList()
         for i in indexes:
@@ -1634,7 +1860,7 @@ class Visualise(QObject):
                 item.setText(var)
                 self._dlg.variableList.addItem(item)
             
-    def resultsLayerExists(self):
+    def resultsLayerExists(self) -> bool:
         """Return true if current results layer has not been removed."""
 #         base = self.selectBase()
 #         if base is None:
@@ -1656,7 +1882,7 @@ class Visualise(QObject):
         except RuntimeError:
             return False
         
-    def createAnimationLayer(self):
+    def createAnimationLayer(self) -> bool:
         """
         Create animation with new shapefile or existing one.
         
@@ -1686,34 +1912,46 @@ class Visualise(QObject):
         # place layer at top of animation group if new,
         # else above current animation layer, and mark that for removal
         animationGroup = root.findGroup(QSWATUtils._ANIMATION_GROUP_NAME)
-        if self._dlg.newAnimation.isChecked():
-            layerToRemoveId = None
-            index = 0
-        else:
+        assert animationGroup is not None
+        layerToRemoveId = None
+        index = 0
+        if self._dlg.currentAnimation.isChecked():
             animations = animationGroup.findLayers()
             if len(animations) == 1:
                 layerToRemoveId = animations[0].layerId()
                 index = 0
             else:
-                currentLayerId = self._gv.iface.activeLayer().id()
+                currentLayer = self._gv.iface.activeLayer()
+                assert currentLayer is not None
+                currentLayerId = currentLayer.id()
                 for i in range(len(animations)):
                     if animations[i].layerId() == currentLayerId:
                         index = i 
                         layerToRemoveId = currentLayerId
                         break
-                layerToRemoveId = None
-                index = 0
-        self.animateLayer = proj.addMapLayer(animateLayer, False)
+        self.animateLayer = cast(QgsVectorLayer, proj.addMapLayer(animateLayer, False))
+        assert self.animateLayer is not None
         animationGroup.insertLayer(index, self.animateLayer)
+        self._gv.iface.setActiveLayer(self.animateLayer)
         if layerToRemoveId is not None:
             proj.removeMapLayer(layerToRemoveId)
         self.animateIndexes[self.animateLayer.id()] = animateIndex
         # add labels if based on subbasins
         if base == Parameters._SUBS:
             self.animateLayer.loadNamedStyle(QSWATUtils.join(self._gv.plugin_dir, 'subsresults.qml'))
+            baseMapTip = FileTypes.mapTip(FileTypes._SUBBASINS)
+        elif base == Parameters._LSUS:
+            baseMapTip = FileTypes.mapTip(FileTypes._LSUS)
+        elif base == Parameters._HRUS:
+            baseMapTip = FileTypes.mapTip(FileTypes._HRUS)
+        elif base == Parameters._AQUIFERS or base == Parameters._DEEPAQUIFERS:
+            baseMapTip = FileTypes.mapTip(FileTypes._AQUIFERS)
+        else:
+            baseMapTip = FileTypes.mapTip(FileTypes._CHANNELREACHES)
+        self.animateLayer.setMapTipTemplate(baseMapTip + '<br/><b>{0}:</b> [% "{0}" %]'.format(self.animateVar))
         return True
             
-    def colourAnimationLayer(self):
+    def colourAnimationLayer(self) -> None:
         """Colour animation layer.
         
         Assumes allAnimateVals is suitably populated.
@@ -1722,7 +1960,7 @@ class Visualise(QObject):
         if base is None:
             return
         count = 5
-        opacity = 1 if base == Parameters._RIVS else 65
+        opacity = 1.0 if base == Parameters._RIVS else 0.65
         ramp = self.chooseColorRamp(self.table, self.animateVar)
         # replaced by Cython code
         #=======================================================================
@@ -1739,12 +1977,19 @@ class Visualise(QObject):
             colourVal = i / (count - 1)
             colour = ramp.color(colourVal)
             rangeList.append(self.makeSymbologyForRange(minVal, maxVal, colour, 4))
+        # deprecated but works
         renderer = QgsGraduatedSymbolRenderer(self.animateVar[:10], rangeList)
         renderer.setMode(QgsGraduatedSymbolRenderer.Custom)
         renderer.calculateLabelPrecision()
         precision = renderer.labelFormat().precision()
+        # new method but fails when repainting    
+#         method = QgsClassificationCustom()
+#         renderer = QgsGraduatedSymbolRenderer(self.animateVar[:10], rangeList)
+#         renderer.setClassificationMethod(method)
+#         renderer.calculateLabelPrecision()
+#         precision = renderer.classificationMethod().labelPrecision()       
         QSWATUtils.loginfo('Animation precision: {0}'.format(precision-1))
-        # repeat with calculated precision
+        # repeat with calculated precision - 1
         rangeList = []
         for i in range(count):
             # adjust min and max by 1% to avoid rounding errors causing values to be outside the range
@@ -1756,6 +2001,12 @@ class Visualise(QObject):
             rangeList.append(self.makeSymbologyForRange(minVal, maxVal, colour, precision-1))
         renderer = QgsGraduatedSymbolRenderer(self.animateVar[:10], rangeList)
         renderer.setMode(QgsGraduatedSymbolRenderer.Custom)
+        # new method but fails when repainting 
+#         renderer.setSourceColorRamp(ramp)
+#         #renderer.classificationMethod().setLabelPrecision(precision-1)
+#         renderer.updateColorRamp(ramp)
+#         renderer.updateRangeLabels()        
+        assert self.animateLayer is not None
         self.animateLayer.setRenderer(renderer)
         self.animateLayer.setOpacity(opacity)
         self._gv.iface.layerTreeView().refreshLayerSymbology(self.animateLayer.id())
@@ -1765,10 +2016,11 @@ class Visualise(QObject):
 #             canvas = self._gv.iface.mapCanvas()
 #             if self.mapTitle is not None:
 #                 canvas.scene().removeItem(self.mapTitle)
-#             self.mapTitle = MapTitle(canvas, self.title, animations[0])
-#             canvas.update()
+#                 canvas.refresh()
+#             self.mapTitle = MapTitle(self.conn, canvas, self.table, self.title, animations[0])
+#             canvas.refresh()
         
-    def createAnimationComposition(self):
+    def createAnimationComposition(self) -> None:
         """Create print composer to capture each animation step."""
         proj = QgsProject.instance()
         root = proj.layerTreeRoot()
@@ -1830,11 +2082,7 @@ class Visualise(QObject):
         self.animationTemplate = QSWATUtils.join(self._gv.resultsDir, 'AnimationTemplate.qpt')
         # make substitution table
         subs = dict()
-        northArrow = QSWATUtils.join(os.getenv('OSGEO4W_ROOT'), Visualise._NORTHARROW)
-        if not os.path.isfile(northArrow):
-            # may be qgis-ltr for example
-            northArrowRel = Visualise._NORTHARROW.replace('qgis', QSWATUtils.qgisName(), 1)
-            northArrow = QSWATUtils.join(os.getenv('OSGEO4W_ROOT'), northArrowRel)
+        northArrow = self.findNorthArrow()
         if not os.path.isfile(northArrow):
             QSWATUtils.error('Failed to find north arrow {0}.  You will need to repair the layout.'.format(northArrow), self._gv.isBatch)
         subs['%%NorthArrow%%'] = northArrow
@@ -1884,6 +2132,7 @@ class Visualise(QObject):
                 subs['%%WshedLayer{0}%%'.format(i)] = layerStr.format(QSWATUtils.layerFilename(wLayer), wLayer.name(), wLayer.id())
             else:  # remove unused ones
                 subs['%%WshedLayer{0}%%'.format(i)] = ''
+        # seems to do no harm to leave unused <Layer> items with original pattern, so we don't bother removing them
         with open(templateIn, 'rU') as inFile:
             with open(self.animationTemplate, 'w') as outFile:
                 for line in inFile:
@@ -1892,7 +2141,7 @@ class Visualise(QObject):
         self.animationDOM = QDomDocument()
         f = QFile(self.animationTemplate)
         if f.open(QIODevice.ReadOnly):
-            OK = self.animationDOM.setContent(f)
+            OK = self.animationDOM.setContent(f)[0]
             if not OK:
                 QSWATUtils.error('Cannot parse template file {0}'.format(self.animationTemplate), self._gv.isBatch)
                 return
@@ -1913,6 +2162,7 @@ class Visualise(QObject):
             title = 'Animation base'
             # remove layout from layout manager, in case still there
             try:
+                assert self.animationLayout is not None
                 proj.layoutManager().removeLayout(self.animationLayout)
             except:
                 pass
@@ -1922,15 +2172,15 @@ class Visualise(QObject):
             self.animationLayout.initializeDefaults()
             self.animationLayout.setName(title)
             self.setDateInTemplate()
-            items = self.animationLayout.loadFromTemplate(self.animationDOM, QgsReadWriteContext())
+            items = self.animationLayout.loadFromTemplate(self.animationDOM, QgsReadWriteContext())  # @UnusedVariable
             ok = proj.layoutManager().addLayout(self.animationLayout)
             if not ok:
                 QSWATUtils.error('Failed to add animation layout to layout manager.  Try removing some.', self._gv.isBatch)
                 return
-            designer = self._gv.iface.openLayoutDesigner(layout=self.animationLayout)
+            designer = self._gv.iface.openLayoutDesigner(layout=self.animationLayout)  # @UnusedVariable
             self.animationTemplateDirty = True
                                            
-    def rereadAnimationTemplate(self):
+    def rereadAnimationTemplate(self) -> None:
         """Reread animation template file."""
         self.animationTemplateDirty = False
         self.animationDOM = QDomDocument()
@@ -1944,8 +2194,9 @@ class Visualise(QObject):
             QSWATUtils.error('Cannot open template file {0}'.format(self.animationTemplate), self._gv.isBatch) 
             return
         
-    def setDateInTemplate(self):
+    def setDateInTemplate(self) -> None:
         """Set current animation date in title field."""
+        assert self.animationDOM is not None
         itms = self.animationDOM.elementsByTagName('LayoutItem')
         for i in range(itms.length()):
             itm = itms.item(i)
@@ -1977,7 +2228,7 @@ class Visualise(QObject):
 #         QSWATUtils.error('Cannot find composer date label', self._gv.isBatch)
 #         return
         
-    def changeAnimate(self):
+    def changeAnimate(self) -> None:
         """
         Display animation data for current slider value.
         
@@ -1998,10 +2249,14 @@ class Visualise(QObject):
             else:
                 root = QgsProject.instance().layerTreeRoot()
                 animateTreeLayers = QSWATUtils.getLayersInGroup(QSWATUtils._ANIMATION_GROUP_NAME, root, visible=False)
-                animateLayers = [layer.layer() for layer in animateTreeLayers]
+                animateLayers = [layer.layer() for layer in animateTreeLayers if layer is not None]
             for animateLayer in animateLayers:
+                if animateLayer is None:
+                    continue
                 layerId = animateLayer.id()
+                self.resultsData = cast(Dict[str, Dict[int, Dict[int, float]]], self.resultsData)
                 data = self.resultsData[layerId][dat]
+                assert self.mapTitle is not None
                 self.mapTitle.updateLine2(date)
                 provider = animateLayer.dataProvider()
                 path = provider.dataSourceUri()
@@ -2022,6 +2277,12 @@ class Visualise(QObject):
                 elif fileName.startswith(Parameters._RIVS):
                     base = Parameters._RIVS
                     fieldName = QSWATTopology._CHANNEL
+                elif fileName.startswith(Parameters._AQUIFERS):
+                    base = Parameters._AQUIFERS
+                    fieldName = QSWATTopology._AQUIFER
+                elif fileName.startswith(Parameters._DEEPAQUIFERS):
+                    base = Parameters._DEEPAQUIFERS
+                    fieldName = QSWATTopology._AQUIFER
                 else:
                     return
                 animateIndex = self.animateIndexes[layerId]
@@ -2066,14 +2327,13 @@ class Visualise(QObject):
             self.animating = False
             raise
         
-    def capture(self):
+    def capture(self) -> None:
         """Make image file of current canvas."""
         if self.animateLayer is None:
             return
         self.animateLayer.triggerRepaint()
         canvas = self._gv.iface.mapCanvas()
         canvas.refresh()
-        canvas.update()
         self.currentStillNumber += 1
         base, suffix = os.path.splitext(self.stillFileBase)
         nextStillFile = base + '{0:05d}'.format(self.currentStillNumber) + suffix
@@ -2084,6 +2344,7 @@ class Visualise(QObject):
             proj = QgsProject.instance()
             # remove layout if any
             try:
+                assert self.animationLayout is not None
                 proj.layoutManager().removeLayout(self.animationLayout)
             except:
                 pass
@@ -2097,6 +2358,7 @@ class Visualise(QObject):
             self.animationLayout.initializeDefaults()
             self.animationLayout.setName(title)
             self.setDateInTemplate()
+            assert self.animationDOM is not None
             _ = self.animationLayout.loadFromTemplate(self.animationDOM, QgsReadWriteContext())
             ok = proj.layoutManager().addLayout(self.animationLayout)
             if not ok:
@@ -2110,11 +2372,14 @@ class Visualise(QObject):
                 QSWATUtils.error('Failed with result {1} to save layout as image file {0}'.format(nextStillFile, res), self._gv.isBatch)
         else:
             # tempting bot omits canvas title
-            # canvas.saveAsImage(nextStillFile)
-            canvasId = canvas.winId()
-            screen = QGuiApplication.primaryScreen()
-            pixMap = screen.grabWindow(canvasId)
-            pixMap.save(nextStillFile)
+            # but on Mac the alternative grabs the whole screen
+            if Parameters._ISMAC:
+                canvas.saveAsImage(nextStillFile)
+            else:
+                canvasId = canvas.winId()
+                screen = QGuiApplication.primaryScreen()
+                pixMap = screen.grabWindow(canvasId)
+                pixMap.save(nextStillFile)
         
         # no longer used
     #===========================================================================
@@ -2149,13 +2414,13 @@ class Visualise(QObject):
     #     return res
     #===========================================================================
     
-    def makeSymbologyForRange(self, minv, maxv, colour, precision):
+    def makeSymbologyForRange(self, minv: float, maxv: float, colour: QColor, precision: float) -> QgsRendererRange:
         """Create a range from minv to maxv with the colour."""
         base = self.selectBase()
         if base == Parameters._RIVS:
             props = {'width_expression': QSWATTopology._PENWIDTH}
-            symbol = QgsLineSymbol.createSimple(props)
-            symbol.setWidth(1.0)
+            symbol: QgsSymbol = QgsLineSymbol.createSimple(props)
+            cast(QgsLineSymbol, symbol).setWidth(1.0)
         else:
             symbol = QgsFillSymbol()
         symbol.setColor(colour)
@@ -2171,7 +2436,7 @@ class Visualise(QObject):
         rng = QgsRendererRange(minv, maxv, symbol, title)
         return rng
     
-    def chooseColorRamp(self, table, var):
+    def chooseColorRamp(self, table: str, var: str) -> QgsColorRamp:
         """Select a colour ramp."""
         chaWater = ['flo_in', 'flo_out', 'evap', 'tloss', 'aqu_in', 'peakr']
         aqWater = ['flo', 'stor', 'rchrg', 'seep', 'revap' 'flo_cha', 'flo_res', 'flo_ls']
@@ -2181,7 +2446,7 @@ class Visualise(QObject):
         wbPrecip = ['prec', 'snow', 'et', 'eplant', 'esoil', 'pet']
         style = QgsStyle().defaultStyle()
         if table.startswith('channel') and var not in chaWater or \
-            table.startswith('aquifer') and var not in aqWater or \
+            (table.startswith('aquifer') or table.startswith('deep_aquifer')) and var not in aqWater or \
             '_ls_' in table or \
             '_nb_' in table or \
             '_wb_' in table and var not in wbWater and var not in wbPrecip:
@@ -2190,7 +2455,7 @@ class Visualise(QObject):
             ramp.invert()
             return ramp
         elif table.startswith('channel') and var in chaWater or \
-            table.startswith('aquifer') and var in aqWater or \
+            (table.startswith('aquifer') or table.startswith('deep_aquifer')) and var in aqWater or \
             '_wb_' in table and var in wbWater:
             # water
             return style.colorRamp('YlGnBu')
@@ -2200,11 +2465,12 @@ class Visualise(QObject):
         else:
             return style.colorRamp('YlOrRd')
         
-    def modeChange(self):
+    def modeChange(self) -> None:
         """Main tab has changed.  Show/hide Animation group.  Repopulate output tables."""
         root = QgsProject.instance().layerTreeRoot()
         expandAnimation = self._dlg.tabWidget.currentIndex() == 1
         animationGroup = root.findGroup(QSWATUtils._ANIMATION_GROUP_NAME)
+        assert animationGroup is not None
         animationGroup.setItemVisibilityCheckedRecursive(expandAnimation)
         # model = QgsLayerTreeModel(root)
         # view = self._gv.iface.layerTreeView()
@@ -2216,7 +2482,7 @@ class Visualise(QObject):
             self._dlg.outputCombo.setCurrentText(currentTable)
             self.setVariables()
             
-    def makeResults(self):
+    def makeResults(self) -> None:
         """
         Create a results file and display.
         
@@ -2237,9 +2503,11 @@ class Visualise(QObject):
             return
         if not self.setPeriods():
             return
+        self._dlg.setCursor(Qt.WaitCursor)
         self.resultsFileUpToDate = self.resultsFileUpToDate and self.resultsFile == self._dlg.resultsFileEdit.text()
         if not self.resultsFileUpToDate or not self.periodsUpToDate:
-            self.readData('', True, self.table, '', '')
+            if not self.readData('', True, self.table, '', ''):
+                return
             self.periodsUpToDate = True
         if self.summaryChanged:
             self.summariseData('', True)
@@ -2252,8 +2520,9 @@ class Visualise(QObject):
             else:
                 return
         self.colourResultsFile()
+        self._dlg.setCursor(Qt.ArrowCursor)
         
-    def printResults(self):
+    def printResults(self) -> None:
         """Create print composer by instantiating template file."""
         proj = QgsProject.instance()
         root = proj.layerTreeRoot()
@@ -2314,11 +2583,7 @@ class Visualise(QObject):
         templateOut = QSWATUtils.join(self._gv.resultsDir, self.title + templ)
         # make substitution table
         subs = dict()
-        northArrow = QSWATUtils.join(os.getenv('OSGEO4W_ROOT'), Visualise._NORTHARROW)
-        if not os.path.isfile(northArrow):
-            # may be qgis-ltr for example
-            northArrowRel = Visualise._NORTHARROW.replace('qgis', QSWATUtils.qgisName(), 1)
-            northArrow = QSWATUtils.join(os.getenv('OSGEO4W_ROOT'), northArrowRel)
+        northArrow = self.findNorthArrow()
         if not os.path.isfile(northArrow):
             QSWATUtils.error('Failed to find north arrow {0}.  You will need to repair the layout.'.format(northArrow), self._gv.isBatch)
         subs['%%NorthArrow%%'] = northArrow
@@ -2368,6 +2633,7 @@ class Visualise(QObject):
                 subs['%%WshedLayer{0}%%'.format(i)] = layerStr.format(QSWATUtils.layerFilename(wLayer), wLayer.name(), wLayer.id())
             else:  # remove unused ones
                 subs['%%WshedLayer{0}%%'.format(i)] = ''
+        # seems to do no harm to leave unused <Layer> items with original pattern, so we don't bother removing them
         with open(templateIn, 'rU') as inFile:
             with open(templateOut, 'w') as outFile:
                 for line in inFile:
@@ -2376,7 +2642,7 @@ class Visualise(QObject):
         templateDoc = QDomDocument()
         f = QFile(templateOut)
         if f.open(QIODevice.ReadOnly):
-            OK = templateDoc.setContent(f)
+            OK = templateDoc.setContent(f)[0]
             if not OK:
                 QSWATUtils.error('Cannot parse template file {0}'.format(templateOut), self._gv.isBatch)
                 return
@@ -2388,25 +2654,38 @@ class Visualise(QObject):
         layout = QgsPrintLayout(proj)
         layout.initializeDefaults()
         layout.setName(title)
-        items = layout.loadFromTemplate(templateDoc, QgsReadWriteContext())
+        items = layout.loadFromTemplate(templateDoc, QgsReadWriteContext())  # @UnusedVariable
         ok = proj.layoutManager().addLayout(layout)
         if not ok:
             QSWATUtils.error('Failed to add layout to layout manager.  Try removing some.', self._gv.isBatch)
             return
-        designer = self._gv.iface.openLayoutDesigner(layout=layout)
+        designer = self._gv.iface.openLayoutDesigner(layout=layout)  # @UnusedVariable
         # if you quit from layout manager and then try to make another layout, 
         # the pointer gets reused and there is a 'destroyed by C==' error
         # This prevents the reuse.
-        layout = None
+        layout = None  # type: ignore
+        
+    def findNorthArrow(self) -> str:
+        """Find and return northarrow svg file."""
+        northArrow = ''  # for mypy
+        if Parameters._ISWIN:
+            northArrow = QSWATUtils.join(os.getenv('OSGEO4W_ROOT'), QSWATUtils.join(Parameters._SVGDIR, Visualise._NORTHARROW))
+            if not os.path.isfile(northArrow):
+                # may be qgis-ltr for example
+                svgDir = Parameters._SVGDIR[:].replace('qgis', QSWATUtils.qgisName(), 1)
+                northArrow = QSWATUtils.join(os.getenv('OSGEO4W_ROOT'), QSWATUtils.join(svgDir, Visualise._NORTHARROW))
+        else:  # Linux and Mac
+            northArrow = QSWATUtils.join(Parameters._SVGDIR, Visualise._NORTHARROW)
+        return northArrow
         
     @staticmethod
-    def replaceInLine(inLine, table):
-        """Use table of replacements to replace keys with itsms in returned line."""
+    def replaceInLine(inLine: str, table: Dict[str, str]) -> str:
+        """Use table of replacements to replace keys with items in returned line."""
         for patt, sub in table.items():
             inLine = inLine.replace(patt, sub)
         return inLine
     
-    def changeAnimationMode(self):
+    def changeAnimationMode(self) -> None:
         """Reveal or hide compose options group."""
         if self._dlg.printAnimation.isChecked():
             self._dlg.composeOptions.setVisible(True)
@@ -2415,7 +2694,7 @@ class Visualise(QObject):
         else:
             self._dlg.composeOptions.setVisible(False)
                
-    def setupAnimateLayer(self):
+    def setupAnimateLayer(self) -> None:
         """
         Set up for animation.
         
@@ -2441,8 +2720,10 @@ class Visualise(QObject):
             self.animateVar = var
             if not self.createAnimationLayer():
                 return
+            assert self.animateLayer is not None
             lid = self.animateLayer.id()
-            self.readData(lid, False, self.table, self.animateVar, '')
+            if not self.readData(lid, False, self.table, self.animateVar, ''):
+                return
             self.summariseData(lid, False)
             if self.isDaily:
                 animateLength = self.periodDays
@@ -2464,12 +2745,13 @@ class Visualise(QObject):
             self._dlg.calculateLabel.setText('')
             self._dlg.setCursor(Qt.ArrowCursor)
             
-    def saveVideo(self):
+    def saveVideo(self) -> None:
         """Save animated GIF if still files found."""
         # capture final frame
         self.capture()
         # remove animation layout
         try:
+            assert self.animationLayout is not None
             QgsProject.instance().layoutManager().removeLayout(self.animationLayout)
         except:
             pass
@@ -2484,13 +2766,13 @@ class Visualise(QObject):
             self.videoFile = QSWATUtils.join(resultsDir, self.animateVar + 'Video.gif')
         try:
             os.remove(self.videoFile)
-        except:
+        except Exception:
             pass
         period = 1.0 / self._dlg.spinBox.value()
         try:
-            with imageio.get_writer('file://' + self.videoFile, mode='I', loop=1, duration=period) as writer:
+            with imageio.get_writer('file://' + self.videoFile, mode='I', loop=1, duration=period) as writer:  # type: ignore
                 for filename in fileNames:
-                    image = imageio.imread(QSWATUtils.join(self._gv.pngDir, filename))
+                    image = imageio.imread(QSWATUtils.join(self._gv.pngDir, filename))  # type: ignore
                     writer.append_data(image)
             # clear the png files:
             self.clearPngDir()
@@ -2502,7 +2784,7 @@ class Visualise(QObject):
             The .png files are in {1}: suggest you try using GIMP.
             """.format(traceback.format_exc(), self._gv.pngDir), self._gv.isBatch)
         
-    def doPlay(self):
+    def doPlay(self) -> None:
         """Set animating and not pause."""
         if self._dlg.animationVariableCombo.currentText() == '':
             QSWATUtils.information('Please choose an animation variable', self._gv.isBatch)
@@ -2510,25 +2792,25 @@ class Visualise(QObject):
         self.animating = True
         self.animationPaused = False
         
-    def doPause(self):
+    def doPause(self) -> None:
         """If animating change pause from on to off, or off to on."""
         if self.animating:
             self.animationPaused = not self.animationPaused
             
-    def doRewind(self):
+    def doRewind(self) -> None:
         """Turn off animating and pause and set slider to minimum."""
         self.animating = False
         self.animationPaused = False
         self.resetSlider()
         
-    def doStep(self):
+    def doStep(self) -> None:
         """Move slide one step to right unless at maximum."""
         if self.animating and not self.animationPaused:
             val = self._dlg.slider.value()
             if val < self._dlg.slider.maximum():
                 self._dlg.slider.setValue(val + 1)
                 
-    def animateStepLeft(self):
+    def animateStepLeft(self) -> None:
         """Stop any running animation and if possible move the animation slider one step left."""
         if self._dlg.tabWidget.currentIndex() == 1:
             self.animating = False
@@ -2537,7 +2819,7 @@ class Visualise(QObject):
             if val > self._dlg.slider.minimum():
                 self._dlg.slider.setValue(val - 1)
                 
-    def animateStepRight(self):
+    def animateStepRight(self) -> None:
         """Stop any running animation and if possible move the animation slider one step right."""
         if self._dlg.tabWidget.currentIndex() == 1:
             self.animating = False
@@ -2546,7 +2828,7 @@ class Visualise(QObject):
             if val < self._dlg.slider.maximum():
                 self._dlg.slider.setValue(val + 1)
     
-    def changeSpeed(self, val):
+    def changeSpeed(self, val: int) -> None:
         """
         Starts or restarts the timer with speed set to val.
         
@@ -2560,30 +2842,30 @@ class Visualise(QObject):
             # raise last exception again
             raise
            
-    def pressSlider(self):
+    def pressSlider(self) -> None:
         """Turn off animating and pause."""
         self.animating = False
         self.animationPaused = False
         
-    def resetSlider(self):
+    def resetSlider(self) -> None:
         """Move slide to minimum."""
         self._dlg.slider.setValue(self._dlg.slider.minimum())
         
-    def sliderValToDate(self):
+    def sliderValToDate(self) -> int:
         """Convert slider value to date."""
         if self.isDaily:
-            return self.addDays( self.julianStartDay + self._dlg.slider.value() - 1,  self.startYear)
+            return self.addDays(self.julianStartDay + self._dlg.slider.value() - 1,  self.startYear)
         elif self.isAnnual:
-            return  self.startYear + self._dlg.slider.value() - 1
+            return  self.startYear + cast(int, self._dlg.slider.value()) - 1
         elif self.isMonthly:
-            totalMonths =  self.startMonth + self._dlg.slider.value() - 2
+            totalMonths =  self.startMonth + cast(int, self._dlg.slider.value()) - 2
             year = totalMonths // 12
             month = totalMonths % 12 + 1
-            return ( self.startYear + year) * 100 + month
+            return (self.startYear + year) * 100 + month
         else:
             return self.startYear
             
-    def addDays(self, days, year):
+    def addDays(self, days: int, year: int) -> int:
         """Make Julian date from year + days."""
         leapAdjust = 1 if self.isLeap(year) else 0
         lenYear = 365 + leapAdjust
@@ -2592,7 +2874,7 @@ class Visualise(QObject):
         else:
             return self.addDays(days - lenYear, year + 1)
             
-    def julianToDate(self, day, year):
+    def julianToDate(self, day: int, year: int) -> date:
         """
         Return datetime.date from year and number of days.
         
@@ -2638,7 +2920,7 @@ class Visualise(QObject):
         else:
             return self.julianToDate(day - 31, year + 1)
         
-    def dateToString(self, dat):
+    def dateToString(self, dat: int) -> str:
         """Convert integer date to string."""
         if self.isDaily:
             return self.julianToDate(dat%1000, dat//1000).strftime(QSWATUtils._DATEFORMAT)
@@ -2647,7 +2929,7 @@ class Visualise(QObject):
         # annual or average annual
         return str(dat)
 
-    def record(self):
+    def record(self) -> None:
         """Switch between recording and not."""
         self.capturing = not self.capturing
         if self.capturing:
@@ -2666,7 +2948,7 @@ class Visualise(QObject):
             self._dlg.playButton.setEnabled(True)
             self._dlg.setCursor(Qt.ArrowCursor)
     
-    def playRecording(self):
+    def playRecording(self) -> None:
         """Use default application to play video file (an animated gif)."""
         # stop recording if necessary
         if self.capturing:
@@ -2674,36 +2956,52 @@ class Visualise(QObject):
         if not os.path.exists(self.videoFile):
             QSWATUtils.information('No video file for {0} exists at present'.format(self.animateVar), self._gv.isBatch)
             return
-        if os.name == 'nt': # Windows
-            os.startfile(self.videoFile)
-        elif os.name == 'posix': # Linux
+        if Parameters._ISWIN: # Windows
+            os.startfile(self.videoFile)  # @UndefinedVariable since not defined in Linux
+        elif Parameters._ISLINUX:
             subprocess.call(('xdg-open', self.videoFile))
+        else:
+            # default on Mac is Preview which shows all pngs as thumbnails and does not animate
+            # so use Safari
+            import webbrowser
+            w = webbrowser.get('safari')
+            w.open('file://{0}'.format(self.videoFile))
     
-    def changeSummary(self):
+    def changeSummary(self) -> None:
         """Flag change to summary method."""
         self.summaryChanged = True
         
-    def changeRivRenderer(self):
+    def changeAquRenderer(self) -> None:
+        """If user changes the aquifer renderer, flag to retain colour scheme."""
+        if not self.internalChangeToAquRenderer:
+            self.keepAquColours = True
+        
+    def changeDeepAquRenderer(self) -> None:
+        """If user changes the deep aquifer renderer, flag to retain colour scheme."""
+        if not self.internalChangeToDeepAquRenderer:
+            self.keepDeepAquColours = True
+        
+    def changeRivRenderer(self) -> None:
         """If user changes the stream renderer, flag to retain colour scheme."""
         if not self.internalChangeToRivRenderer:
             self.keepRivColours = True
         
-    def changeSubRenderer(self):
+    def changeSubRenderer(self) -> None:
         """If user changes the subbasin renderer, flag to retain colour scheme."""
         if not self.internalChangeToSubRenderer:
             self.keepSubColours = True
         
-    def changeLSURenderer(self):
+    def changeLSURenderer(self) -> None:
         """If user changes the LSU renderer, flag to retain colour scheme."""
         if not self.internalChangeToLSURenderer:
             self.keepLSUColours = True
         
-    def changeHRURenderer(self):
+    def changeHRURenderer(self) -> None:
         """If user changes the HRU renderer, flag to retain colour scheme."""
         if not self.internalChangeToHRURenderer:
             self.keepHRUColours = True
             
-    def updateCurrentPlotRow(self, colChanged):
+    def updateCurrentPlotRow(self, colChanged: int) -> None:
         """
         Update current plot row according to the colChanged index.
         
@@ -2740,30 +3038,31 @@ class Visualise(QObject):
                   #'_sd': 'HRU-LTE',
                   'channel_': 'Channel',
                   'aquifer_': 'Aquifer',
+                  'deep_aquifer_': 'Deep aquifer',
                   'reservoir_': 'Reservoir',
                   'wetland_': 'Wetland',
                   'hydin_': 'Hydrograph in',
                   'hydout_': 'Hydrograph out',
                   'ru_': 'Routing unit'}
             
-    def tableUnitName(self, table):
+    def tableUnitName(self, table: str) -> str:
         """Return name for table unit."""
         for key, uname in self._unitNames.items():
             if key in table:
                 return uname 
         return 'Unknown'
     
-    def countPlots(self):
+    def countPlots(self) -> int:
         """Return number of non-observed plots."""
         size = self._dlg.tableWidget.rowCount()
-        result = size
+        result = cast(int, size)
         for row in range(size):
             if self._dlg.tableWidget.item(row, 1).text() == '-':
                 # observed row
                 result -= 1
         return result
             
-    def doAddPlot(self):
+    def doAddPlot(self) -> None:
         """Add a plot row and make it current."""
         unit = self._dlg.unitPlot.currentText()
         size = self._dlg.tableWidget.rowCount()
@@ -2788,17 +3087,17 @@ class Visualise(QObject):
             elif Visualise.tableIsAnnual(self.table):
                 self.restrictOutputTablesByTerminator('_yr')
                 
-    def getPlotTable(self):
+    def getPlotTable(self) -> str:
         """Return the table of a non-observed plot, or empty string if none."""
         for row in range(self._dlg.tableWidget.rowCount()):
-            table = self._dlg.tableWidget.item(row, 1).text()
+            table = cast(str, self._dlg.tableWidget.item(row, 1).text())
             if table == '-':  # observed
                 continue
             else:
                 return table
         return ''
         
-    def doDelPlot(self):
+    def doDelPlot(self) -> None:
         """Delete current plot row."""
         indexes = self._dlg.tableWidget.selectedIndexes()
         if not indexes or indexes == []:
@@ -2811,7 +3110,7 @@ class Visualise(QObject):
             # no non-observed plots - restore output tables combo so any frequency can be chosen
             self.populateOutputTables()
         
-    def doCopyPlot(self):
+    def doCopyPlot(self) -> None:
         """Add a copy of the current plot row and make it current."""
         indexes = self._dlg.tableWidget.selectedIndexes()
         if not indexes or indexes == []:
@@ -2825,7 +3124,7 @@ class Visualise(QObject):
                 self._dlg.tableWidget.setItem(size, col, QTableWidgetItem(self._dlg.tableWidget.item(row, col)))
         self._dlg.tableWidget.selectRow(size)
         
-    def doUpPlot(self):
+    def doUpPlot(self) -> None:
         """Move current plot row up 1 place and keep it current."""
         indexes = self._dlg.tableWidget.selectedIndexes()
         if not indexes or indexes == []:
@@ -2839,7 +3138,7 @@ class Visualise(QObject):
                 self._dlg.tableWidget.setItem(row-1, col, item)
         self._dlg.tableWidget.selectRow(row-1)
                 
-    def doDownPlot(self):
+    def doDownPlot(self) -> None:
         """Move current plot row down 1 place and keep it current."""
         indexes = self._dlg.tableWidget.selectedIndexes()
         if not indexes or indexes == []:
@@ -2853,7 +3152,7 @@ class Visualise(QObject):
                 self._dlg.tableWidget.setItem(row+1, col, item)
         self._dlg.tableWidget.selectRow(row+1)
         
-    def addObervedPlot(self):
+    def addObervedPlot(self) -> None:
         """Add a row for an observed plot, and make it current."""
         if not os.path.exists(self.observedFileName):
             return
@@ -2868,7 +3167,7 @@ class Visualise(QObject):
             self._dlg.tableWidget.item(size, col).setTextAlignment(Qt.AlignHCenter)
         self._dlg.tableWidget.selectRow(size)
         
-    def setObservedVars(self):
+    def setObservedVars(self) -> None:
         """Add variables from 1st line of observed data file, ignoring 'date' if it occurs as the first column."""
         with open(self.observedFileName, 'r') as obs:
             line = obs.readline()
@@ -2882,13 +3181,13 @@ class Visualise(QObject):
             for var in varz[start:]:
                 self._dlg.variablePlot.addItem(var.strip())
             
-    def readObservedFile(self, var):
+    def readObservedFile(self, var: str) -> List[str]:
         """
         Read data for var from observed data file, returning a list of data as strings.
         
         Note that dates are not checked even if present in the observed data file.
         """
-        result = []
+        result: List[str] = []
         with open(self.observedFileName, 'r') as obs:
             line = obs.readline()
             varz = [var1.strip() for var1 in line.split(',')]
@@ -3055,22 +3354,45 @@ class Visualise(QObject):
 #         return len(breaks) - 1 
 #===============================================================================
 
-    def setAnimateLayer(self):
+    def clearMapTitle(self) -> None:
+        """Can often end up with more than one map title.  Remove all of them from the canvas, prior to resetting one required."""
+        canvas = self._gv.iface.mapCanvas()
+        scene = canvas.scene()
+        if self.mapTitle is not None:
+            scene.removeItem(self.mapTitle)
+            self.mapTitle = None
+            # scene.items() causes a crash for some users.
+            # this code seems unnecessary in any case
+#         for item in scene.items():
+#             # testing by isinstance is insufficient as a MapTitle item can have a wrappertype
+#             # and the test returns false
+#             #if isinstance(item, MapTitle):
+#             try:
+#                 if item is None:
+#                     isMapTitle = False
+#                 else:
+#                     isMapTitle = item.identifyMapTitle() == 'MapTitle'
+#             except Exception:
+#                 isMapTitle = False
+#             if isMapTitle:
+#                 scene.removeItem(item)
+#         self.mapTitle = None
+        canvas.refresh()
+
+    def setAnimateLayer(self) -> None:
         """Set self.animateLayer to first visible layer in Animations group, retitle as appropriate."""
         canvas = self._gv.iface.mapCanvas()
         root = QgsProject.instance().layerTreeRoot()
         animationLayers = QSWATUtils.getLayersInGroup(QSWATUtils._ANIMATION_GROUP_NAME, root, visible=True)
         if len(animationLayers) == 0:
-            if self.mapTitle is not None:
-                canvas.scene().removeItem(self.mapTitle)
-                self.mapTitle = None
             self.animateLayer = None
+            self.setResultsLayer()
             return
         for treeLayer in animationLayers:
             mapLayer = treeLayer.layer()
             if self.mapTitle is None:
-                self.mapTitle = MapTitle(canvas, self.title, mapLayer)
-                canvas.update()
+                self.mapTitle = MapTitle(self.conn, canvas, self.table, self.title, mapLayer)
+                canvas.refresh()
                 self.animateLayer = mapLayer
                 return
             elif mapLayer == self.mapTitle.layer:
@@ -3078,39 +3400,66 @@ class Visualise(QObject):
                 return
             else:
                 # first visible animation layer not current titleLayer
-                canvas.scene().removeItem(self.mapTitle)
+                self.clearMapTitle()
                 dat = self.sliderValToDate()
                 date = self.dateToString(dat)
-                self.mapTitle = MapTitle(canvas, self.title, mapLayer, line2=date)
-                canvas.update()
+                self.mapTitle = MapTitle(self.conn, canvas, self.table, self.title, mapLayer, line2=date)
+                canvas.refresh()
                 self.animateLayer = mapLayer
                 return
         # if we get here, no visible animation layers
-        if self.mapTitle is not None:
-            canvas.scene().removeItem(self.mapTitle)
-            self.mapTitle = None
+        self.clearMapTitle()
         self.animateLayer = None
         return     
     
-    def clearAnimationDir(self):
+    def setResultsLayer(self) -> None:
+        """Set self.currentResultsLayer to first visible layer in Results group, retitle as appropriate."""
+        canvas = self._gv.iface.mapCanvas()
+        root = QgsProject.instance().layerTreeRoot()
+        # only change results layer and title if there are no visible animate layers
+        animationLayers = QSWATUtils.getLayersInGroup(QSWATUtils._ANIMATION_GROUP_NAME, root, visible=True)
+        if len(animationLayers) > 0:
+            return
+        self.clearMapTitle()
+        resultsLayers = QSWATUtils.getLayersInGroup(QSWATUtils._RESULTS_GROUP_NAME, root, visible=True) 
+        if len(resultsLayers) == 0:
+            self.currentResultsLayer = None
+            return
+        else:
+            for treeLayer in resultsLayers:
+                mapLayer = treeLayer.layer()
+                self.currentResultsLayer = mapLayer
+                assert self.currentResultsLayer is not None
+                self.mapTitle = MapTitle(self.conn, canvas, self.table, self.title, mapLayer)
+                canvas.refresh()
+                return 
+    
+    def clearAnimationDir(self) -> None:
         """Remove shape files from animation directory."""
         if os.path.exists(self._gv.animationDir):
             pattern = QSWATUtils.join(self._gv.animationDir, '*.shp')
             for f in glob.iglob(pattern):
                 QSWATUtils.tryRemoveFiles(f)
                 
-    def clearPngDir(self):
+    def clearPngDir(self) -> None:
         """Remove .png files from Png directory."""
         if os.path.exists(self._gv.pngDir):
             pattern = QSWATUtils.join(self._gv.pngDir, '*.png')
             for f in glob.iglob(pattern):
                 try:
                     os.remove(f)
-                except:
+                except Exception:
                     pass
+            if Parameters._ISMAC:  #also need to remove .pgw files
+                pattern = QSWATUtils.join(self._gv.pngDir, '*.pgw')
+                for f in glob.iglob(pattern):
+                    try:
+                        os.remove(f)
+                    except Exception:
+                        pass
         self.currentStillNumber = 0
         
-    def setSubbasinOutletChannels(self):
+    def setSubbasinOutletChannels(self) -> None:
         """Fill subbasinOutletChannels from rivs shapefile unless already done.  Fill QqSubbasins combo."""
         if len(self.subbasinOutletChannels) > 0:
             return
@@ -3146,14 +3495,15 @@ class Visualise(QObject):
         request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([chIdx, chRIdx, subIdx])
         downChannel = dict()
         channelToSubbasin = dict()
-        for ch in rivLayer.getFeatures(request):
-            chNum = ch[chIdx]
-            downChannel[chNum] = ch[chRIdx]
-            channelToSubbasin[chNum] = ch[subIdx]
+        for channel in rivLayer.getFeatures(request):
+            chNum = channel[chIdx]
+            downChannel[chNum] = channel[chRIdx]
+            channelToSubbasin[chNum] = channel[subIdx]
         mainOutlet = 0
         for ch, chR in downChannel.items():
             sub = channelToSubbasin[ch]
-            if chR == 0 or sub != channelToSubbasin[chR]:
+            subR = channelToSubbasin.get(chR, -1)  # chR may be a reservoir
+            if chR == 0 or (subR >= 0 and sub != subR):
                 self.subbasinOutletChannels[sub] = ch
             if chR == 0:
                 mainOutlet = sub
@@ -3172,18 +3522,18 @@ class Visualise(QObject):
         self.cleardQpResult()
         self.setQbTableHead()
             
-    def setQqTableHead(self):
+    def setQqTableHead(self) -> None:
         """Clears results table.  Sets header."""
         self._dlg.QqResults.clearContents()
         self._dlg.QqResults.setHorizontalHeaderLabels(['Q' + str(self._dlg.QqSpin.value())])
             
-    def setQbTableHead(self):
+    def setQbTableHead(self) -> None:
         """Clears results table.  Sets header."""
         self._dlg.QbAnnualResult.setText('Annual result: ')
         self._dlg.QbResults.clearContents()
         self._dlg.QbResults.setHorizontalHeaderLabels(['Qb'])
         
-    def initQResults(self):
+    def initQResults(self) -> None:
         """Initialise post processing results tables."""
         self._dlg.QqResults.setVerticalHeaderLabels(Visualise._MONTHS)
         self._dlg.QbResults.setVerticalHeaderLabels(Visualise._MONTHS)
@@ -3199,7 +3549,7 @@ class Visualise(QObject):
         self._dlg.QbStartMonth.addItems(Visualise._MONTHS)
         self._dlg.QbStartMonth.setCurrentIndex(-1)
         
-    def calculateQq(self):
+    def calculateQq(self) -> None:
         """Calcualte Qq results."""
         if not self.setPeriods():
             return
@@ -3209,7 +3559,7 @@ class Visualise(QObject):
         if not self._gv.db.hasDataConn(flowDataTable, self.conn):
             QSWATUtils.error('Table {0} is missing or empty'.format(flowDataTable), self._gv.isBatch)
             return
-        monthData = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [], 10:[], 11:[], 12: []}
+        monthData: Dict[int, List[float]] = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [], 10: [], 11: [], 12: []}
         selectString = '[mon], [day], [yr], [flo_out]'
         where = 'gis_id = {0!s}'.format(self.subbasinOutletChannels[int(self._dlg.QqSubbasin.currentText())])
         sql = self._gv.db.sqlSelect(flowDataTable, selectString, '', where)
@@ -3222,7 +3572,8 @@ class Visualise(QObject):
             if len(l) > 0:
                 l.sort()
                 percentile = Visualise.percentile(l, (100 - self._dlg.QqSpin.value()) / 100)
-                self._dlg.QqResults.setItem(m-1, 0, QTableWidgetItem('{0:.2F}'.format(percentile)))
+                assert percentile is not None
+                self._dlg.QqResults.setItem(m-1, 0, QTableWidgetItem(locale.format_string('%.2F', percentile)))
 #         QqStore = QSWATUtils.join(self._gv.resultsDir, 'q{0!s}.txt'.format(self._dlg.QqSpin.value()))
 #         with open(QqStore, 'w', newline='') as f:
 #             for m, l in monthData.items():
@@ -3231,7 +3582,7 @@ class Visualise(QObject):
 #                 f.write(str(l))
 #                 f.write('\n')
                 
-    def saveQq(self):
+    def saveQq(self) -> None:
         if self._dlg.QqResults.item(0, 0) is None:
             QSWATUtils.information('Please calculate before saving', self._gv.isBatch)
             return
@@ -3262,17 +3613,17 @@ class Visualise(QObject):
             f.write('\n') 
         self.lastQqResultsFile = resultsFile 
         
-    def cleardQpResult(self):
+    def cleardQpResult(self) -> None:
         """Clear dQp result."""
         self._dlg.dQpResult.setText('Result:')
         self.dQpResult = -1
         
-    def dQpButtons(self):
+    def dQpButtons(self) -> None:
         """Enable or not the percentile setting and clear the result."""
         self._dlg.dQpSpinP.setEnabled(self._dlg.dQpPercentile.isChecked())
         self.cleardQpResult()
         
-    def calculatedQp(self):
+    def calculatedQp(self) -> None:
         """Calculate dQp result."""
         if not self.setPeriods():
             return
@@ -3287,12 +3638,12 @@ class Visualise(QObject):
             QSWATUtils.information('Please choose start month', self._gv.isBatch)
             return
         # data has structure yearIndex -> flow value list
-        flowData = dict()
+        flowData: Dict[int, List[float]] = dict()
         yearIndex = -1
         count = 0  # don't like using variable defined inside loop after completion, so define these here
         expectedLength = 0 
         # in case startmonth starts in output after day 1.  This data will be ignored.
-        currentFlowData = []
+        currentFlowData: List[float] = []
         selectString = '[mon], [day], [yr], [flo_out]'
         where = 'gis_id = {0!s}'.format(self.subbasinOutletChannels[int(self._dlg.dQpSubbasin.currentText())])
         orderBy = '[yr], [jday]'
@@ -3325,7 +3676,7 @@ class Visualise(QObject):
             return
         d = self._dlg.dQpSpinD.value()
         # compute minimum moving total for each year: no point in dividing by d until the end
-        totals = []
+        totals: List[float] = []
 #         dQpStore = QSWATUtils.join(self._gv.resultsDir, '{0!s}Q{1!s}.txt'.format(self._dlg.dQpSpinD.value(), self._dlg.dQpSpinP.value()))
 #         f =  open(dQpStore, 'w', newline='')
         for yearIndex, flowVals in flowData.items():
@@ -3350,17 +3701,17 @@ class Visualise(QObject):
         # remember we need to return a moving average, not a moving total
         if self._dlg.dQpPercentile.isChecked():
             p = self._dlg.dQpSpinP.value()
-            fraction = (100 - p) / 100
+            fraction = p / 100
             self.dQpResult = Visualise.percentile(totals, fraction) / d
-            self._dlg.dQpResult.setText('Result: {0}Q{1} is {2:.2F}'.format(d, p, self.dQpResult)) 
+            self._dlg.dQpResult.setText('Result: {0}Q{1} is {2}'.format(d, p, locale.format_string('%.2F', self.dQpResult))) 
         else:
             self.dQpResult = (sum(totals) / len(totals)) / d
-            self._dlg.dQpResult.setText('Result: {0}Qm is {1:.2F}'.format(d, self.dQpResult))
+            self._dlg.dQpResult.setText('Result: {0}Qm is {1}'.format(d, locale.format_string('%.2F', self.dQpResult)))
 #         f.write('Result: {0!s}'.format(self.dQpResult))
 #         f.write('\n')
 #         f.close()
                 
-    def savedQp(self):
+    def savedQp(self) -> None:
         if self.dQpResult < 0:
             QSWATUtils.information('Please calculate before saving', self._gv.isBatch)
             return
@@ -3389,12 +3740,12 @@ class Visualise(QObject):
                         format(self._dlg.dQpSpinD.value(), startDate, finishDate))
             subbasin = self._dlg.dQpSubbasin.currentText()
             month = self._dlg.dQpStartMonth.currentText()
-            f.write('Subbasin {0};  Channel {1};  Starting in {2};  Result: {3:.2F}\n'.
-                    format(subbasin, self.subbasinOutletChannels[int(subbasin)], month, self.dQpResult))
+            f.write('Subbasin {0};  Channel {1};  Starting in {2};  Result: {3}\n'.
+                    format(subbasin, self.subbasinOutletChannels[int(subbasin)], month, locale.format_string('%.2F', self.dQpResult)))
             f.write('\n') 
         self.lastdQpResultsFile = resultsFile 
         
-    def calculateQb(self):
+    def calculateQb(self) -> None:
         """Calculate Qb results."""
         if not self.setPeriods():
             return
@@ -3409,8 +3760,8 @@ class Visualise(QObject):
             QSWATUtils.information('Please choose start month', self._gv.isBatch)
             return
         # data has structure yearIndex -> flow value list
-        flowData = dict()
-        monthData = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [], 10:[], 11:[], 12: []}
+        flowData: Dict[int, List[float]] = dict()
+        monthData: Dict[int, List[float]] = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [], 10: [], 11: [], 12: []}
         yearIndex = -1
         count = 0  # don't like using variable defined inside loop after completion, so define these here
         expectedLength = 0 
@@ -3419,7 +3770,7 @@ class Visualise(QObject):
         orderBy = '[yr], [jday]'
         sql = self._gv.db.sqlSelect(flowDataTable, selectString, orderBy, where)
         # in case startmonth starts in output after day 1.  This data will be ignored.
-        currentFlowData = []
+        currentFlowData: List[float] = []
         for row in self.conn.execute(sql).fetchall():
             mon = row[0]
             day = row[1]
@@ -3448,12 +3799,12 @@ class Visualise(QObject):
                              format(self._dlg.QbStartMonth.currentText(), self.startYear), self._gv.isBatch)
             return
         # compute minimum moving averages with highest rate of change for 1 to 100 days for each year
-        avs = []
+        avs: List[float] = []
         for yearIndex, flowVals in flowData.items():
             numVals = len(flowVals)  # days in this year
-            maxRateOfIncrease = 0  # maximum rate of increase of minimum moving avaerage for i compared to i-1
-            avForMaxRateOfIncrease = 0  # corresponding minimum moving average for i
-            lastAv = 0  # minimum moving average for i-1.  Must be initialised to zero
+            maxRateOfIncrease = 0.0  # maximum rate of increase of minimum moving avaerage for i compared to i-1
+            avForMaxRateOfIncrease = 0.0  # corresponding minimum moving average for i
+            lastAv = 0.0  # minimum moving average for i-1.  Must be initialised to zero
             # compute with increasing i so that last value for i - 1 available when doing i
             for i in range(1, 101):
                 minTotal = sum(flowVals[0:i])  # initial total for first i values
@@ -3483,7 +3834,7 @@ class Visualise(QObject):
 #                 if q85 < minQ85:
 #                     minQ85 = q85
         # calculate mean for each month
-        means = dict()
+        means: Dict[int, float] = dict()
         minMean = float('inf')
         for m, l in monthData.items():
             if len(l) > 0:
@@ -3491,18 +3842,18 @@ class Visualise(QObject):
                 means[m] = mean
                 if mean < minMean:
                     minMean = mean
-        self._dlg.QbAnnualResult.setText('Annual result: {0:.2F}'.format(self.QbResult))
+        self._dlg.QbAnnualResult.setText('Annual result: {0}'.format(locale.format_string('%.2F', self.QbResult)))
         # result for each month is Qb * variation factor
         # variation factor is square root of ratio of Q85 for month to minimum Q85
         # replace above with sqaure root of monthly mean to minimal monthly mean
 #         for m, q85m in q85s.items():
 #             factor = 1 if minQ85 == 0 else math.sqrt(q85m / minQ85)
         for m, mean in means.items():
-            factor = 1 if mean == 0 else math.sqrt(mean / minMean)
+            factor = 1 if minMean == 0 else math.sqrt(mean / minMean)
             Qbm = self.QbResult * factor
-            self._dlg.QbResults.setItem(m-1, 0, QTableWidgetItem('{0:.2F}'.format(Qbm)))
+            self._dlg.QbResults.setItem(m-1, 0, QTableWidgetItem(locale.format_string('%.2F', Qbm)))
             
-    def saveQb(self):
+    def saveQb(self) -> None:
         if self._dlg.QbResults.item(0, 0) is None:
             QSWATUtils.information('Please calculate before saving', self._gv.isBatch)
             return
@@ -3527,7 +3878,7 @@ class Visualise(QObject):
             subbasin = self._dlg.QbSubbasin.currentText()
             month = self._dlg.QbStartMonth.currentText()
             f.write('Subbasin {0};  Channel {1};  Starting in {2}\n'.format(subbasin, self.subbasinOutletChannels[int(subbasin)], month))
-            f.write('Annual      {0:.2F}\n'.format(self.QbResult))
+            f.write('Annual      {0}\n'.format(locale.format_string('%.2F', self.QbResult)))
             for m in range(12):
                 f.write(Visualise._MONTHS[m].ljust(12))
                 f.write(self._dlg.QbResults.item(m, 0).text())
@@ -3536,7 +3887,7 @@ class Visualise(QObject):
         self.lastQbResultsFile = resultsFile 
                 
     @staticmethod
-    def percentile(N, percent):
+    def percentile(N: List[float], percent: float) -> Optional[float]:
         """
         Find the percentile of a sorted list of values.
     
@@ -3557,11 +3908,12 @@ class Visualise(QObject):
         return d0+d1
         
 
-class MapTitle(QgsMapCanvasItem):  # @UndefinedVariable
+class MapTitle(QgsMapCanvasItem):
     
     """Item for displaying title at top left of map canvas."""
     
-    def __init__(self, canvas, title, layer, line2=None):
+    def __init__(self, conn: Any, canvas: QgsMapCanvas, table: str, title: str, 
+                 layer: QgsMapLayer, line2: Optional[str]=None) -> None:
         """Initialise rectangle for displaying project name, layer name,  plus line2, if any, below them."""
         super().__init__(canvas)
         ## normal font
@@ -3577,7 +3929,22 @@ class MapTitle(QgsMapCanvasItem):  # @UndefinedVariable
         ## project line of title
         self.line0 = 'Project: {0}'.format(title)
         ## First line of title
-        self.line1 = layer.name()
+        # replace var with description and units if available
+        items = layer.name().split()
+        var = items[1]
+        if conn is None:
+            row = None
+        else:
+            sql = 'SELECT [units], [description] FROM column_description WHERE table_name=? AND column_name=?'
+            row = conn.execute(sql, (table, var)).fetchone()
+        # units can be '---'; also protect against NULL
+        units = '' if row is None or row[0] is None or row[0] == '---' else ' ({0})'.format(row[0])
+        description = var if row is None or row[1] is None else row[1]
+        self.line1 = '{0} {1}'.format(items[0], description + units)
+        # items has 3 or more components for static results, 2 for animation
+        # add the rest
+        for i in range(2, len(items)):
+            self.line1 += ' {0}'.format(items[i])
         ## second line of title (or None)
         self.line2 = line2
         rect0 = metricsBold.boundingRect(self.line0)
@@ -3587,18 +3954,18 @@ class MapTitle(QgsMapCanvasItem):  # @UndefinedVariable
                             max(rect0.width(), rect1.width()),
                             rect0.height() + rect1.height())
         ## bounding rectangle
-        self.rect = None
+        self.boundingRectangle = None
         if line2 is None:
-            self.rect = self.rect01
+            self.boundingRectangle = self.rect01
         else:
             self.updateLine2(line2)
     
-    def paint(self, painter, option, widget):  # @UnusedVariable
+    def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: Optional[QWidget] = None) -> None:  # type: ignore # @UnusedVariable
         """Paint the text."""
 #         if self.line2 is None:
 #             painter.drawText(self.rect, Qt.AlignLeft, '{0}\n{1}'.format(self.line0, self.line1))
 #         else:
-#             painter.drawText(self.rect, Qt.AlignLeft, '{0}\n{1}\n{2}'.format(self.line0, self.line1, self.line2))
+#             painter.drawText(self.boundingRectangle, Qt.AlignLeft, '{0}\n{1}\n{2}'.format(self.line0, self.line1, self.line2))
         text = QTextDocument()
         text.setDefaultFont(self.normFont)
         if self.line2 is None:
@@ -3607,18 +3974,21 @@ class MapTitle(QgsMapCanvasItem):  # @UndefinedVariable
             text.setHtml('<p><b>{0}</b><br/>{1}<br/>{2}</p>'.format(self.line0, self.line1, self.line2))
         text.drawContents(painter)
 
-    def boundingRect(self):
-        """Return the bounding rectangle."""
-        return self.rect
+    # def boundingRect(self) -> QRectF:
+    #     """Return the bounding rectangle."""
+    #     assert self.boundingRectangle is not None
+    #     return self.boundingRectangle
     
-    def updateLine2(self, line2):
+    def updateLine2(self, line2: str) -> None:
         """Change second line."""
         self.line2 = line2
         rect2 = self.metrics.boundingRect(self.line2)
-        self.rect = QRectF(0, self.rect01.top(), 
+        self.boundingRectangle = QRectF(0, self.rect01.top(), 
                             max(self.rect01.width(), rect2.width()), 
                             self.rect01.height() + rect2.height())
-        
-
-       
+    
+    def identifyMapTitle(self) -> str:
+        """Function used to identify a MapTitle object even when it has a wrapper."""    
+        return 'MapTitle'
+          
     

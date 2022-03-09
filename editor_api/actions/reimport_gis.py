@@ -17,7 +17,7 @@ from shutil import copyfile
 import time
 
 class ReimportGis(ExecutableApi):
-	def __init__(self, project_db, editor_version, settings_file=None, project_name=None, datasets_db=None, constant_ps=True, is_lte=False):
+	def __init__(self, project_db, editor_version, project_name=None, datasets_db=None, constant_ps=True, is_lte=False):
 		self.__abort = False
 
 		base_path = os.path.dirname(project_db)
@@ -66,22 +66,6 @@ class ReimportGis(ExecutableApi):
 		api = GisImport(project_db, True, constant_ps, backup_db_file)
 		api.insert_default()
 
-		if settings_file is not None:
-			settings_data = {
-				'swatplus-project': {
-					'version': editor_version,
-					'name': project_name,
-					'databases': {
-						'project': rel_project_db,
-						'datasets': rel_datasets_db
-					},
-					'model': 'SWAT+' if not is_lte else 'SWAT+ lte'
-				}
-			}
-
-			with open(settings_file, 'w') as file:
-				json.dump(settings_data, file, indent='\t')
-
 
 if __name__ == '__main__':
 	sys.stdout = Unbuffered(sys.stdout)
@@ -90,8 +74,7 @@ if __name__ == '__main__':
 	parser.add_argument("--project_name", type=str, help="project name", nargs="?")
 	parser.add_argument("--editor_version", type=str, help="editor version", nargs="?")
 	parser.add_argument("--datasets_db_file", type=str, help="full path of datasets SQLite database file", nargs="?")
-	parser.add_argument("--settings_file", type=str, help="editor version", nargs="?")
-	parser.add_argument("--constant_ps", type=str, help="y/n constant point source values (default y)", nargs="?")
+	parser.add_argument("--constant_ps", type=str, help="y/n constant point source values (default n)", nargs="?")
 	parser.add_argument("--is_lte", type=str, help="y/n use lte version of SWAT+ (default n)", nargs="?")
 
 	args = parser.parse_args()
@@ -99,4 +82,4 @@ if __name__ == '__main__':
 	constant_ps = True if args.constant_ps == "y" else False
 	is_lte = True if args.is_lte == "y" else False
 
-	api = ReimportGis(args.project_db_file, args.editor_version, args.settings_file, args.project_name, args.datasets_db_file, constant_ps, is_lte)
+	api = ReimportGis(args.project_db_file, args.editor_version, args.project_name, args.datasets_db_file, constant_ps, is_lte)

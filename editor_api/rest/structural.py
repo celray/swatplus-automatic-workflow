@@ -19,86 +19,86 @@ grassedww_name = 'Grassed Waterways'
 
 """ Structural - Tile Drain """
 class TiledrainStrListApi(BaseRestModel):
-    def get(self, project_db, sort, reverse, page, items_per_page):
-        table = structural.Tiledrain_str
-        list_name = 'tiledrains'
-        return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+	def get(self, project_db):
+		table = structural.Tiledrain_str
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class TiledrainStrApi(BaseRestModel):
-    def get(self, project_db, id):
-        return self.base_get(project_db, id, structural.Tiledrain_str, tiledrain_name)
+	def get(self, project_db, id):
+		return self.base_get(project_db, id, structural.Tiledrain_str, tiledrain_name)
 
-    def delete(self, project_db, id):
-        return self.base_delete(project_db, id, structural.Tiledrain_str, tiledrain_name)
+	def delete(self, project_db, id):
+		return self.base_delete(project_db, id, structural.Tiledrain_str, tiledrain_name)
 
-    def put(self, project_db, id):
-        return self.base_put(project_db, id, structural.Tiledrain_str, tiledrain_name)
+	def put(self, project_db, id):
+		return self.base_put(project_db, id, structural.Tiledrain_str, tiledrain_name)
 
 
 class TiledrainStrPostApi(BaseRestModel):
-    def post(self, project_db):
-        return self.base_post(project_db, structural.Tiledrain_str, tiledrain_name)
+	def post(self, project_db):
+		return self.base_post(project_db, structural.Tiledrain_str, tiledrain_name)
 
 
 class TiledrainStrUpdateManyApi(BaseRestModel):
-    def get(self, project_db):
-        return self.base_name_id_list(project_db, structural.Tiledrain_str)
+	def get(self, project_db):
+		return self.base_name_id_list(project_db, structural.Tiledrain_str)
 
-    def put(self, project_db):
-        return self.base_put_many(project_db, structural.Tiledrain_str, tiledrain_name)
+	def put(self, project_db):
+		return self.base_put_many(project_db, structural.Tiledrain_str, tiledrain_name)
 
 
 class TiledrainStrDatasetsApi(BaseRestModel):
-    def get(self, datasets_db, name):
-        return self.base_get_datasets_name(datasets_db, name, ds.Tiledrain_str, tiledrain_name)
+	def get(self, datasets_db, name):
+		return self.base_get_datasets_name(datasets_db, name, ds.Tiledrain_str, tiledrain_name)
 """ Structural -Tile Drains"""
 
 
 """ Structural - Septic System """
 class SepticStrListApi(BaseRestModel):
-    def get(self, project_db, sort, reverse, page, items_per_page):
-        table = structural.Septic_str
-        list_name = 'septic'
-        return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+	def get(self, project_db):
+		table = structural.Septic_str
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class SepticStrApi(BaseRestModel):
-    def get(self, project_db, id):
-        return self.base_get(project_db, id, structural.Septic_str, septic_name)
+	def get(self, project_db, id):
+		return self.base_get(project_db, id, structural.Septic_str, septic_name)
 
-    def delete(self, project_db, id):
-        return self.base_delete(project_db, id, structural.Septic_str, septic_name)
+	def delete(self, project_db, id):
+		return self.base_delete(project_db, id, structural.Septic_str, septic_name)
 
-    def put(self, project_db, id):
-        return self.base_put(project_db, id, structural.Septic_str, septic_name)
+	def put(self, project_db, id):
+		return self.base_put(project_db, id, structural.Septic_str, septic_name)
 
 
 class SepticStrPostApi(BaseRestModel):
-    def post(self, project_db):
-        return self.base_post(project_db, structural.Septic_str, septic_name)
+	def post(self, project_db):
+		return self.base_post(project_db, structural.Septic_str, septic_name)
 
 
 class SepticStrUpdateManyApi(BaseRestModel):
-    def get(self, project_db):
-        return self.base_name_id_list(project_db, structural.Septic_str)
+	def get(self, project_db):
+		return self.base_name_id_list(project_db, structural.Septic_str)
 
-    def put(self, project_db):
-        return self.base_put_many(project_db, structural.Septic_str, septic_name)
-       
+	def put(self, project_db):
+		return self.base_put_many(project_db, structural.Septic_str, septic_name)
+	   
 
 class SepticStrDatasetsApi(BaseRestModel):
-    def get(self, datasets_db, name):
-        return self.base_get_datasets_name(datasets_db, name, ds.Septic_str, septic_name)
+	def get(self, datasets_db, name):
+		return self.base_get_datasets_name(datasets_db, name, ds.Septic_str, septic_name)
 """ Structural - User Septic System """
 
 
 """ Structural - Filter Strips """
 class FilterstripStrListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = structural.Filterstrip_str
-		list_name = 'filters'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name, table.description]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class FilterstripStrApi(BaseRestModel):
@@ -132,10 +132,10 @@ class FilterstripStrDatasetsApi(BaseRestModel):
 
 """ Structural - Grassed Waterways """
 class GrassedwwStrListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = structural.Grassedww_str
-		list_name = 'grassedww'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name, table.description]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class GrassedwwStrApi(BaseRestModel):
@@ -169,10 +169,10 @@ class GrassedwwStrDatasetsApi(BaseRestModel):
 
 """ Structural - User BMPs """
 class BmpuserStrListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = structural.Bmpuser_str
-		list_name = 'bmps'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name, table.description]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class BmpuserStrApi(BaseRestModel):

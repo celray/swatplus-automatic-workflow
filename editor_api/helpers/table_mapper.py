@@ -97,10 +97,12 @@ types = {
 	"urban": hru_parm_db.Urban_urb,
 	"sep": hru_parm_db.Septic_sep,
 	"pest": hru_parm_db.Pesticide_pst,
+	"path": hru_parm_db.Pathogens_pth,
 
 	"hyd": hydrology.Hydrology_hyd,
 	"fld": hydrology.Field_fld,
 	"topo": hydrology.Topography_hyd,
+	"topo_hru": hydrology.Topography_hyd,
 
 	"plant_ini": init.Plant_ini,
 	"soil_plant_ini": init.Soil_plant_ini,
@@ -143,6 +145,7 @@ types = {
 	"hyd_wet": reservoir.Hydrology_wet,
 
 	"rtu": routing_unit.Rout_unit_rtu,
+	"rtu_dr": routing_unit.Rout_unit_dr,
 
 	"soil": soils.Soils_sol,
 	"soil_nut": soils.Nutrients_sol,

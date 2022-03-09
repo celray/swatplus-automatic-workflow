@@ -23,6 +23,10 @@ class Plantwx(OutputBase):
 	wndspd = DoubleField(null=True)
 	rhum = DoubleField(null=True)
 	phubas0 = DoubleField(null=True)
+	lai_max = DoubleField(null=True)
+	bm_max = DoubleField(null=True)
+	bm_grow = DoubleField(null=True)
+	c_gro = DoubleField(null=True)
 
 
 class Basin_pw_day(Plantwx):

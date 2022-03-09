@@ -49,10 +49,15 @@ class SetupProjectDatabase():
 		base.db.create_tables([structural.Septic_str, structural.Bmpuser_str, structural.Filterstrip_str, structural.Grassedww_str, structural.Tiledrain_str])
 		base.db.create_tables([ops.Graze_ops, ops.Harv_ops, ops.Irr_ops, ops.Chem_app_ops, ops.Fire_ops, ops.Sweep_ops])
 		base.db.create_tables([decision_table.D_table_dtl, decision_table.D_table_dtl_cond, decision_table.D_table_dtl_cond_alt, decision_table.D_table_dtl_act, decision_table.D_table_dtl_act_out])
-		base.db.create_tables([init.Plant_ini, init.Plant_ini_item, init.Om_water_ini, init.Pest_hru_ini, init.Pest_hru_ini_item, init.Pest_water_ini, init.Path_hru_ini, init.Path_water_ini, init.Hmet_hru_ini, init.Hmet_water_ini, init.Salt_hru_ini, init.Salt_water_ini, init.Soil_plant_ini])
+		base.db.create_tables([init.Plant_ini, init.Plant_ini_item, init.Om_water_ini, 
+								init.Pest_hru_ini, init.Pest_hru_ini_item, init.Pest_water_ini, init.Pest_water_ini_item, 
+								init.Path_hru_ini, init.Path_hru_ini_item, init.Path_water_ini, init.Path_water_ini_item, 
+								init.Hmet_hru_ini, init.Hmet_hru_ini_item, init.Hmet_water_ini, init.Hmet_water_ini_item, 
+								init.Salt_hru_ini, init.Salt_hru_ini_item, init.Salt_water_ini, init.Salt_water_ini_item, 
+								init.Soil_plant_ini])
 		base.db.create_tables([lum.Management_sch, lum.Management_sch_auto, lum.Management_sch_op, lum.Cntable_lum, lum.Cons_prac_lum, lum.Ovn_table_lum, lum.Landuse_lum])
 		base.db.create_tables([soils.Soils_sol, soils.Soils_sol_layer, soils.Nutrients_sol, soils.Soils_lte_sol])
-		base.db.create_tables([change.Cal_parms_cal, change.Calibration_cal, change.Calibration_cal_cond, change.Calibration_cal_elem, change.Codes_sft, change.Wb_parms_sft, change.Water_balance_sft, change.Water_balance_sft_item, change.Plant_parms_sft, change.Plant_gro_sft, change.Plant_gro_sft_item, change.Ch_sed_parms_sft, change.Ch_sed_budget_sft, change.Ch_sed_budget_sft_item])
+		base.db.create_tables([change.Cal_parms_cal, change.Calibration_cal, change.Calibration_cal_cond, change.Calibration_cal_elem, change.Codes_sft, change.Wb_parms_sft, change.Water_balance_sft, change.Water_balance_sft_item, change.Plant_parms_sft, change.Plant_parms_sft_item, change.Plant_gro_sft, change.Plant_gro_sft_item, change.Ch_sed_parms_sft, change.Ch_sed_budget_sft, change.Ch_sed_budget_sft_item])
 
 		base.db.create_tables([regions.Ls_unit_def, regions.Ls_unit_ele,
 							   regions.Ls_reg_def, regions.Ls_reg_ele,
@@ -171,42 +176,46 @@ class SetupProjectDatabase():
 
 		if decision_table.D_table_dtl.select().count() < 1:
 			if not is_lte:
-				lib.copy_table('d_table_dtl', datasets_db_name, project_db_name, include_id=True)
+				"""lib.copy_table('d_table_dtl', datasets_db_name, project_db_name, include_id=True)
 				lib.copy_table('d_table_dtl_cond', datasets_db_name, project_db_name, include_id=True)
 				lib.copy_table('d_table_dtl_cond_alt', datasets_db_name, project_db_name, include_id=True)
 				lib.copy_table('d_table_dtl_act', datasets_db_name, project_db_name, include_id=True)
-				lib.copy_table('d_table_dtl_act_out', datasets_db_name, project_db_name, include_id=True)
+				lib.copy_table('d_table_dtl_act_out', datasets_db_name, project_db_name, include_id=True)"""
+				valid_res_tables = ['corps_med_res1', 'corps_med_res', 'wetland', 'lrew_sm_res']
+				query = dataset_dts.D_table_dtl.select().where((dataset_dts.D_table_dtl.file_name != 'scen_lu.dtl') & ((dataset_dts.D_table_dtl.file_name != 'res_rel.dtl') | (dataset_dts.D_table_dtl.name.in_(valid_res_tables))))
 			else:
 				dt_names = ['pl_grow_sum', 'pl_end_sum', 'pl_grow_win', 'pl_end_win']
-				for dt in dataset_dts.D_table_dtl.select().where(dataset_dts.D_table_dtl.name << dt_names):
-					d_id = decision_table.D_table_dtl.insert(name=dt.name, file_name=dt.file_name).execute()
-					for c in dt.conditions:
-						c_id = decision_table.D_table_dtl_cond.insert(
-							d_table=d_id,
-							var=c.var,
-							obj=c.obj,
-							obj_num=c.obj_num,
-							lim_var=c.lim_var,
-							lim_op=c.lim_op,
-							lim_const=c.lim_const
-						).execute()
-						for ca in c.alts:
-							decision_table.D_table_dtl_cond_alt.insert(cond=c_id, alt=ca.alt).execute()
+				query = dataset_dts.D_table_dtl.select().where(dataset_dts.D_table_dtl.name << dt_names)
 
-					for a in dt.actions:
-						a_id = decision_table.D_table_dtl_act.insert(
-							d_table=d_id,
-							act_typ=a.act_typ,
-							obj=a.obj,
-							obj_num=a.obj_num,
-							name=a.name,
-							option=a.option,
-							const=a.const,
-							const2=a.const2,
-							fp=a.fp
-						).execute()
-						for ao in a.outcomes:
-							decision_table.D_table_dtl_act_out.insert(act=a_id, outcome=ao.outcome).execute()
+			for dt in query:
+				d_id = decision_table.D_table_dtl.insert(name=dt.name, file_name=dt.file_name).execute()
+				for c in dt.conditions:
+					c_id = decision_table.D_table_dtl_cond.insert(
+						d_table=d_id,
+						var=c.var,
+						obj=c.obj,
+						obj_num=c.obj_num,
+						lim_var=c.lim_var,
+						lim_op=c.lim_op,
+						lim_const=c.lim_const
+					).execute()
+					for ca in c.alts:
+						decision_table.D_table_dtl_cond_alt.insert(cond=c_id, alt=ca.alt).execute()
+
+				for a in dt.actions:
+					a_id = decision_table.D_table_dtl_act.insert(
+						d_table=d_id,
+						act_typ=a.act_typ,
+						obj=a.obj,
+						obj_num=a.obj_num,
+						name=a.name,
+						option=a.option,
+						const=a.const,
+						const2=a.const2,
+						fp=a.fp
+					).execute()
+					for ao in a.outcomes:
+						decision_table.D_table_dtl_act_out.insert(act=a_id, outcome=ao.outcome).execute()
 
 
 		if not is_lte and lum.Management_sch.select().count() < 1:

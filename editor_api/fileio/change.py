@@ -10,9 +10,10 @@ import database.project.change as db
 
 
 class Cal_parms_cal(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database ='project'):
 		"""
@@ -49,9 +50,10 @@ class Cal_parms_cal(BaseFileModel):
 
 
 class Codes_sft(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database='project'):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -87,9 +89,10 @@ class Codes_sft(BaseFileModel):
 
 
 class Calibration_cal(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database='project'):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -146,9 +149,10 @@ class Calibration_cal(BaseFileModel):
 
 
 class Wb_parms_sft(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database ='project'):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -158,9 +162,10 @@ class Wb_parms_sft(BaseFileModel):
 
 
 class Ch_sed_parms_sft(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database ='project'):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -170,21 +175,73 @@ class Ch_sed_parms_sft(BaseFileModel):
 
 
 class Plant_parms_sft(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database ='project'):
 		raise NotImplementedError('Reading not implemented yet.')
 
 	def write(self):
-		self.write_default_table(db.Plant_parms_sft, True, write_cnt_line=True)	
+		table = db.Plant_parms_sft
+		item_table = db.Plant_parms_sft_item
+
+		if table.select().count() > 0:
+			with open(self.file_name, 'w') as file:
+				self.write_meta_line(file)
+				file.write(str(table.select().count()))
+				file.write("\n")
+				
+				header_cols = [col(table.name, direction="left"),
+							   col("plants", not_in_db=True, padding_override=utils.DEFAULT_INT_PAD),
+							   col("parms", not_in_db=True, padding_override=utils.DEFAULT_INT_PAD),
+							   col("nspu", not_in_db=True, padding_override=utils.DEFAULT_INT_PAD)]
+				self.write_headers(file, header_cols)
+				file.write("\n")
+
+				for row in table.select().order_by(table.id):
+					dis_plants = item_table.select(item_table.name).where(item_table.plant_parms_sft_id == row.id).distinct()
+					dis_parms = item_table.select(item_table.var).where(item_table.plant_parms_sft_id == row.id).distinct()
+
+					row_cols = [col(row.name, direction="left"),
+								col(len(dis_plants)),
+								col(len(dis_parms)),
+								col(0)]
+					self.write_row(file, row_cols)
+					file.write("\n")
+
+					row_header_cols = [col(" ", not_in_db=True, padding_override=2),
+								col(item_table.var, direction="left"),
+								col(item_table.name, direction="left"),
+								col(item_table.init),
+								col(item_table.chg_typ),
+								col(item_table.neg),
+								col(item_table.pos),
+								col(item_table.lo),
+								col(item_table.up)]
+					self.write_headers(file, row_header_cols)
+					file.write("\n")
+
+					for item in row.items.order_by(item_table.id):
+						row_cols = [col(" ", padding_override=2),
+									col(item.var, direction="left"),
+									col(item.name, direction="left"),
+									col(item.init),
+									col(item.chg_typ),
+									col(item.neg),
+									col(item.pos),
+									col(item.lo),
+									col(item.up)]
+						self.write_row(file, row_cols)
+						file.write("\n")	
 		
 		
 class Water_balance_sft(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database='project'):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -219,9 +276,8 @@ class Water_balance_sft(BaseFileModel):
 								col(item_table.tileq_rto),
 								col(item_table.pet),
 								col(item_table.sed),
-								col(item_table.orgn),
-								col(item_table.orgp),
-								col(item_table.no3),
+								col(item_table.wyr),
+								col(item_table.bfr),
 								col(item_table.solp)]
 					self.write_headers(file, row_header_cols)
 					file.write("\n")
@@ -236,18 +292,18 @@ class Water_balance_sft(BaseFileModel):
 									col(item.tileq_rto),
 									col(item.pet),
 									col(item.sed),
-									col(item.orgn),
-									col(item.orgp),
-									col(item.no3),
+									col(item.wyr),
+									col(item.bfr),
 									col(item.solp)]
 						self.write_row(file, row_cols)
 						file.write("\n")
 		
 		
 class Ch_sed_budget_sft(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database='project'):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -296,9 +352,10 @@ class Ch_sed_budget_sft(BaseFileModel):
 		
 		
 class Plant_gro_sft(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database='project'):
 		raise NotImplementedError('Reading not implemented yet.')

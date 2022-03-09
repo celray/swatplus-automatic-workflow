@@ -1,7 +1,5 @@
 @echo off
 
-REM set the directory of QGIS
-set QGIS_Dir=C:\Program Files\QGIS 3.10
 REM set ERRORLEVEL=0
 
 REM set variables for project initialisation
@@ -24,20 +22,20 @@ REM change directory to the python-qgis-ltr.bat
 cd %QGIS_Dir%\bin
 
 REM start runing the workflow using PyQGIS
-call python-qgis-ltr.bat %python_script_prepare_qswat% %BASE_DIR%
+call python-qgis.bat %python_script_prepare_qswat% %BASE_DIR%
 
 If %ERRORLEVEL% == 0 (
-        call python-qgis-ltr.bat %python_script_make_config% %BASE_DIR%   
+        call python-qgis.bat %python_script_make_config% %BASE_DIR%   
         If %ERRORLEVEL% == 0 (
-                call python-qgis-ltr.bat %python_script_run_qswat% %BASE_DIR%
+                call python-qgis.bat %python_script_run_qswat% %BASE_DIR%
                 If %ERRORLEVEL% == 0 (
-                        call python-qgis-ltr.bat %python_script_run_editor% %BASE_DIR%
-                        call python-qgis-ltr.bat %python_script_run_calibration% %BASE_DIR%
-                        call python-qgis-ltr.bat %python_script_make_figures% %BASE_DIR%
+                        call python-qgis.bat %python_script_run_editor% %BASE_DIR%
+                        call python-qgis.bat %python_script_run_calibration% %BASE_DIR%
+                        call python-qgis.bat %python_script_make_figures% %BASE_DIR%
                 ) else (Echo there was an error in running QSWAT+.)
         )
 ) else (Echo there was an error preparing the project file.)
 
-call python-qgis-ltr.bat %python_script_clean_up% %BASE_DIR%
+call python-qgis.bat %python_script_clean_up% %BASE_DIR%
 
 exit /b %ERRORLEVEL%

@@ -11,25 +11,26 @@ Created on Dec 30, 2015
  *                                                                         *
  ***************************************************************************/
  '''
-from PyQt5.QtCore import *  # @UnusedWildImport
-from PyQt5.QtGui import *  # @UnusedWildImport
-from PyQt5.QtWidgets import * # @UnusedWildImport
+from qgis.PyQt.QtCore import QObject, QSettings, Qt
+from qgis.PyQt.QtGui import QFont, QFontDatabase
+from qgis.PyQt.QtWidgets import QApplication, QFileDialog, QMessageBox, QTableWidgetItem
 
 import sys
 import os
 import csv
 from datetime import datetime, timedelta
 import math
+import locale
 # import seaborn as sns
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt4agg import (
-    FigureCanvasQTAgg as FigureCanvas,
-    NavigationToolbar2QT as NavigationToolbar)
+from matplotlib.figure import Figure  # @UnresolvedImport
+from matplotlib.backends.backend_qt5agg import (
+    FigureCanvasQTAgg as FigureCanvas,  # @UnresolvedImport
+    NavigationToolbar2QT as NavigationToolbar)  # @UnresolvedImport
 try:
-    from graphdialog import GraphDialog
+    from .graphdialog import GraphDialog  # @UnusedImport
 except:
     # stand alone version
-    from graphdialog1 import GraphDialog
+    from graphdialog1 import GraphDialog  # @UnresolvedImport @Reimport
 
 class SWATGraph(QObject):
     """Display SWAT result data as line graphs or bar chart."""
@@ -345,7 +346,7 @@ class SWATGraph(QObject):
         else:
             extra = ''
         msg = 'Series1: ' + self._dlg.table.horizontalHeaderItem(idx1).text() + \
-            '  Series2: ' + self._dlg.table.horizontalHeaderItem(idx2).text() + '  Pearson Correlation Coefficient = {0:.2f}{1}'.format(rho, extra)
+            '  Series2: ' + self._dlg.table.horizontalHeaderItem(idx2).text() + '  Pearson Correlation Coefficient = {0}{1}'.format(locale.format_string('%.2F', rho), extra)
         self._dlg.coeffs.append(SWATGraph.trans(msg))
 
     def nash(self, idx1, idx2, N):
@@ -371,7 +372,7 @@ class SWATGraph(QObject):
         else:
             extra = ''
         msg = 'Series1: ' + self._dlg.table.horizontalHeaderItem(idx1).text() + \
-            '  Series2: ' + self._dlg.table.horizontalHeaderItem(idx2).text() + '   Nash-Sutcliffe Efficiency Coefficient = {0:.2f}{1}'.format(result, extra)
+            '  Series2: ' + self._dlg.table.horizontalHeaderItem(idx2).text() + '   Nash-Sutcliffe Efficiency Coefficient = {0}{1}'.format(locale.format_string('%.2F', result), extra)
         self._dlg.coeffs.append(SWATGraph.trans(msg))
         
     def setUbuntuFont(self):

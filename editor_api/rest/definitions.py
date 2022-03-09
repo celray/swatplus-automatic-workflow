@@ -1,14 +1,16 @@
 from flask_restful import Resource, abort
 from playhouse.shortcuts import model_to_dict
 
-from database.datasets.setup import SetupDatasetsDatabase
-from database.vardefs import Var_range, Var_code
+from database.vardefs import Var_range, Var_code, SetupVardefsDatabase
+import os
+
+vardef_db = 'swatplus_vardefs.sqlite'
 
 
 class VarRangeApi(Resource):
-	def get(self, db, table):
-		SetupDatasetsDatabase.init(db)
-		m = Var_range.select().where(Var_range.table == table)
+	def get(self, table, db_path):
+		SetupVardefsDatabase.init(os.path.join(db_path, vardef_db))
+		m = Var_range.select().where((Var_range.table == table) & (Var_range.disabled == False))
 		
 		values = {}
 		for v in m:
@@ -30,15 +32,15 @@ class VarRangeApi(Resource):
 				'default_text': v.default_text,
 				'units': v.units,
 				'description': v.description,
-				'options': options #[model_to_dict(o, recurse=False) for o in v.options]
+				'options': options 
 			}
 			
 		return values
 
 
 class VarCodeApi(Resource):
-	def get(self, db, table, variable):
-		SetupDatasetsDatabase.init(db)
+	def get(self, table, variable, db_path):
+		SetupVardefsDatabase.init(os.path.join(db_path, vardef_db))
 		m = Var_code.select().where((Var_code.table == table) & (Var_code.variable == variable))
 		
 		values = []

@@ -6,9 +6,10 @@ import database.project.aquifer as db
 
 
 class Aquifer_aqu(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -23,8 +24,8 @@ class Aquifer_aqu(BaseFileModel):
 							table.dep_wt,
 							table.no3_n,
 							table.sol_p,
-							table.ptl_n,
-							table.ptl_p,
+							table.carbon,
+							table.flo_dist,
 							table.bf_max,
 							table.alpha_bf,
 							table.revap,
@@ -40,9 +41,10 @@ class Aquifer_aqu(BaseFileModel):
 
 
 class Initial_aqu(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -78,9 +80,10 @@ class Initial_aqu(BaseFileModel):
 
 
 class Chan_aqu_lin(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')

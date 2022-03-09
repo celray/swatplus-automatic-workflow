@@ -21,10 +21,10 @@ snow_name = 'Snow'
 
 """ Database Plants"""
 class PlantsPltListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = hru_parm_db.Plants_plt
-		list_name = 'plants'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name, table.plnt_typ, table.gro_trig, table.description]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class PlantsPltApi(BaseRestModel):
@@ -59,10 +59,10 @@ class PlantsPltDatasetsApi(BaseRestModel):
 """ Database - Fertilizer"""
 
 class FertilizerFrtListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = hru_parm_db.Fertilizer_frt
-		list_name = 'fertilizer'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name, table.description]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class FertilizerFrtApi(BaseRestModel):
@@ -97,10 +97,10 @@ class FertilizerFrtDatasetsApi(BaseRestModel):
 """ Database - Tillage"""
 
 class TillageTilListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = hru_parm_db.Tillage_til
-		list_name = 'tillage'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name, table.description]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class TillageTilApi(BaseRestModel):
@@ -135,10 +135,10 @@ class TillageTilDatasetsApi(BaseRestModel):
 
 """ Database - Pesticide"""
 class PesticidePstListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = hru_parm_db.Pesticide_pst
-		list_name = 'pesticides'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name, table.description]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class PesticidePstApi(BaseRestModel):
@@ -170,13 +170,52 @@ class PesticidePstDatasetsApi(BaseRestModel):
 		return self.base_get_datasets_name(datasets_db, name, ds.Pesticide_pst, pesticide_name)
 """ Database - Pesticide"""
 
+""" Database - Snow"""     
+
+class PathogensPthListApi(BaseRestModel):
+	def get(self, project_db):
+		table = hru_parm_db.Pathogens_pth
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols)
+
+
+class PathogensPthApi(BaseRestModel):
+	def get(self, project_db, id):
+		return self.base_get(project_db, id, hru_parm_db.Pathogens_pth, snow_name)
+
+	def delete(self, project_db, id):
+		return self.base_delete(project_db, id, hru_parm_db.Pathogens_pth, snow_name)
+
+	def put(self, project_db, id):
+		return self.base_put(project_db, id, hru_parm_db.Pathogens_pth, snow_name)
+
+
+class PathogensPthUpdateManyApi(BaseRestModel):
+	def get(self, project_db):
+		return self.base_name_id_list(project_db, hru_parm_db.Pathogens_pth)
+
+	def put(self, project_db):
+		return self.base_put_many(project_db, hru_parm_db.Pathogens_pth, snow_name)
+
+
+class PathogensPthPostApi(BaseRestModel):
+	def post(self, project_db):
+		return self.base_post(project_db, hru_parm_db.Pathogens_pth, snow_name)
+
+
+class PathogensPthDatasetsApi(BaseRestModel):
+	def get(self, datasets_db, name):
+		return self.base_get_datasets_name(datasets_db, name, ds.Pathogens_pth, snow_name)
+
+""" Database - Snow"""
+
 """ Database - Urban"""    
 
 class UrbanUrbListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = hru_parm_db.Urban_urb
-		list_name = 'urban'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name, table.description]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class UrbanUrbApi(BaseRestModel):
@@ -211,10 +250,10 @@ class UrbanUrbDatasetsApi(BaseRestModel):
 """ Database - Septic"""     
 
 class SepticSepListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = hru_parm_db.Septic_sep
-		list_name = 'septic'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name, table.description]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class SepticSepApi(BaseRestModel):
@@ -249,10 +288,10 @@ class SepticSepDatasetsApi(BaseRestModel):
 """ Database - Snow"""     
 
 class SnowSnoListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = hru_parm_db.Snow_sno
-		list_name = 'snow'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class SnowSnoApi(BaseRestModel):

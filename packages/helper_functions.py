@@ -12,7 +12,6 @@ import sys
 import shutil
 from glob import glob
 from shutil import copyfile, copytree
-import gdal
 import pickle
 import xml.etree.ElementTree as ET
 from osgeo import gdal

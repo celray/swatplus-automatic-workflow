@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+1# -*- coding: utf-8 -*-
 '''
 /***************************************************************************
  QSWATPlus
@@ -20,33 +20,43 @@
  ***************************************************************************/
 '''
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import * # @UnusedWildImport
-from PyQt5.QtGui import * # @UnusedWildImport
-from PyQt5.QtWidgets import * # @UnusedWildImport
-from qgis.core import * # @UnusedWildImport
+from qgis.PyQt.QtCore import Qt, QSettings
+from qgis.PyQt.QtGui import QDoubleValidator, QIntValidator, QFont
+from qgis.PyQt.QtWidgets import QFileDialog, QMessageBox
+from qgis.core import QgsProject
 # Import the code for the dialog
+import os.path
+import platform
+from typing import Any
+import locale 
+    
 try:
-    from parametersdialog import ParametersDialog
-    from QSWATUtils import QSWATUtils
+    from .parametersdialog import ParametersDialog  # type: ignore
+    from .QSWATUtils import QSWATUtils  # type: ignore
 except:
     pass  # not needed by convertFromArc
-import os.path
 
 class Parameters:
     
     """Collect QSWAT parameters (location of SWATPlus directory and MPI) from user and save."""
     
-    _ISWIN = os.name == 'nt'
-    _SWATPLUSDEFAULTDIR = r'C:\SWAT\SWATPlus' if _ISWIN else os.path.expanduser('~') + '/.local/share/swatplus'
-    _SWATEDITOR = 'SWATPlusEditor.exe' if _ISWIN else 'swatpluseditor'
+    _ISWIN = platform.system() == 'Windows'
+    _ISLINUX = platform.system() == 'Linux'
+    _ISMAC = platform.system() == 'Darwin'
+    _SWATPLUSDEFAULTDIR = r'C:\SWAT\SWATPlus' if _ISWIN else os.path.expanduser('~') + '/.local/share/SWATPlus' if _ISLINUX else os.path.expanduser('~') + '/SWATPlus'
+    if not os.path.isdir(_SWATPLUSDEFAULTDIR) and (_ISLINUX or _ISMAC):
+        _SWATPLUSDEFAULTDIR = '/usr/local/share/SWATPlus' if _ISLINUX else '/usr/local/share/SWATPlus'
+    _SWATEDITOR = 'SWATPlusEditor.exe' if _ISWIN else 'SWATPlusEditor' if _ISLINUX else 'SWATPlusEditor.app/Contents/MacOS/SWATPlusEditor'
     _SWATEDITORDIR = 'SWATPlusEditor'
-    _MPIEXEC = 'mpiexec.exe' if _ISWIN else 'mpiexec'
-    _MPIEXECDEFAULTDIR = r'C:\Program Files\Microsoft MPI\Bin' if _ISWIN else '/usr/bin'
+    _MPIEXEC = 'mpiexec.exe' if _ISWIN else 'mpiexec' if _ISLINUX else 'mpiexec'
+    _MPIEXECDEFAULTDIR = r'C:\Program Files\Microsoft MPI\Bin' if _ISWIN else '/usr/bin' if _ISLINUX else '/usr/local/bin'
+    _TAUDEM539DIR = 'TauDEM539Bin'
     _TAUDEMDIR = 'TauDEM5Bin'
-    _TAUDEMHELP = 'TauDEM_Tools.chm'  # not used in Linux
+    _TAUDEMHELP = 'TauDEM_Tools.chm'  # not used in Linux or Mac
     _TAUDEMDOCS = 'http://hydrology.usu.edu/taudem/taudem5/documentation.html'
+    _SVGDIR = 'apps/qgis/svg' if _ISWIN else '/usr/share/qgis/svg' if _ISLINUX else '/Applications/QGIS-LTR.app/Contents/Resources/svg'
     _DBDIR = 'Databases'
-    _DBPROJ = 'QSWATPlusProj2018.sqlite'
+    _DBPROJ = 'QSWATPlusProj.sqlite'
     _DBREF = 'swatplus_datasets.sqlite'
     _RESULTS = 'Results'
     _PLOTS = 'Plots'
@@ -70,6 +80,9 @@ class Parameters:
     _ANIMATION = 'Animation'
     _PNG = 'Png'
     _STILLPNG = 'still.png'
+    _SSURGODB_HUC = 'SSURGO_Soils_HUC.sqlite'
+    _SSURGOWater = 377988
+    _WATERBODIES = 'WaterBodies.sqlite'
     
     _TOPOREPORT = 'TopoRep.txt'
     _TOPOITEM = 'Elevation'
@@ -112,8 +125,13 @@ class Parameters:
     _ACRESTOSQMETRES = 4046.8564
     _SQMETRESTOSQFEET = 10.763910
     
+    _DEFAULTFONTSIZE = 12 if _ISMAC else 10
+    
     ## maximum number of features for adding data to rivs1 and subs1 files
     _RIVS1SUBS1MAX = 100000
+    
+    # threshold grid cell count for splitting grids into catchments
+    _GRIDCELLSMAX = 10000
     
     ## nearness threshold: proportion of size of DEM cell used to determine if two stream points should be considered to join
     # too large a threshold and very short stream segments can apparently be circular
@@ -138,17 +156,32 @@ class Parameters:
     # minimum percentage of the drain area of a lake outlet channel to the lake area for it not to be absorbed into the lake
     _LAKEOUTLETCHANNELAREA = 1  #TODO: add to parameters form
     
+    # default multiplier: used if not specified in project file
     _MULTIPLIER = 1.0
     
+    # landuses for which we use just one SSURGO soil and where we make the slope at most _WATERMAXSLOPE 
+    _WATERLANDUSES = {'WATR', 'WETN', 'WETF', 'RIWF', 'UPWF', 'RIWN', 'UPWN'}
+    _WATERMAXSLOPE = 0.001
     
-    def __init__(self, gv):
+    
+    def __init__(self, gv: Any) -> None:
         """Initialise class variables."""
         
         settings = QSettings()
         ## SWATPlus directory
-        self.SWATPlusDir = settings.value('/QSWATPlus/SWATPlusDir', Parameters._SWATPLUSDEFAULTDIR)
+        self.SWATPlusDir = settings.value('/QSWATPlus/SWATPlusDir', '')
+        if self.SWATPlusDir == '':
+            self.SWATPlusDir = Parameters._SWATPLUSDEFAULTDIR
+        elif not os.path.isdir(self.SWATPlusDir):
+            settings.remove('/QSWATPlus/SWATPlusDir')
+            self.SWATPlusDir = Parameters._SWATPLUSDEFAULTDIR
         ## mpiexec directory
-        self.mpiexecDir = settings.value('/QSWATPlus/mpiexecDir', Parameters._MPIEXECDEFAULTDIR)
+        self.mpiexecDir = settings.value('/QSWATPlus/mpiexecDir', '')
+        if self.mpiexecDir == '':
+            self.mpiexecDir = Parameters._MPIEXECDEFAULTDIR
+        elif not os.path.isdir(self.mpiexecDir):
+            settings.remove('/QSWATPlus/SWATPlusDir')
+            self.mpiexecDir = Parameters._MPIEXECDEFAULTDIR
         ## number of MPI processes
         self.numProcesses = settings.value('/QSWATPlus/NumProcesses', '')
         self._gv = gv
@@ -160,11 +193,11 @@ class Parameters:
                 ## flag showing if batch run
                 self.isBatch = self._gv.isBatch
             except Exception:
-               self.isBatch = False 
+                self.isBatch = False 
         else:
             self.isBatch = False
         
-    def run(self):
+    def run(self) -> None:
         """Run the form."""
         self._dlg.checkUseMPI.stateChanged.connect(self.changeUseMPI)
         if os.path.isdir(self.mpiexecDir):
@@ -190,7 +223,7 @@ class Parameters:
         if self._gv:
             self._gv.parametersPos = self._dlg.pos()
         
-    def changeUseMPI(self):
+    def changeUseMPI(self) -> None:
         """Enable form to allow MPI setting."""
         if self._dlg.checkUseMPI.isChecked():
             self._dlg.MPIBox.setEnabled(True)
@@ -201,7 +234,7 @@ class Parameters:
             self._dlg.MPIButton.setEnabled(False)
             self._dlg.MPILabel.setEnabled(False)
         
-    def save(self):
+    def save(self) -> None:
         """Save parameters and close form."""
         SWATPlusDir = self._dlg.SWATPlusBox.text()
         if SWATPlusDir == '' or not os.path.isdir(SWATPlusDir):
@@ -259,7 +292,7 @@ class Parameters:
             settings.setValue('/QSWATPlus/FontSize', str(pointSize))    
         self._dlg.close()
             
-    def chooseSWATPlusDir(self):
+    def chooseSWATPlusDir(self) -> None:
         """Choose SWATPlus directory."""
         title = QSWATUtils.trans('Select SWATPlus directory')
         if self._dlg.SWATPlusBox.text() != '':
@@ -278,7 +311,7 @@ class Parameters:
             self._dlg.SWATPlusBox.setText(SWATPlusDir)
             self.SWATPlusDir = SWATPlusDir
             
-    def chooseMPIDir(self):
+    def chooseMPIDir(self) -> None:
         """Choose MPI directory."""
         title = QSWATUtils.trans('Select MPI bin directory')
         if self._dlg.MPIBox.text() != '':
@@ -297,7 +330,7 @@ class Parameters:
             self._dlg.MPIBox.setText(mpiexecDir)
             self.mpiexecDir = mpiexecDir
             
-    def changeFontSize(self):
+    def changeFontSize(self) -> None:
         """Change font size of this form.  Will also change font size of all QSWATPlus forms when parameters form saved."""
         ufont = QFont("Ubuntu", self._dlg.pointSizeBox.value(), 1)
         self._dlg.setFont(ufont)
@@ -312,20 +345,20 @@ class Parameters:
         self._dlg.pointSizeLabel.setFont(ufont)
         self._dlg.pointSizeLabel.repaint()
             
-    def readProj(self):
+    def readProj(self) -> None:
         """Read parameter data from project file."""
         proj = QgsProject.instance()
         title = proj.title()
         burninDepth = proj.readNumEntry(title, 'params/burninDepth', Parameters._BURNINDEPTH)[0]
         self._dlg.burninDepth.setText(str(burninDepth))
         channelWidthMultiplier = proj.readDoubleEntry(title, 'params/channelWidthMultiplier', Parameters._CHANNELWIDTHMULTIPLIER)[0]
-        self._dlg.widthMult.setText(str(channelWidthMultiplier))
+        self._dlg.widthMult.setText(locale.str(channelWidthMultiplier))
         channelWidthExponent = proj.readDoubleEntry(title, 'params/channelWidthExponent', Parameters._CHANNELWIDTHEXPONENT)[0]
-        self._dlg.widthExp.setText(str(channelWidthExponent))
+        self._dlg.widthExp.setText(locale.str(channelWidthExponent))
         channelDepthMultiplier = proj.readDoubleEntry(title, 'params/channelDepthMultiplier', Parameters._CHANNELDEPTHMULTIPLIER)[0]
-        self._dlg.depthMult.setText(str(channelDepthMultiplier))
+        self._dlg.depthMult.setText(locale.str(channelDepthMultiplier))
         channelDepthExponent = proj.readDoubleEntry(title, 'params/channelDepthExponent', Parameters._CHANNELDEPTHEXPONENT)[0]
-        self._dlg.depthExp.setText(str(channelDepthExponent))
+        self._dlg.depthExp.setText(locale.str(channelDepthExponent))
         reachSlopeMultiplier = proj.readDoubleEntry(title, 'params/reachSlopeMultiplier', Parameters._MULTIPLIER)[0]
         self._dlg.reachSlopeMultiplier.setValue(reachSlopeMultiplier)
         tributarySlopeMultiplier = proj.readDoubleEntry(title, 'params/tributarySlopeMultiplier', Parameters._MULTIPLIER)[0]
@@ -342,33 +375,63 @@ class Parameters:
         if settings.contains('/QSWATPlus/FontSize'):
             self._dlg.pointSizeBox.setValue(int(settings.value('/QSWATPlus/FontSize')))
         else:
-            self._dlg.pointSizeBox.setValue(10)
+            self._dlg.pointSizeBox.setValue(Parameters._DEFAULTFONTSIZE)
 
-    def saveProj(self):
+    def saveProj(self) -> None:
         """Write parameter data to project file."""
+        burninDepth = int(self._dlg.burninDepth.text())
+        if burninDepth == 0:
+            QSWATUtils.error('Stream burn-in depth may not be set to zero', self.isBatch)
+            return
+        widthMult = locale.atof(self._dlg.widthMult.text())
+        if widthMult == 0:
+            QSWATUtils.error('Channel width multiplier may not be set to zero', self.isBatch)
+            return
+        depthMult = locale.atof(self._dlg.depthMult.text())
+        if depthMult == 0:
+            QSWATUtils.error('Channel depth multiplier may not be set to zero', self.isBatch)
+            return
+        reachSlopeMultiplier = self._dlg.reachSlopeMultiplier.value()
+        if reachSlopeMultiplier == 0:
+            QSWATUtils.error('Reach slopes multiplier may not be set to zero', self.isBatch)
+            return
+        tributarySlopeMultiplier = self._dlg.tributarySlopeMultiplier.value()
+        if tributarySlopeMultiplier == 0:
+            QSWATUtils.error('Tributary slopes multiplier may not be set to zero', self.isBatch)
+            return
+        meanSlopeMultiplier = self._dlg.meanSlopeMultiplier.value()
+        if meanSlopeMultiplier == 0:
+            QSWATUtils.error('Mean slopes multiplier may not be set to zero', self.isBatch)
+            return
+        mainLengthMultiplier = self._dlg.mainLengthMultiplier.value()
+        if mainLengthMultiplier == 0:
+            QSWATUtils.error('Main channel length multiplier may not be set to zero', self.isBatch)
+            return
+        tributaryLengthMultiplier = self._dlg.tributaryLengthMultiplier.value()
+        if tributaryLengthMultiplier == 0:
+            QSWATUtils.error('Tributary channel length multiplier may not be set to zero', self.isBatch)
+            return
         proj = QgsProject.instance()
         title = proj.title()
-        proj.writeEntry(title, 'params/burninDepth', self._dlg.burninDepth.text())
-        proj.writeEntry(title, 'params/channelWidthMultiplier', self._dlg.widthMult.text())
-        proj.writeEntry(title, 'params/channelWidthExponent', self._dlg.widthExp.text())
-        proj.writeEntry(title, 'params/channelDepthMultiplier', self._dlg.depthMult.text())
-        proj.writeEntry(title, 'params/channelDepthExponent', self._dlg.depthExp.text())
-        proj.writeEntry(title, 'params/reachSlopeMultiplier', self._dlg.reachSlopeMultiplier.text())
-        proj.writeEntry(title, 'params/tributarySlopeMultiplier', self._dlg.tributarySlopeMultiplier.text())
-        proj.writeEntry(title, 'params/meanSlopeMultiplier', self._dlg.meanSlopeMultiplier.text())
-        proj.writeEntry(title, 'params/mainLengthMultiplier', self._dlg.mainLengthMultiplier.text())
-        proj.writeEntry(title, 'params/tributaryLengthMultiplier', self._dlg.tributaryLengthMultiplier.text())
+        proj.writeEntry(title, 'params/burninDepth', int(self._dlg.burninDepth.text()))
+        proj.writeEntryDouble(title, 'params/channelWidthMultiplier', locale.atof(self._dlg.widthMult.text()))
+        proj.writeEntryDouble(title, 'params/channelWidthExponent', locale.atof(self._dlg.widthExp.text()))
+        proj.writeEntryDouble(title, 'params/channelDepthMultiplier', locale.atof(self._dlg.depthMult.text()))
+        proj.writeEntryDouble(title, 'params/channelDepthExponent', locale.atof(self._dlg.depthExp.text()))
+        proj.writeEntryDouble(title, 'params/reachSlopeMultiplier', locale.atof(self._dlg.reachSlopeMultiplier.text()))
+        proj.writeEntryDouble(title, 'params/tributarySlopeMultiplier', locale.atof(self._dlg.tributarySlopeMultiplier.text()))
+        proj.writeEntryDouble(title, 'params/meanSlopeMultiplier', locale.atof(self._dlg.meanSlopeMultiplier.text()))
+        proj.writeEntryDouble(title, 'params/mainLengthMultiplier', locale.atof(self._dlg.mainLengthMultiplier.text()))
+        proj.writeEntryDouble(title, 'params/tributaryLengthMultiplier', locale.atof(self._dlg.tributaryLengthMultiplier.text()))
         upslopeHRUDrain = int(self._dlg.upslopeHRUDrain.text())
         if 0 <= upslopeHRUDrain <= 100:
-            proj.writeEntry(title, 'params/upslopeHRUDrain', self._dlg.upslopeHRUDrain.text())
+            proj.writeEntry(title, 'params/upslopeHRUDrain', int(self._dlg.upslopeHRUDrain.text()))
         proj.write()
         if self._gv is not None:
-            self._gv.burninDepth = int(self._dlg.burninDepth.text())
+            self._gv.burninDepth = burninDepth
             # update channel widths and depths in affected tables
-            widthMult = float(self._dlg.widthMult.text())
-            widthExp = float(self._dlg.widthExp.text())
-            depthMult = float(self._dlg.depthMult.text())
-            depthExp = float(self._dlg.depthExp.text())
+            widthExp = locale.atof(self._dlg.widthExp.text())
+            depthExp = locale.atof(self._dlg.depthExp.text())
             if abs(self._gv.channelWidthMultiplier - widthMult) > .005 \
                 or abs(self._gv.channelWidthExponent - widthExp) > .005 \
                 or abs(self._gv.channelDepthMultiplier - depthMult) > 0.005 \
@@ -380,21 +443,21 @@ class Parameters:
             self._gv.channelDepthExponent = depthExp
             # update slope values in affected tables
             # avoid real equality test
-            if abs(self._gv.reachSlopeMultiplier - self._dlg.reachSlopeMultiplier.value()) > 0.05:
-                self._gv.db.changeReachSlopes(self._dlg.reachSlopeMultiplier.value(), self._gv.reachSlopeMultiplier, self._gv.shapesDir)
-            if abs(self._gv.tributarySlopeMultiplier - self._dlg.tributarySlopeMultiplier.value()) > 0.05:
-                self._gv.db.changeTributarySlopes(self._dlg.tributarySlopeMultiplier.value(), self._gv.tributarySlopeMultiplier, self._gv.shapesDir)
-            if abs(self._gv.meanSlopeMultiplier - self._dlg.meanSlopeMultiplier.value()) > 0.05:
-                self._gv.db.changeMeanSlopes(self._dlg.meanSlopeMultiplier.value(), self._gv.meanSlopeMultiplier, self._gv.shapesDir)
-            if abs(self._gv.mainLengthMultiplier - self._dlg.mainLengthMultiplier.value()) > 0.05:
-                self._gv.db.changeMainLengths(self._dlg.mainLengthMultiplier.value(), self._gv.mainLengthMultiplier, self._gv.shapesDir)
-            if abs(self._gv.tributaryLengthMultiplier - self._dlg.tributaryLengthMultiplier.value()) > 0.05:
-                self._gv.db.changeTributaryLengths(self._dlg.tributaryLengthMultiplier.value(), self._gv.tributaryLengthMultiplier, self._gv.shapesDir)
-            self._gv.reachSlopeMultiplier = self._dlg.reachSlopeMultiplier.value()
-            self._gv.tributarySlopeMultiplier = self._dlg.tributarySlopeMultiplier.value()
-            self._gv.meanSlopeMultiplier = self._dlg.meanSlopeMultiplier.value()
-            self._gv.mainLengthMultiplier = self._dlg.mainLengthMultiplier.value()
-            self._gv.tributaryLengthMultiplier = self._dlg.tributaryLengthMultiplier.value() 
+            if abs(self._gv.reachSlopeMultiplier - reachSlopeMultiplier) > 0.05:
+                self._gv.db.changeReachSlopes(reachSlopeMultiplier, self._gv.reachSlopeMultiplier, self._gv.shapesDir)
+            if abs(self._gv.tributarySlopeMultiplier - tributarySlopeMultiplier) > 0.05:
+                self._gv.db.changeTributarySlopes(tributarySlopeMultiplier, self._gv.tributarySlopeMultiplier, self._gv.shapesDir)
+            if abs(self._gv.meanSlopeMultiplier - meanSlopeMultiplier) > 0.05:
+                self._gv.db.changeMeanSlopes(meanSlopeMultiplier, self._gv.meanSlopeMultiplier, self._gv.shapesDir)
+            if abs(self._gv.mainLengthMultiplier - mainLengthMultiplier) > 0.05:
+                self._gv.db.changeMainLengths(mainLengthMultiplier, self._gv.mainLengthMultiplier, self._gv.shapesDir)
+            if abs(self._gv.tributaryLengthMultiplier - tributaryLengthMultiplier) > 0.05:
+                self._gv.db.changeTributaryLengths(tributaryLengthMultiplier, self._gv.tributaryLengthMultiplier, self._gv.shapesDir)
+            self._gv.reachSlopeMultiplier = reachSlopeMultiplier
+            self._gv.tributarySlopeMultiplier = tributarySlopeMultiplier
+            self._gv.meanSlopeMultiplier = meanSlopeMultiplier
+            self._gv.mainLengthMultiplier = mainLengthMultiplier
+            self._gv.tributaryLengthMultiplier = tributaryLengthMultiplier 
             # update upslopeHRUDrain       
             upslopeHRUDrain = int(self._dlg.upslopeHRUDrain.text())
             if upslopeHRUDrain != self._gv.upslopeHRUDrain:

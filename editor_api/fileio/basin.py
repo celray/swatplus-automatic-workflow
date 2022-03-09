@@ -10,9 +10,10 @@ import database.project.basin as db
 
 
 class Codes_bsn(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database='project'):
 		"""
@@ -30,9 +31,10 @@ class Codes_bsn(BaseFileModel):
 
 
 class Parameters_bsn(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database='project'):
 		"""
@@ -41,9 +43,9 @@ class Parameters_bsn(BaseFileModel):
 		:return:
 		"""
 		if database == 'project':
-			self.read_default_table(project_basin.Parameters_bsn, project_base.db, 46, ignore_id_col=True)
+			self.read_default_table(project_basin.Parameters_bsn, project_base.db, 43, ignore_id_col=True)
 		else:
-			self.read_default_table(datasets_basin.Parameters_bsn, datasets_base.db, 46, ignore_id_col=True)
+			self.read_default_table(datasets_basin.Parameters_bsn, datasets_base.db, 43, ignore_id_col=True)
 
 	def write(self):
 		self.write_default_table(db.Parameters_bsn, True)

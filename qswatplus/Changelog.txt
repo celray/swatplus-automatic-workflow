@@ -1,0 +1,87 @@
+Version 1.2.5   6 October 2019
+------------------------------
+
+Automatic removal of circularities in grid models
+
+LAKELINKS table allows channel with two roles (inlet and other outlet)
+
+Degenerate grid cells removed when using grid drainage (to support clipping into aquifers)
+
+Version 1.2.4   6 September 2019
+--------------------------------
+
+Fixed problems with lakes in grid models
+
+Mostly type checked with mypy
+
+Fixed drainage input from table
+
+Allow single channel through lake
+
+Checks on routing table: 
+- all source items defined in gis_ tables
+- all non-X sinks are sources
+- no circularities
+- percents total 100 
+
+Projection check on all maps after DEM
+
+Paletted renderers for landuse and soil maps
+
+Version 1.2.3   8 August 2019
+---------------------------
+
+Added waterid to gis_subbasins
+
+
+Version 1.2.2   13 June 2019
+----------------------------
+
+Revised treatment of ponds and reservoirs
+
+
+Version 1.2.1   4 June 2019
+---------------------------
+
+Fixed problem of LSUs that are all reservoir
+
+hru_ tables removed from visualization when no hrus.shp file
+
+Version 1.2.0   21 May 2019
+---------------------------
+
+Linux version with appropriate directories
+
+Version 1.1.0   8 May 2019
+--------------------------
+
+Post processing environmental flows added
+
+Journal mode off for writing project database
+
+Fixed multiple reservoir points
+
+Fixed animation selection of gis_ids
+
+QSWAT+ version always updated in project_config
+
+Version 1.0.1   April 29 2019  
+-----------------------------
+
+Fixed findMPI bug
+
+Version 1.0.0   March 22 2019
+-----------------------------
+
+First official release.
+
+Version 2.1.7  December 5 2021
+------------------------------
+
+Fixed need to recreate subbasin file after merging subbasins if adding lakes.
+
+Version 2.1.8  December 22 2021
+-------------------------------
+
+Fixed use of chBasinToBasin to get channel's subbasin after the channel's 
+basin has been removed as empty or below one pixel.

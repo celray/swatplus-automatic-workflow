@@ -98,7 +98,7 @@ class Channel_aa(Channel):
 
 class Channel_sdmorph(OutputBase):
 	flo_in = DoubleField(null=True)
-	aqu_in = DoubleField(null=True)
+	geo_bf = DoubleField(null=True)
 	flo_out = DoubleField(null=True)
 	peakr = DoubleField(null=True)
 	sed_in = DoubleField(null=True)
@@ -112,9 +112,12 @@ class Channel_sdmorph(OutputBase):
 	width = DoubleField(null=True)
 	depth = DoubleField(null=True)
 	slope = DoubleField(null=True)
-	deg_btm = DoubleField(null=True)
-	deg_bank = DoubleField(null=True)
+	deg_btm_m = DoubleField(null=True)
+	deg_bank_m = DoubleField(null=True)
 	hc_len = DoubleField(null=True)
+	flo_in_mm = DoubleField(null=True)
+	aqu_in_mm = DoubleField(null=True)
+	flo_out_mm = DoubleField(null=True)
 
 
 class Basin_sd_chamorph_day(Channel_sdmorph):
@@ -208,6 +211,7 @@ class Channel_sd(OutputBase):
 	lag_out = DoubleField(null=True)
 	grv_out = DoubleField(null=True)
 	temp_out = DoubleField(null=True)
+	water_temp = DoubleField(null=True)
 
 
 class Basin_sd_cha_day(Channel_sd):

@@ -20,37 +20,45 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import * # @UnusedWildImport
-from PyQt5.QtGui import * # @UnusedWildImport
-from qgis.core import * # @UnusedWildImport
+from qgis.PyQt.QtCore import Qt, QSettings
+from qgis.PyQt.QtGui import QTextCursor
+from qgis.PyQt.QtWidgets import QTextEdit
+from qgis.core import QgsProject
 import os.path
 import subprocess
 import webbrowser
+from typing import Optional, List, Tuple
 
-from QSWATUtils import QSWATUtils
-from parameters import Parameters
+from .QSWATUtils import QSWATUtils  # type: ignore
+from .parameters import Parameters  # type: ignore
 
 class TauDEMUtils:
     
     """Methods for calling TauDEM executables."""
     
     @staticmethod
-    def runPitFill(demFile, felFile, numProcesses, output):
+    def runPitFill(demFile: str, depmask: Optional[str], felFile: str, numProcesses: int, output: Optional[QTextEdit]) -> bool:
         """Run PitFill."""
-        return TauDEMUtils.run('pitremove', [('-z', demFile)], [], [('-fel', felFile)], numProcesses, output, False)
+        inFiles = [('-z', demFile)]
+        if depmask is not None:
+            inFiles.append(('-depmask', depmask))
+        return TauDEMUtils.run('pitremove', inFiles, [], [('-fel', felFile)], numProcesses, output, False)
 
     @staticmethod
-    def runD8FlowDir(felFile, sd8File, pFile, numProcesses, output):
+    def runD8FlowDir(felFile: str, sd8File: str, pFile: str, numProcesses: int, output: Optional[QTextEdit]) -> bool:
         """Run D8FlowDir."""
-        return TauDEMUtils.run('d8flowdir', [('-fel', felFile)], [], [('-sd8', sd8File), ('-p', pFile)], numProcesses, output, False)
+        return TauDEMUtils.run('d8flowdir', [('-fel', felFile)], [], [('-sd8', sd8File), ('-p', pFile)], 
+                               numProcesses, output, False)
 
     @staticmethod
-    def runDinfFlowDir(felFile, slpFile, angFile, numProcesses, output):
+    def runDinfFlowDir(felFile: str, slpFile: str, angFile: str, numProcesses: int, output: Optional[QTextEdit]) -> bool:
         """Run DinfFlowDir."""
-        return TauDEMUtils.run('dinfflowdir', [('-fel', felFile)], [], [('-slp', slpFile), ('-ang', angFile)], numProcesses, output, False)
+        return TauDEMUtils.run('dinfflowdir', [('-fel', felFile)], [], [('-slp', slpFile), ('-ang', angFile)], 
+                               numProcesses, output, False)
 
     @staticmethod
-    def runAreaD8(pFile, ad8File, outletFile, weightFile, numProcesses, output, contCheck=False, mustRun=True):
+    def runAreaD8(pFile: str, ad8File: str, outletFile: Optional[str], weightFile: Optional[str], 
+                  numProcesses: int, output: Optional[QTextEdit], contCheck: bool=False, mustRun: bool=True) -> bool:
         """Run AreaD8."""
         inFiles = [('-p', pFile)]
         if outletFile is not None:
@@ -61,7 +69,8 @@ class TauDEMUtils:
         return TauDEMUtils.run('aread8', inFiles, check, [('-ad8', ad8File) ], numProcesses, output, mustRun)
 
     @staticmethod
-    def runAreaDinf(angFile, scaFile, outletFile, numProcesses, output, mustRun=True):
+    def runAreaDinf(angFile: str, scaFile: str, outletFile: Optional[str], 
+                    numProcesses: int, output: Optional[QTextEdit], mustRun: bool=True) -> bool:
         """Run AreaDinf."""
         inFiles = [('-ang', angFile)]
         if outletFile is not None:
@@ -69,42 +78,52 @@ class TauDEMUtils:
         return TauDEMUtils.run('areadinf', inFiles, [('-nc', '')], [('-sca', scaFile)], numProcesses, output, mustRun)
 
     @staticmethod
-    def runGridNet(pFile, plenFile, tlenFile, gordFile, outletFile, numProcesses, output, mustRun=True):
+    def runGridNet(pFile: str, plenFile: str, tlenFile: str, gordFile: str, outletFile: Optional[str], 
+                   numProcesses: int, output: Optional[QTextEdit], mustRun: bool=True) -> bool:
         """Run GridNet."""
         inFiles = [('-p', pFile)]
         if outletFile is not None:
             inFiles.append(('-o', outletFile))
-        return TauDEMUtils.run('gridnet', inFiles, [], [('-plen', plenFile), ('-tlen', tlenFile), ('-gord', gordFile)], numProcesses, output, mustRun)
+        return TauDEMUtils.run('gridnet', inFiles, [], [('-plen', plenFile), ('-tlen', tlenFile), ('-gord', gordFile)], 
+                               numProcesses, output, mustRun)
     
     @staticmethod
-    def runThreshold(ad8File, srcFile, threshold, numProcesses, output, mustRun=True):
+    def runThreshold(ad8File: str, srcFile: str, threshold: str, 
+                     numProcesses: int, output: Optional[QTextEdit], mustRun: bool=True) -> bool:
         """Run Threshold."""
-        return TauDEMUtils.run('threshold', [('-ssa', ad8File)], [('-thresh', threshold)], [('-src', srcFile)], numProcesses, output, mustRun)
+        return TauDEMUtils.run('threshold', [('-ssa', ad8File)], [('-thresh', threshold)], [('-src', srcFile)], 
+                               numProcesses, output, mustRun)
     
     @staticmethod
-    def runStreamNet(felFile, pFile, ad8File, srcFile, outletFile, ordFile, treeFile, coordFile, streamFile, wFile, single, numProcesses, output, mustRun=True):
+    def runStreamNet(felFile: str, pFile: str, ad8File: str, srcFile: str, outletFile: Optional[str], 
+                     ordFile: str, treeFile: str, coordFile: str, streamFile: str, wFile: str, 
+                     single: bool, numProcesses: int, output: Optional[QTextEdit], mustRun: bool=True) -> bool:
         """Run StreamNet."""
         inFiles = [('-fel', felFile), ('-p', pFile), ('-ad8', ad8File), ('-src', srcFile)]
         if outletFile is not None:
             inFiles.append(('-o', outletFile))
         inParms = [('-sw', '')] if single else []
         return TauDEMUtils.run('streamnet', inFiles, inParms, 
-                               [('-ord', ordFile), ('-tree', treeFile), ('-coord', coordFile), ('-net', streamFile), ('-w', wFile)], 
-                               numProcesses, output, mustRun)
+                               [('-ord', ordFile), ('-tree', treeFile), ('-coord', coordFile), ('-net', streamFile), 
+                                ('-w', wFile)], numProcesses, output, mustRun)
     @staticmethod
-    def runMoveOutlets(pFile, srcFile, outletFile, movedOutletFile, numProcesses, output, mustRun=True):
+    def runMoveOutlets(pFile: str, srcFile: str, outletFile: str, movedOutletFile: str, 
+                       numProcesses: int, output: Optional[QTextEdit], mustRun: bool=True) -> bool:
         """Run MoveOutlets."""
-        return TauDEMUtils.run('moveoutletstostreams', [('-p', pFile), ('-src', srcFile), ('-o', outletFile)], [], [('-om', movedOutletFile)], 
+        return TauDEMUtils.run('moveoutletstostreams', [('-p', pFile), ('-src', srcFile), ('-o', outletFile)], 
+                               [], [('-om', movedOutletFile)], 
                                numProcesses, output, mustRun)
         
     @staticmethod
-    def runDistanceToStreams(pFile, hd8File, distFile, threshold, numProcesses, output, mustRun=True):
+    def runDistanceToStreams(pFile: str, hd8File: str, distFile: str, threshold: str, 
+                             numProcesses: int, output: Optional[QTextEdit], mustRun: bool=True) -> bool:
         """Run D8HDistToStrm."""
-        return TauDEMUtils.run('d8hdisttostrm', [('-p', pFile), ('-src', hd8File)], [('-thresh', threshold)], [('-dist', distFile)], 
-                               numProcesses, output, mustRun)
+        return TauDEMUtils.run('d8hdisttostrm', [('-p', pFile), ('-src', hd8File)], [('-thresh', threshold)], 
+                               [('-dist', distFile)], numProcesses, output, mustRun)
     
     @staticmethod   
-    def run(command, inFiles, inParms, outFiles, numProcesses, output, mustRun):
+    def run(command: str, inFiles: List[Tuple[str, str]], inParms: List[Tuple[str, str]], 
+            outFiles: List[Tuple[str, str]], numProcesses: int, output: Optional[QTextEdit], mustRun: bool) -> bool:
         """
         Run TauDEM command, using mpiexec if numProcesses is not zero.
         
@@ -146,13 +165,10 @@ class TauDEMUtils:
                     break
         if not needToRun:
             return True
-        # remove outFiles so any error will be reported
-        root = QgsProject.instance().layerTreeRoot()
-        for (pid, fileName) in outFiles:
-            QSWATUtils.tryRemoveLayerAndFiles(fileName, root)
-        commands = []
+        commands: List[str] = []
         settings = QSettings()
         if hasQGIS:
+            assert output is not None
             output.append('------------------- TauDEM command: -------------------\n')
         if numProcesses != 0:
             mpiexecPath = TauDEMUtils.findMPIExecPath(settings)
@@ -160,15 +176,29 @@ class TauDEMUtils:
                 commands.append(mpiexecPath)
                 commands.append('-np') # -n acceptable in Windows but only -np in OpenMPI
                 commands.append(str(numProcesses))
-        TauDEMDir = TauDEMUtils.findTauDEMDir(settings, hasQGIS)
+        TauDEMDir, is539 = TauDEMUtils.findTauDEMDir(settings, hasQGIS)
         if TauDEMDir == '':
             return False
+        if is539:  # which implies _ISWIN
+            # pass StreamNet a directory rather than shapefile so shapefile created as a directory
+            # this prevents problem that .shp cannot be deleted, but GDAL then complains that the .shp file is not a directory
+            # also have to set -netlyr parameter to stop TauDEM failing to parse filename without .shp as a layer name
+            # TauDEM version 5.1.2 does not support -netlyr parameter
+            if command == 'streamnet':
+                # make copy so can rewrite
+                outFilesCopy = outFiles[:]
+                outFiles = []
+                for (pid, outFile) in outFilesCopy:
+                    if pid == '-net':
+                        streamDir = QSWATUtils.shapefileToDir(outFile)
+                        outFiles.append((pid, streamDir))
+                    else:
+                        outFiles.append((pid, outFile))
+                inParms.append(('-netlyr', os.path.split(streamDir)[1]))
         commands.append(QSWATUtils.join(TauDEMDir, command))
         for (pid, fileName) in inFiles:
             if not os.path.exists(fileName):
-                TauDEMUtils.error('''File {0} does not exist.
-Have you installed SWAT+ as a different directory from C:\SWAT\SWATPlus?
-If so use the QSWAT+ Parameters form to set the correct location.'''.format(fileName), hasQGIS)
+                TauDEMUtils.error('''File {0} for TauDEM input {1} to {2} does not exist.'''.format(fileName, pid, command), hasQGIS)
                 return False
             commands.append(pid)
             commands.append(fileName)
@@ -177,23 +207,35 @@ If so use the QSWAT+ Parameters form to set the correct location.'''.format(file
             # allow for parameter which is flag with no value
             if not parm == '':
                 commands.append(parm)
+        # remove outFiles so any error will be reported
+        root = QgsProject.instance().layerTreeRoot()
+        for (_, fileName) in outFiles:
+            if os.path.isdir(fileName):
+                QSWATUtils.tryRemoveShapefileLayerAndDir(fileName, root)
+            else:
+                QSWATUtils.tryRemoveLayerAndFiles(fileName, root)
         for (pid, fileName) in outFiles:
             commands.append(pid)
             commands.append(fileName)
         command = ' '.join(commands)             
         if hasQGIS:
+            assert output is not None
             output.append(command + '\n\n')
             output.moveCursor(QTextCursor.End)
         # Windows will accept commands as first argument of run
         # and this has the advantage of dealing with spaces within inidividual components of the list
-        # Linux needs a single list (and there will be no spaces to worry about
-        procCommand = commands if Parameters._ISWIN else command
+        # Linux and MacOS need a single string (and there will be no spaces to worry about)
+        # MacPrefix is needed to load gdal library from QGIS installation in case gdal not installed (or installed with different version)
+        MacPrefixNeeded = Parameters._ISMAC and not os.path.exists('/usr/local/lib/libgdal.28.dylib')
+        MacPrefix = 'export LD_LIBRARY_PATH=/Applications/QGIS-LTR.app/Contents/MacOS/lib; export PROJ_LIB=/Applications/QGIS-LTR.app/Contents/Resources/proj; '
+        procCommand = commands if Parameters._ISWIN else MacPrefix + command if MacPrefixNeeded else command
         proc = subprocess.run(procCommand, 
                                 shell=True, 
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT,
-                                universal_newlines=True)    # text=True) only in python 3.7     
+                                universal_newlines=True)    # text=True) only in python 3.7 
         if hasQGIS:
+            assert output is not None
             output.append(proc.stdout)
             output.moveCursor(QTextCursor.End)
         else:
@@ -206,7 +248,6 @@ If so use the QSWAT+ Parameters form to set the correct location.'''.format(file
         msg = command + ' created '
         for (pid, fileName) in outFiles:
             if QSWATUtils.isUpToDate(baseFile, fileName):
-                QSWATUtils.copyPrj(baseFile, fileName)
                 msg += fileName
                 msg += ' '
             else:
@@ -214,7 +255,8 @@ If so use the QSWAT+ Parameters form to set the correct location.'''.format(file
         if ok:
             TauDEMUtils.loginfo(msg, hasQGIS)
         else:
-            if hasQGIS:    
+            if hasQGIS:
+                assert output is not None    
                 origColour = output.textColor()
                 output.setTextColor(Qt.red)
                 output.append(QSWATUtils.trans('*** Problem with TauDEM {0}: please examine output above. ***'.format(command)))
@@ -224,43 +266,62 @@ If so use the QSWAT+ Parameters form to set the correct location.'''.format(file
         return ok
 
     @staticmethod
-    def findTauDEMDir(settings, hasQGIS):
-        """Find and return path of TauDEM directory."""
+    def findTauDEMDir(settings: QSettings, hasQGIS: bool) -> Tuple[str, bool]:
+        """Find and return path of TauDEM directory, plus flag indicating if 539 directory used."""
+        is539 = False
         SWATPlusDir = settings.value('/QSWATPlus/SWATPlusDir', Parameters._SWATPLUSDEFAULTDIR)
-        TauDEMDir = QSWATUtils.join(SWATPlusDir, Parameters._TAUDEMDIR)
-        if not os.path.isdir(TauDEMDir):
+        TauDEMDir: str = QSWATUtils.join(SWATPlusDir, Parameters._TAUDEM539DIR) if Parameters._ISWIN else QSWATUtils.join(SWATPlusDir, Parameters._TAUDEMDIR)
+        if os.path.isdir(TauDEMDir):
+            is539 = Parameters._ISWIN
+        else:
             if Parameters._ISWIN:
-                TauDEMDir2 = QSWATUtils.join(r'C:\SWAT\SWATPlus', Parameters._TAUDEMDIR)
-                if not os.path.isdir(TauDEMDir2):
-                    TauDEMDir2 = QSWATUtils.join(r'C:\SWAT\SWATEditor', Parameters._TAUDEMDIR)  # path from QSWAT
+                TauDEMDir2 = QSWATUtils.join(SWATPlusDir, Parameters._TAUDEMDIR)
                 if os.path.isdir(TauDEMDir2):
                     TauDEMDir = TauDEMDir2
                 else:
-                    TauDEMUtils.error('''Cannot find TauDEM directory as {0} or {1}.  
-Have you installed SWAT+ as a different directory from C:\SWAT\SWATPlus?
-If so use the QSWAT+ Parameters form to set the correct location.'''.format(TauDEMDir, TauDEMDir2), hasQGIS)
-                    return  ''
-            else:
-                TauDEMDir2 = QSWATUtils.join('~/.local/share/swatplus', Parameters._TAUDEMDIR)
-                if os.path.isdir(TauDEMDir2):
-                    TauDEMDir = TauDEMDir2
-                else:
-                    TauDEMDir3 = QSWATUtils.join('/usr/local/share/swatplus', Parameters._TAUDEMDIR)
+                    TauDEMDir3 = QSWATUtils.join(r'C:\SWAT\SWATPlus', Parameters._TAUDEM539DIR)
                     if os.path.isdir(TauDEMDir3):
                         TauDEMDir = TauDEMDir3
+                        is539 = True
                     else:
-                        TauDEMUtils.error('''Cannot find TauDEM directory as {0}, {1} or {2}.  
-Have you installed SWATPlus?'''.format(TauDEMDir, TauDEMDir2, TauDEMDir3), hasQGIS)
-                    return ''
-        return TauDEMDir
+                        TauDEMDir4 = QSWATUtils.join(r'C:\SWAT\SWATPlus', Parameters._TAUDEMDIR)
+                        if os.path.isdir(TauDEMDir4):
+                            TauDEMDir = TauDEMDir4
+                        else:
+                            TauDEMDir5 = QSWATUtils.join(r'C:\SWAT\SWATEditor', Parameters._TAUDEM539DIR)  # path from QSWAT
+                            if os.path.isdir(TauDEMDir5):
+                                TauDEMDir = TauDEMDir5
+                                is539 = True
+                            else:
+                                TauDEMDir6 = QSWATUtils.join(r'C:\SWAT\SWATEditor', Parameters._TAUDEMDIR)
+                                if os.path.isdir(TauDEMDir6):
+                                    TauDEMDir = TauDEMDir6
+                                else:
+                                    TauDEMUtils.error('''Cannot find TauDEM directory as {0}, {1}, {2}, {3}, {4} or {5}.  
+            Have you installed SWAT+ as a different directory from C:/SWAT/SWATPlus?
+            If so use the QSWAT+ Parameters form to set the correct location.'''.
+            format(TauDEMDir, TauDEMDir2, TauDEMDir3, TauDEMDir4, TauDEMDir5, TauDEMDir6), hasQGIS)
+                                    return  '', False
+            else:
+                TauDEMDir2 = QSWATUtils.join(Parameters._SWATPLUSDEFAULTDIR, Parameters._TAUDEMDIR)
+                if os.path.isdir(TauDEMDir2):
+                    TauDEMDir = TauDEMDir2
+                    # should be suitable for Linux and Mac but in batch Linux fails to make the directory
+                    # is539 = True
+                else:
+                    TauDEMUtils.error('''Cannot find TauDEM directory as {0} or {1}.  
+Have you installed SWATPlus?'''.format(TauDEMDir, TauDEMDir2), hasQGIS)
+                    return '', False
+        QSWATUtils.loginfo('TauDEM directory is {0}'.format(TauDEMDir))
+        return TauDEMDir, is539
     
     @staticmethod
-    def findMPIExecPath(settings):
+    def findMPIExecPath(settings: QSettings) -> str:
         """Find and return path of MPI execuatable, if any, else None."""
-        if settings.contains('/QSWAT/mpiexecDir'):
-            path = QSWATUtils.join(settings.value('/QSWAT/mpiexecDir'), Parameters._MPIEXEC)
+        if settings.contains('/QSWATPlus/mpiexecDir'):
+            path: str = QSWATUtils.join(settings.value('/QSWATPlus/mpiexecDir'), Parameters._MPIEXEC)
         else:
-            settings.setValue('/QSWAT/mpiexecDir', Parameters._MPIEXECDEFAULTDIR)
+            settings.setValue('/QSWATPlus/mpiexecDir', Parameters._MPIEXECDEFAULTDIR)
             path = QSWATUtils.join(Parameters._MPIEXECDEFAULTDIR, Parameters._MPIEXEC)
         if os.path.exists(path):
             return path
@@ -268,18 +329,18 @@ Have you installed SWATPlus?'''.format(TauDEMDir, TauDEMDir2, TauDEMDir3), hasQG
             return ''
 
     @staticmethod
-    def taudemHelp():
+    def taudemHelp() -> None:
         """Display TauDEM help file."""
         settings = QSettings()
-        TauDEMDir = TauDEMUtils.findTauDEMDir(settings, False)
+        TauDEMDir, _ = TauDEMUtils.findTauDEMDir(settings, False)
         if Parameters._ISWIN and TauDEMDir != '':
             taudemHelpFile = QSWATUtils.join(TauDEMDir, Parameters._TAUDEMHELP)
-            os.startfile(taudemHelpFile)
+            os.startfile(taudemHelpFile)  # @UndefinedVariable since not defined in Linux
         else:
             webbrowser.open(Parameters._TAUDEMDOCS)
         
     @staticmethod
-    def error(msg, hasQGIS):
+    def error(msg: str, hasQGIS: bool) -> None:
         """Report error, just printing if no QGIS running."""
         if hasQGIS:
             QSWATUtils.error(msg, False)
@@ -287,7 +348,7 @@ Have you installed SWATPlus?'''.format(TauDEMDir, TauDEMDir2, TauDEMDir3), hasQG
             print(msg)
             
     @staticmethod
-    def loginfo(msg, hasQGIS):
+    def loginfo(msg: str, hasQGIS: bool) -> None:
         """Log msg, just printing if no QGIS running."""
         if hasQGIS:
             QSWATUtils.loginfo(msg)
@@ -295,7 +356,7 @@ Have you installed SWATPlus?'''.format(TauDEMDir, TauDEMDir2, TauDEMDir3), hasQG
             print(msg)
             
     @staticmethod
-    def logerror(msg, hasQGIS):
+    def logerror(msg: str, hasQGIS: bool) -> None:
         """Log error msg, just printing if no QGIS running."""
         if hasQGIS:
             QSWATUtils.logerror(msg)

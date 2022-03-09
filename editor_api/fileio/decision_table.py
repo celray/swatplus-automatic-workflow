@@ -10,17 +10,13 @@ from pathlib import Path
 
 
 class D_table_dtl(BaseFileModel):
-	def __init__(self, file_name, version=None, file_type=None):
+	def __init__(self, file_name, version=None, swat_version=None, file_type=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 		self.file_name_only = Path(file_name).name if file_type is None else file_type
 
-	def read(self, database ='project'):
-		"""
-		Read a d_table.dtl text file into the database.
-		:param database: project or datasets
-		:return:
-		"""
+	def set_tables(self, database ='project'):
 		self.db_file = datasets_base.db
 		self.d_table_dtl = db_datasets.D_table_dtl
 		self.d_table_dtl_cond = db_datasets.D_table_dtl_cond
@@ -36,6 +32,14 @@ class D_table_dtl(BaseFileModel):
 			self.d_table_dtl_act = db.D_table_dtl_act
 			self.d_table_dtl_act_out = db.D_table_dtl_act_out
 
+	def read(self, database ='project'):
+		"""
+		Read a d_table.dtl text file into the database.
+		:param database: project or datasets
+		:return:
+		"""
+		self.set_tables(database)
+
 		file = open(self.file_name, "r")
 		lines = file.readlines()
 
@@ -45,20 +49,42 @@ class D_table_dtl(BaseFileModel):
 				i += 1
 
 			if i < len(lines):
-				i = self.read_table(lines, i)
+				i, new_table = self.read_table(lines, i)
 
-	def read_table(self, lines, start_line):
+	def read_table(self, lines, start_line, edit_id=None):
 		i = start_line + 1  # Skip header
-		vals = lines[i].split()
+
+		#Try and get table description
+		table_description = None
+		header_vals = lines[start_line].strip().split('!')
+		if len(header_vals) > 1:
+			table_description = header_vals[1]
+
+		vals = lines[i].strip().split()
 		self.check_cols(vals, 4, 'decision table')
 		table_name = vals[0].strip()
 		num_conds = int(vals[1])
 		num_alts = int(vals[2])
 		num_acts = int(vals[3])
 
-		table, created = self.d_table_dtl.get_or_create(name=table_name, file_name=self.file_name_only)
+		do_del_existing = edit_id is not None
+		if edit_id is None:
+			table, created = self.d_table_dtl.get_or_create(name=table_name, file_name=self.file_name_only)
+			if not created:
+				do_del_existing = True
 
-		if not created:
+			if table_description is not None:
+				table.description = table_description
+				table.save()
+		else:
+			table = self.d_table_dtl.get_or_none(self.d_table_dtl.id == edit_id)
+
+		if do_del_existing:
+			cond_ids = self.d_table_dtl_cond.select(self.d_table_dtl_cond.id).where(self.d_table_dtl_cond.d_table_id == table.id)
+			act_ids = self.d_table_dtl_act.select(self.d_table_dtl_act.id).where(self.d_table_dtl_act.d_table_id == table.id)
+			self.d_table_dtl_cond_alt.delete().where(self.d_table_dtl_cond_alt.cond_id.in_(cond_ids)).execute()
+			self.d_table_dtl_act_out.delete().where(self.d_table_dtl_act_out.act_id.in_(act_ids)).execute()
+
 			self.d_table_dtl_cond.delete().where(self.d_table_dtl_cond.d_table_id == table.id).execute()
 			self.d_table_dtl_act.delete().where(self.d_table_dtl_act.d_table_id == table.id).execute()
 
@@ -66,8 +92,13 @@ class D_table_dtl(BaseFileModel):
 		cond_cols = 6
 		max_cond_lines = i + num_conds
 		while i < max_cond_lines:
-			cond_vals = lines[i].split()
+			cond_vals = lines[i].strip().split()
 			self.check_cols(cond_vals, cond_cols + num_alts, 'decision table condition line {}'.format(i))
+
+			cond_description = None
+			cond_header_vals = lines[i].strip().split('!')
+			if len(cond_header_vals) > 1:
+				cond_description = cond_header_vals[1]
 
 			cond = self.d_table_dtl_cond()
 			cond.d_table = table
@@ -77,6 +108,7 @@ class D_table_dtl(BaseFileModel):
 			cond.lim_var = cond_vals[3]
 			cond.lim_op = cond_vals[4]
 			cond.lim_const = float(cond_vals[5])
+			cond.description = cond_description
 			cond.save()
 
 			for j in range(0, num_alts):
@@ -91,7 +123,7 @@ class D_table_dtl(BaseFileModel):
 		act_cols = 8
 		max_act_lines = i + num_acts
 		while i < max_act_lines:
-			act_vals = lines[i].split()
+			act_vals = lines[i].strip().split()
 			self.check_cols(act_vals, act_cols, 'decision table actions')
 
 			act = self.d_table_dtl_act()
@@ -115,7 +147,7 @@ class D_table_dtl(BaseFileModel):
 			i += 1
 
 		i += 1
-		return i
+		return i, table
 
 	def write(self):
 		d_tables = db.D_table_dtl.select().where(db.D_table_dtl.file_name == self.file_name_only).order_by(db.D_table_dtl.id)
@@ -133,6 +165,8 @@ class D_table_dtl(BaseFileModel):
 										 col("alts", not_in_db=True, padding_override=utils.DEFAULT_INT_PAD),
 										 col("acts", not_in_db=True, padding_override=utils.DEFAULT_INT_PAD)]
 					self.write_headers(file, table_header_cols)
+					if d_table.description is not None:
+						file.write("     !{}".format(d_table.description))
 					file.write("\n")
 
 					first_cond = d_table.conditions.first()
@@ -170,6 +204,8 @@ class D_table_dtl(BaseFileModel):
 							cond_cols.append(col(alt.alt, padding_override=utils.DEFAULT_INT_PAD))
 
 						self.write_row(file, cond_cols)
+						if cond.description is not None:
+							file.write("     !{}".format(cond.description))
 						file.write("\n")
 
 					act_header_cols = [col(db.D_table_dtl_act.act_typ, direction="left", padding_override=20),

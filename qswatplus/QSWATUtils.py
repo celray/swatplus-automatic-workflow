@@ -20,24 +20,29 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import *  # @UnusedWildImport
-from PyQt5.QtGui import * # @UnusedWildImport
-from PyQt5.QtWidgets import * # @UnusedWildImport
-from PyQt5.QtXml import * # @UnusedWildImport
-from qgis.core import * # @UnusedWildImport
+from qgis.PyQt.QtCore import QCoreApplication, QDir, QEventLoop, QFile, QFileInfo, QSettings, QVariant, QTextStream, QIODevice
+from qgis.PyQt.QtGui import QColor 
+from qgis.PyQt.QtWidgets import QApplication, QFileDialog, QLabel, QLineEdit, QMessageBox, QComboBox
+from qgis.PyQt.QtXml import QDomAttr, QDomDocument, QDomNode, QDomNodeList, QDomText, QDomNamedNodeMap
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsContrastEnhancement, QgsError, QgsFeature, QgsFeatureRequest, QgsGeometry, QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeLayer, QgsLayerTreeNode, QgsLimitedRandomColorRamp, QgsMapLayer, QgsMessageLog, QgsPalettedRasterRenderer, QgsPointXY, QgsProject, QgsProviderRegistry, QgsRasterBandStats, QgsRasterLayer, QgsRasterShader, QgsRectangle, QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsUnitTypes, QgsVectorLayer, QgsWkbTypes, QgsLineSymbol, QgsColorRampShader, QgsGradientColorRamp, QgsGraduatedSymbolRenderer, QgsRendererRangeLabelFormat, QgsRendererRange, QgsClassificationJenks  # @UnusedImport
+                        
+                        
+                        
+
 import os.path
 import posixpath
 import ntpath
 import glob
 import shutil
-import random
 import time
 import datetime
 import sys
-from osgeo import gdal, ogr
-from typing import List, Dict, Tuple, Callable, TypeVar, Any, Optional, Generic
+import locale
+from osgeo import gdal, ogr  # type: ignore
+from typing import List, Dict, Tuple, Callable, TypeVar, Any, Optional, Generic, cast
 from builtins import int
 import traceback
+import processing   # type: ignore # @UnresolvedImport
 
 class QSWATUtils:
     """Various utilities."""
@@ -52,6 +57,7 @@ class QSWATUtils:
     _RESULTS_GROUP_NAME: str = 'Results'
     _ANIMATION_GROUP_NAME: str = 'Animations'
     
+    _DEMLEGEND: str = 'DEM'
     _SNAPPEDLEGEND: str = 'Snapped inlets/outlets'
     _SELECTEDLEGEND: str = 'Selected inlets/outlets'
     _DRAWNLEGEND: str = 'Drawn inlets/outlets'
@@ -63,6 +69,7 @@ class QSWATUtils:
     _HILLSHADELEGEND: str = 'Hillshade'
     _STREAMSLEGEND: str = 'Streams'
     _CHANNELSLEGEND: str = 'Channels'
+    _CHANNELREACHESLEGEND = 'Channel reaches'
     _SUBBASINSLEGEND: str = 'Subbasins'
     _WATERSHEDLEGEND: str = 'Watershed'
     _GRIDLEGEND: str = 'Watershed grid'
@@ -74,23 +81,29 @@ class QSWATUtils:
     _FULLLSUSLEGEND: str = 'Full LSUs'
     _ACTLSUSLEGEND: str = 'Actual LSUs'
     _EXTRAPTSRCANDRESLEGEND: str = 'Pt sources and reservoirs'
+    _LSUSLEGEND: str = 'LSUs'
+    _HRUSLEGEND: str = 'HRUs'
+    _AQUIFERSLEGEND: str = 'Aquifers'
+    
     ## x-offsets for TauDEM D8 flow directions, which run 1-8, so we use dir - 1 as index
     _dX: List[int] = [1, 1, 0, -1, -1, -1, 0, 1]
     ## y-offsets for TauDEM D8 flow directions, which run 1-8, so we use dir - 1 as index
     _dY: List[int] = [0, -1, -1, -1, 0, 1, 1, 1]
     
+    ## changing these will change code for LSU ids and aquifer ids
     _NOLANDSCAPE: int = 0
     _FLOODPLAIN: int = 1
     _UPSLOPE: int = 2
     
     @staticmethod
-    def qgisName():
+    def qgisName() -> str:
         """QGIS name as used in QGIS prefix path.
         
-        Find it using the path of qgis.  It is the name of the directory following 'apps"""
+        Find it using the path of qgis.  It is the name of the directory following 'apps'
+        This only seems to work on Windows"""
         try:
             import qgis
-            dirs = qgis.__file__.split('/')  
+            dirs = qgis.__file__.split('/')  # @UndefinedVariable
             for i in range(len(dirs)):
                 if dirs[i] == 'apps':
                     return dirs[i+1]
@@ -101,7 +114,7 @@ class QSWATUtils:
             return 'qgis'
             
     @staticmethod
-    def error(msg: str, isBatch: bool, reportErrors=True) -> None:
+    def error(msg: str, isBatch: bool, reportErrors: bool=True, logFile: Optional[str]=None) -> None:
         """Report msg as an error.  If not reportErrors merely log the message."""
         QSWATUtils.logerror(msg)
         if not reportErrors:
@@ -110,7 +123,11 @@ class QSWATUtils:
             # in batch mode we generally only look at stdout 
             # (to avoid distracting messages from gdal about .shp files not being supported)
             # so report to stdout
-            sys.stdout.write('ERROR: {0}\n'.format(msg))
+            if logFile is None:
+                sys.stdout.write('ERROR: {0}\n'.format(msg))
+            else:
+                with open(logFile, 'a') as f:
+                    f.write('ERROR: {0}\n'.format(msg))
         else:
             msgbox: QMessageBox = QMessageBox()
             msgbox.setWindowTitle(QSWATUtils._QSWATNAME)
@@ -120,21 +137,21 @@ class QSWATUtils:
         return
     
     @staticmethod
-    def exceptionError(msg: str, isBatch: bool) -> None:
-        QSWATUtils.error('{0}: {1}'.format(msg, traceback.format_exc()), isBatch)
+    def exceptionError(msg: str, isBatch: bool, reportErrors: bool=True, logFile: Optional[str]=None) -> None:
+        QSWATUtils.error('{0}: {1}'.format(msg, traceback.format_exc()), isBatch, reportErrors, logFile)
         return
     
     @staticmethod
-    def question(msg: str, isBatch: bool, affirm: bool) -> QMessageBox.StandardButton:
+    def question(msg: str, isBatch: bool, affirm: bool, logFile: Optional[str]=None) -> QMessageBox.StandardButton:
         """Ask msg as a question, returning Yes or No."""
         # only ask question if interactive
         if not isBatch:
             questionBox: QMessageBox = QMessageBox()
             questionBox.setWindowTitle(QSWATUtils._QSWATNAME)
             questionBox.setIcon(QMessageBox.Question)
-            questionBox.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            questionBox.setStandardButtons(QMessageBox.Yes | QMessageBox.No)  # type: ignore
             questionBox.setText(QSWATUtils.trans(msg))
-            result: QMessageBox.StandardButton = questionBox.exec_()
+            result: QMessageBox.StandardButton = questionBox.exec_()  # type: ignore
         else: # batch: use affirm parameter
             if affirm:
                 result = QMessageBox.Yes
@@ -146,18 +163,25 @@ class QSWATUtils:
             res = ' No'
         QSWATUtils.loginfo(msg + res)
         if isBatch:
-            sys.stdout.write('{0}\n'.format(msg + res))
+            if logFile is None:
+                sys.stdout.write('{0}\n'.format(msg + res))
+            else:
+                with open(logFile, 'a') as f:
+                    f.write('{0}\n'.format(msg + res))
         return result
     
     @staticmethod
-    def information(msg, isBatch, reportErrors=True):
+    def information(msg: str, isBatch: bool, reportErrors: bool=True, logFile: Optional[str]=None) -> None:
         """Report msg as information."""
         QSWATUtils.loginfo(msg)
         if not reportErrors:
             return
         if isBatch:
-            sys.stdout.write('\r{0}      '.format(msg))
-            sys.stdout.flush()
+            if logFile is None:
+                sys.stdout.write('{0}\n'.format(msg))
+            else:
+                with open(logFile, 'a') as f:
+                    f.write('{0}\n'.format(msg))
         else:
             msgbox: QMessageBox = QMessageBox()
             msgbox.setWindowTitle(QSWATUtils._QSWATNAME)
@@ -199,8 +223,11 @@ class QSWATUtils:
         
     @staticmethod
     def samePath(p1: str, p2: str)-> bool:
-        """Return true if absolute paths of the two paths are the same."""
-        return os.path.abspath(p1) == os.path.abspath(p2)
+        """Return true if paths both represent the same file or directory."""
+        # guard against source or target path not yet existing
+        if not (os.path.exists(p1) and os.path.exists(p2)):
+            return False
+        return os.path.samefile(p1, p2)
     
     @staticmethod
     def copyPrj(inFile: str, outFile: str) -> None:
@@ -235,9 +262,7 @@ class QSWATUtils:
         else:
             label.setText(text)
             # shows on console if visible; more useful in testing when appears on standard output
-            sys.stdout.write("\r{0}                                ".format(text))
-            sys.stdout.flush()
-
+            print(text)
             # calling processEvents after label.clear can cause QGIS to hang
             label.update()
             QCoreApplication.processEvents(QEventLoop.ExcludeUserInputEvents)
@@ -245,7 +270,9 @@ class QSWATUtils:
     @staticmethod
     def layerFileInfo(mapLayer: QgsMapLayer) -> Optional[QFileInfo]:
         """Return QFileInfo of raster or vector layer."""
-        provider: QgsDataProvider = mapLayer.dataProvider()
+        if mapLayer is None:
+            return None
+        provider = mapLayer.dataProvider()
         if isinstance(mapLayer, QgsRasterLayer):
             return QFileInfo(provider.dataSourceUri())
         elif isinstance(mapLayer, QgsVectorLayer):
@@ -258,13 +285,13 @@ class QSWATUtils:
         return None
     
     @staticmethod
-    def layerFilename(layer):
+    def layerFilename(layer: QgsMapLayer) -> str:
         """Return path of raster or vector layer."""
         provider = layer.dataProvider()
         if isinstance(layer, QgsRasterLayer):
             return provider.dataSourceUri()
         elif isinstance(layer, QgsVectorLayer):
-            path  = provider.dataSourceUri()
+            path: str  = provider.dataSourceUri()
             # vector data sources have additional "|layerid=0"
             pos = path .find('|')
             if pos >= 0:
@@ -276,49 +303,66 @@ class QSWATUtils:
     def removeLayerAndFiles(fileName: str, root: QgsLayerTreeGroup) -> None:
         """Remove any layers for fileName; delete files with same basename 
         regardless of suffix.
+        
+        Do not use with shapefiles: removes some but leaves .shp and .dbf.
         """
         QSWATUtils.removeLayer(fileName, root)
-        # wait for layers to be removed
-        QApplication.processEvents()
         QSWATUtils.removeFiles(fileName)
       
     @staticmethod
     def tryRemoveLayerAndFiles(fileName: str, root: QgsLayerTreeGroup) -> None:
         """Remove any layers for fileName; delete files with same basename 
         regardless of suffix, but allow deletions to fail.
+        
+        Do not use with shapefiles: removes some but leaves .shp and .dbf.
         """
         QSWATUtils.removeLayer(fileName, root)
-        # wait for layers to be removed
-        QApplication.processEvents()
         QSWATUtils.tryRemoveFiles(fileName)
+        
+    @staticmethod 
+    def tryRemoveShapefileLayerAndDir(direc: str, root: QgsLayerTreeGroup) -> None:
+        """Remove directory containing shapefile and any layers."""
+        base = os.path.split(direc)[1]
+        shapefile = QSWATUtils.join(direc, base + '.shp')
+        QSWATUtils.removeLayer(shapefile, root)
+        shutil.rmtree(direc, ignore_errors=True)
           
     @staticmethod  
     def removeLayer(fileName: str, root: QgsLayerTreeGroup) -> None:
         """Remove any layers for fileName."""
         fileInfo: QFileInfo = QFileInfo(fileName)
         lIds: List[str] = []
-        layers = []
+        layers:  List[QgsLayerTreeLayer] = []
         for layer in root.findLayers():
-            info: QFileInfo = QSWATUtils.layerFileInfo(layer.layer())
+            mapLayer = layer.layer()
+            assert mapLayer is not None
+            info = QSWATUtils.layerFileInfo(mapLayer)
             if info == fileInfo:
                 lIds.append(layer.layerId())
                 layers.append(layer)
         QgsProject.instance().removeMapLayers(lIds)
         for layer in layers:
             del layer
+        # wait for layers to be removed
+        QApplication.processEvents()
      
     @staticmethod
     def removeLayerByLegend(legend: str, treeLayers: List[QgsLayerTreeLayer]) -> None:
         """Remove any tree layers whose legend name starts with the legend."""
+        # empty legend would remove all layers
+        if legend == '':
+            return
         lIds: List[str] = []
         for treeLayer in treeLayers:
             name: str = treeLayer.name()
             if name.startswith(legend):
                 lIds.append(treeLayer.layerId())
         QgsProject.instance().removeMapLayers(lIds)
+        # wait for layers to be removed
+        QApplication.processEvents()
         
     @staticmethod
-    def removeAllFeatures(layer: QgsVectorLayer):
+    def removeAllFeatures(layer: QgsVectorLayer) -> bool:
         """Remove all features from layer."""
         provider = layer.dataProvider()
         request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry)
@@ -329,8 +373,9 @@ class QSWATUtils:
     def setLayerVisibility(layer: QgsMapLayer, visibility: bool, root: QgsLayerTreeGroup) -> None:
         """Set map layer visible or not according to visibility."""
         try:
-            treeLayer: QgsLayerTreeLayer = root.findLayer(layer.id())
-            treeLayer.setItemVisibilityChecked(visibility)
+            treeLayer: Optional[QgsLayerTreeLayer] = root.findLayer(layer.id())
+            if treeLayer is not None:
+                treeLayer.setItemVisibilityChecked(visibility)
         except Exception:
             # layer probably removed - just exit
             return
@@ -370,11 +415,15 @@ class QSWATUtils:
         """
         Delete all files with same root as fileName, 
         i.e. regardless of suffix.
+        
+        Do not use with shapefiles: removes some but leaves .shp and .dbf.
         """
+        # wait for layers to be removed
+        QApplication.processEvents()
         pattern = os.path.splitext(fileName)[0] + '.*'
         for f in glob.iglob(pattern):
             os.remove(f)
-                
+            
     @staticmethod
     def tryRemoveFiles(fileName: str) -> None:
         """
@@ -382,6 +431,15 @@ class QSWATUtils:
         i.e. regardless of suffix, but allow deletions to fail.
         """
         pattern: str = os.path.splitext(fileName)[0] + '.*'
+        QSWATUtils.tryRemoveFilePattern(pattern)
+            
+    @staticmethod
+    def tryRemoveFilePattern(pattern: str) -> None:
+        """Delete all files matching pattern, allowing deletions to fail.
+        
+        Do not use with shapefiles: removes some but leaves .shp and .dbf."""
+        # wait for layers to be removed
+        QApplication.processEvents()
         for f in glob.iglob(pattern):
             try:
                 os.remove(f)
@@ -401,24 +459,26 @@ class QSWATUtils:
             inDirName: str = inInfo.dir().dirName()
             savePath: str = QSWATUtils.join(saveDir, inDirName)
             # guard against trying to copy to itself
-            inPath = os.path.normcase(os.path.abspath(inPath))
-            savePath = os.path.normcase(os.path.abspath(savePath))
-            if inPath != savePath:
+            if not QSWATUtils.samePath(inPath, savePath):
                 if os.path.exists(savePath):
                     shutil.rmtree(savePath)
                 shutil.copytree(inPath, savePath, True, None)
-        else:
+        elif not QSWATUtils.samePath(inPath, saveDir):
             pattern: str = QSWATUtils.join(inPath, inInfo.baseName()) + '.*'
             for f in glob.iglob(pattern):
                 shutil.copy(f, saveDir)
                 
     @staticmethod
-    def copyShapefile(infile: str, outbase: str, outdir: str) -> None:
+    def copyShapefile(inFile: str, outBase: str, outDir: str) -> None:
         """Copy files with same basename as infile to outdir, setting basename to outbase."""
-        pattern: str = os.path.splitext(infile)[0] + '.*'
+        inDir, inName = os.path.split(inFile)
+        if QSWATUtils.samePath(inDir, outDir) and os.path.splitext(inName)[0] == outBase:
+            # avoid copying to same file
+            return
+        pattern: str = os.path.splitext(inFile)[0] + '.*'
         for f in glob.iglob(pattern):
             suffix: str = os.path.splitext(f)[1]
-            outfile: str = QSWATUtils.join(outdir, outbase + suffix)
+            outfile: str = QSWATUtils.join(outDir, outBase + suffix)
             shutil.copy(f, outfile)
             
     @staticmethod
@@ -434,9 +494,8 @@ class QSWATUtils:
             return False
         return True
         
-            
     @staticmethod
-    def nextFileName(baseFile, n):
+    def nextFileName(baseFile: str, n: int) -> Tuple[str, int]:
         """If baseFile takes form X.Y, returns Xz.Y, z where z is the smallest integer >= n such that Xz.Y does not exist."""
         base, suffix = os.path.splitext(baseFile)
         nextFile = base + str(n) + suffix
@@ -452,16 +511,20 @@ class QSWATUtils:
         Look for file that should have a map layer and return it. 
         If not found by filename, try legend, either as given or by file type ft.
         """
-        layer: QgsMapLayer = QSWATUtils.getLayerByFilename(treeLayers, fileName, ft, None, None, None)[0]
+        layer: Optional[QgsMapLayer] = \
+            QSWATUtils.getLayerByFilename(treeLayers, fileName, ft, None, None, None)[0]
         if layer is not None:
             return layer
         lgnd: str = FileTypes.legend(ft) if legend == '' else legend
-        treeLayer: QgsLayerTreeLayer = QSWATUtils.getLayerByLegend(lgnd, treeLayers)
+        treeLayer: Optional[QgsLayerTreeLayer] = QSWATUtils.getLayerByLegend(lgnd, treeLayers)
         if treeLayer is not None:
             layer = treeLayer.layer()
-            possFile: str = QSWATUtils.layerFileInfo(layer).absoluteFilePath()
-            if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, lgnd), isBatch, True) == QMessageBox.Yes:
-                return layer
+            if layer is not None:
+                info = QSWATUtils.layerFileInfo(layer)
+                if info is not None:
+                    possFile: str = info.absoluteFilePath()
+                    if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, lgnd), isBatch, True) == QMessageBox.Yes:
+                        return layer
         return None
     
     @staticmethod
@@ -476,7 +539,7 @@ class QSWATUtils:
         if units == QgsUnitTypes.DistanceMeters:
             factor: float = 1
         elif units == QgsUnitTypes.DistanceFeet:
-            factor = 0.0348
+            factor = 0.3048
         else: # something odd has happened - probably in lat-long - reported elsewhere
             return rasterLayer
         xSize: float = rasterLayer.rasterUnitsPerPixelX() * factor
@@ -502,34 +565,67 @@ class QSWATUtils:
         clipName: str = baseName + '_clip.tif'
         QSWATUtils.removeLayerByLegend(legend, treeLayers)
         QSWATUtils.tryRemoveFiles(clipName)
-        command: str = 'gdal_translate -a_nodata {0!s} -of GTiff -srcwin {1} {2} {3} {4} "{5}" "{6}"' \
-                        .format(nodata, leftExcess, topExcess, numCols, numRows, fileName, clipName)
-        QSWATUtils.loginfo(command)
-        os.system(command)
+        processing.run("gdal:translate",
+                       {'INPUT':fileName,
+                        'TARGET_CRS':None,
+                        'NODATA':nodata,
+                        'COPY_SUBDATASETS':False,
+                        'OPTIONS':'',
+                        'EXTRA':'-srcwin {0} {1} {2} {3}'.format(leftExcess, topExcess, numCols, numRows),
+                        'DATA_TYPE':0,
+                        'OUTPUT':clipName})
+#         command: str = 'gdal_translate -a_nodata {0!s} -of GTiff -srcwin {1} {2} {3} {4} "{5}" "{6}"' \
+#                         .format(nodata, leftExcess, topExcess, numCols, numRows, fileName, clipName)
+#         QSWATUtils.loginfo(command)
+#         os.system(command)
         assert os.path.exists(clipName), 'Failed to clip raster {0} to make {1}'.format(fileName, clipName)
         QSWATUtils.copyPrj(fileName, clipName)
         return QgsRasterLayer(clipName, '{0} ({1})'.format(legend, os.path.split(clipName)[1]))
     
-    @staticmethod
-    def checkAdequateForWshed(layers, fileName, xMin, xMax, yMin, yMax, xSize, ySize, gv):
-        """Check extent is sufficient to cover subbasins."""
-        subbasinsLayer = QSWATUtils.getLayerByFilename(layers, gv.subbasinsFile, FileTypes._SUBBASINS, None, False)[0]
-        if subbasinsLayer is None:
-            return
-        subExtent = subbasinsLayer.extent()
-        # need at least a cell around subbasins
-        if xMin > (subExtent.xMinimum() - xSize) or \
-            xMax < (subExtent.xMaximum() + xSize) or \
-            yMin > (subExtent.yMinimum() - abs(ySize)) or \
-            yMax < (subExtent.yMaximum() + abs(ySize)):
-                QSWATUtils.information('{0} the extent of {0} does not seem adequate to cover the watershed.  Have you clipped it too much?'.format(fileName),
-                                       gv.isBatch)
-        return
-            
+#     @staticmethod
+#     def checkAdequateForWshed(layers, fileName, xMin, xMax, yMin, yMax, xSize, ySize, gv):
+#         """Check extent is sufficient to cover subbasins."""
+#         subbasinsLayer = QSWATUtils.getLayerByFilename(layers, gv.subbasinsFile, FileTypes._SUBBASINS, None, False)[0]
+#         if subbasinsLayer is None:
+#             return
+#         subExtent = subbasinsLayer.extent()
+#         # need at least a cell around subbasins
+#         if xMin > (subExtent.xMinimum() - xSize) or \
+#             xMax < (subExtent.xMaximum() + xSize) or \
+#             yMin > (subExtent.yMinimum() - abs(ySize)) or \
+#             yMax < (subExtent.yMaximum() + abs(ySize)):
+#                 QSWATUtils.information('{0} the extent of {0} does not seem adequate to cover the watershed.  Have you clipped it too much?'.format(fileName),
+#                                        gv.isBatch)
+#         return
+        
+    @staticmethod 
+    def dirToShapefile(path: str) -> str:
+        """If path is P/X.shp and P/X is a directory, return P/X/X.shp,
+        else return path."""
+        base = os.path.splitext(path)[0]
+        if os.path.isdir(base):
+            baseName = os.path.split(base)[1]
+            return QSWATUtils.join(base, baseName + '.shp')
+        return path
+    
+    @staticmethod 
+    def shapefileToDir(path: str) -> str:
+        """If path has form P/X/X.shp result is P/X, else path is Z.shp and result is Z.  Result directory created if necessary. """
+        dir0 = os.path.splitext(path)[0]
+        dir1, dir0Name = os.path.split(dir0)
+        dir1Name = os.path.split(dir1)[1]
+        if dir1Name == dir0Name:
+            outDir = dir1
+        else:
+            outDir = dir0
+        if not os.path.isdir(outDir):
+            os.mkdir(outDir)
+        return outDir
+
     @staticmethod        
     def getLayerByFilename(treeLayers: List[QgsLayerTreeLayer], fileName: str, ft: int, gv: Any, 
-                           subLayer: Optional[QgsLayerTreeLayer], groupName: Optional[str], clipToDEM: bool =False) \
-                            -> Tuple[Optional[QgsMapLayer], bool]:
+                           subLayer: Optional[QgsLayerTreeLayer], groupName: Optional[str], 
+                           clipToDEM: bool =False) -> Tuple[Optional[QgsMapLayer], bool]:
         """
         Return map layer for this fileName and flag to indicate if new layer, 
         loading it if necessary if groupName is not None.
@@ -538,13 +634,17 @@ class QSWATUtils:
         """
         fileInfo: QFileInfo = QFileInfo(fileName)
         for treeLayer in treeLayers:
-            mapLayer = treeLayer.layer()
-            if QSWATUtils.layerFileInfo(mapLayer) == fileInfo:
-                return (mapLayer, False)
+            mLayer = treeLayer.layer()
+            if mLayer is not None and QSWATUtils.layerFileInfo(mLayer) == fileInfo:
+                if isinstance(mLayer, QgsVectorLayer) and mLayer.mapTipTemplate() == '':
+                    mapTip = FileTypes.mapTip(ft)
+                    if mapTip != '':
+                        mLayer.setMapTipTemplate(mapTip)
+                return (mLayer, False)
         # not found: load layer if requested
         if groupName is not None:
             legend: str = FileTypes.legend(ft)
-            styleFile: str = FileTypes.styleFile(ft)
+            styleFile: Optional[str] = FileTypes.styleFile(ft)
             baseName: str = fileInfo.baseName()
             if fileInfo.suffix() == 'adf':
                 # ESRI grid: use directory name as baseName
@@ -564,47 +664,64 @@ class QSWATUtils:
                 QSWATUtils.removeLayerByLegend(legend, treeLayers)
             proj: QgsProject = QgsProject.instance()
             root: QgsLayerTreeGroup = proj.layerTreeRoot()
-            group: QgsLayerTreeGroup = root.findGroup(groupName)
+            group: Optional[QgsLayerTreeGroup] = root.findGroup(groupName)
             if group is None:
-                QSWATUtils.information('Internal error: cannot find group {0].'.format(groupName), gv.isBatch)
+                QSWATUtils.information('Internal error: cannot find group {0}.'.format(groupName), gv.isBatch)
                 return None, False
             if subLayer is None:
                 index: int = 0
             else:
                 index = QSWATUtils.groupIndex(group, subLayer)
             if FileTypes.isRaster(ft):
-                layer: QgRasterLayer = QgsRasterLayer(fileName, '{0} ({1})'.format(legend, baseName))
+                layer: QgsMapLayer = QgsRasterLayer(fileName, '{0} ({1})'.format(legend, baseName))
                 if clipToDEM:
-                    layer = QSWATUtils.clipLayerToDEM(treeLayers, layer, fileName, legend, gv)
+                    layer = QSWATUtils.clipLayerToDEM(treeLayers, cast(QgsRasterLayer, layer), fileName, legend, gv)
+                mapTip = ''  # so we can check later if the file is a raster
             else: 
                 ogr.RegisterAll()
                 layer = QgsVectorLayer(fileName, '{0} ({1})'.format(legend, baseName), 'ogr')
-            layer: QgsMapLayer = proj.addMapLayer(layer, False)
-            if layer is not None and group is not None:
-                group.insertLayer(index, layer)
-            if layer is not None and layer.isValid():
+                mapTip = FileTypes.mapTip(ft)
+                # map tip is destryed by laodNamedStyle, so set it later
+            mapLayer: QgsMapLayer = proj.addMapLayer(layer, False)
+            if mapLayer is not None and group is not None:
+                group.insertLayer(index, mapLayer)
+            if mapLayer is not None and mapLayer.isValid():
                 # this function does not seem to work:
                 # replaced by code above to set the layer insertion point
-                # layer = QSWATUtils.moveLayerToGroup(layer, groupName, root, gv)
-                fun: Callable[[QgsMapLayer, Any], None] = FileTypes.colourFun(ft)
+                # mapLayer = QSWATUtils.moveLayerToGroup(mapLayer, groupName, root, gv)
+                fun: Optional[Callable[[QgsRasterLayer, Any], None]] = FileTypes.colourFun(ft)
                 if fun is not None:
-                    fun(layer, gv.db)
+                    assert isinstance(mapLayer, QgsRasterLayer)
+                    fun(mapLayer, gv.db)
                 if not (styleFile is None or styleFile == ''):
+                    if ft == FileTypes._LAKES:
+                        # change lakes style file to lakesnores.qml if there is no RES field
+                        # since lakes.qml styles according to the value in this field 
+                        assert isinstance(layer, QgsVectorLayer)
+                        resIndex = layer.fields().lookupField('RES')
+                        if resIndex < 0:
+                            styleFile = 'lakesnores.qml'
                     # note thic causes 'Calling appendChild() on a null node does nothing.' to be output
-                    layer.loadNamedStyle(QSWATUtils.join(gv.plugin_dir, styleFile))
+                    mapLayer.loadNamedStyle(QSWATUtils.join(gv.plugin_dir, styleFile))
                 # save qml form of DEM style file if batch (no support for sld form for rasters)
                 if gv.isBatch and ft == FileTypes._DEM:
                     qmlFile: str = QSWATUtils.join(gv.projDir, 'dem.qml')
-                    msg, OK = layer.saveNamedStyle(qmlFile)
+                    msg, OK = mapLayer.saveNamedStyle(qmlFile)
                     if not OK:
                         QSWATUtils.error('Failed to create dem.qml: {0}'.format(msg), gv.isBatch)
-                return (layer, True)
+                # now can set map tip if there is one
+                if mapTip != '':
+                    assert isinstance(mapLayer, QgsVectorLayer)
+                    mapLayer.setMapTipTemplate(mapTip)
+                return (mapLayer, True)
             else:
-                if layer is not None:
-                    err: QgsError = layer.error()
-                    msg: str = err.summary()
-                else:
-                    msg = 'layer is None'
+                msg = ''
+                if mapLayer is not None:
+                    err: QgsError = mapLayer.error()
+                    if not err.isEmpty():
+                        msg = err.summary()
+                if msg == '':
+                    msg = 'layer is None: {0}'.format(proj.error())
                 QSWATUtils.error('Failed to load {0}: {1}'.format(fileName, msg), gv.isBatch)
         return (None, False)
     
@@ -615,7 +732,8 @@ class QSWATUtils:
         if group is None:
             return index
         for child in group.children():
-            if QgsLayerTree.isLayer(child) and child == layer:
+            node = cast(QgsLayerTreeNode, child)
+            if QgsLayerTree.isLayer(node) and node == layer:
                 return index
             index += 1
         return 0
@@ -625,9 +743,9 @@ class QSWATUtils:
                          root: QgsLayerTreeGroup, gv: Any) -> QgsMapLayer:
         """Move map layer to start of group unless already in it, and return it."""
         QSWATUtils.loginfo('Moving {0} to group {1}'.format(layer.name(), groupName))
-        group: QgsLayerTreeGroup = root.findGroup(groupName)
+        group: Optional[QgsLayerTreeGroup] = root.findGroup(groupName)
         if group is None:
-            QSWATUtils.information('Internal error: cannot find group {0].'.format(groupName), gv.isBatch)
+            QSWATUtils.information('Internal error: cannot find group {0}.'.format(groupName), gv.isBatch)
             return layer
         layerId: str = layer.id()
         # redundant code, but here to make a fast exit from usual situation of already in right group
@@ -635,19 +753,20 @@ class QSWATUtils:
             QSWATUtils.loginfo('Found layer in group {}'.format(groupName))
             return layer
         # find the group the layer is in
-        currentGroup: QgsLayerTreeGroup = root
-        currentLayer: QgsLayerTreeLayer = root.findLayer(layerId)
+        currentGroup: Optional[QgsLayerTreeGroup] = root
+        currentLayer: Optional[QgsLayerTreeLayer] = root.findLayer(layerId)
         if currentLayer is None:
             # not at the top level: check top level groups
-            currentGroup = None
-            for node in root.children():
+            currentGroup = None 
+            for child in root.children():
+                node = cast(QgsLayerTreeNode, child)
                 if QgsLayerTree.isGroup(node):
-                    currentLayer = node.findLayer(layerId)
+                    currentLayer = cast(QgsLayerTreeGroup, node).findLayer(layerId)
                     if currentLayer is not None:
                         if node == group: # already in required group
                             return layer
                         else:
-                            currentGroup = node
+                            currentGroup = cast(QgsLayerTreeGroup, node)
                             break
         if currentGroup is None:
             # failed to find layer
@@ -657,51 +776,59 @@ class QSWATUtils:
         QSWATUtils.loginfo('Found layer in group {0}'.format(currentGroup.name()))
         # need to move from currentGroup to group
         QSWATUtils.loginfo('Layer to be cloned is {0}'.format(repr(layer)))
-        cloneLayer: QgsLayerTreeLayer = layer.clone()
+        cloneLayer = layer.clone()
         QSWATUtils.loginfo('Cloned map layer is {0}'.format(repr(cloneLayer)))
         movedLayer: QgsLayerTreeLayer = group.insertLayer(0, cloneLayer)
         currentGroup.removeLayer(layer)
         QSWATUtils.loginfo('Moved tree layer is {0}'.format(repr(movedLayer)))
-        QSWATUtils.loginfo('Moved map layer is {0}'.format(repr(movedLayer.layer())))
-        return movedLayer.layer()
+        newMapLayer: Optional[QgsMapLayer] = movedLayer.layer()
+        if newMapLayer is None:
+            return layer
+        QSWATUtils.loginfo('Moved map layer is {0}'.format(repr(newMapLayer)))
+        return newMapLayer
     
     @staticmethod  
     def printLayers(root: QgsLayerTreeGroup, n: int) -> None:
-        """Debug function for displaying tre and map laers."""
+        """Debug function for displaying tree and map laers."""
         layers: List[Tuple[str, QgsLayerTreeLayer]] = [(layer.name(), layer) for layer in root.findLayers()]
         mapLayers: List[Tuple[str, QgsMapLayer]] = \
-            [(layer.layer().name(), layer.layer()) for layer in root.findLayers()]
+            [(layer.layer().name(), layer.layer()) for layer in root.findLayers()]  # type: ignore
         QSWATUtils.loginfo('{0}: layers: {1}'.format(n, repr(layers)))
         QSWATUtils.loginfo('{0}: map layers: {1}'.format(n, repr(mapLayers)))
         
     @staticmethod    
     def openAndLoadFile(root: QgsLayerTreeGroup, ft: int,
-                        box: QTextEdit, saveDir: str, gv: Any, 
-                        subLayer: QgsLayerTreeLayer, groupName: str, clipToDEM: bool =False) \
+                        box: QLineEdit, saveDir: str, gv: Any, 
+                        subLayer: QgsLayerTreeLayer, groupName: str, clipToDEM: bool=False, runFix: bool=False) \
                             -> Tuple[Optional[str], Optional[QgsMapLayer]]:
         """
-        Use dialog to open file of FileType ft chosen by user, 
+        Use dialog to open file of FileType ft chosen by user (or get from box if is batch, intended for testing), 
         add a layer for it if necessary, 
         clip if clipToDEM is true and substantially larger than DEM,
-        copy files to saveDir, write path to box,
-        and return file path and layer.
+        run geometry fix if runFix is true,
+        copy files to saveDir, or to directory within saveDir if makeDir is true, write path to box,
+        and return file (or directory if makeDir is true) path and layer.
         """
-        settings: QSettings = QSettings()
+        settings = QSettings()
         if settings.contains('/QSWATPlus/LastInputPath'):
-            path: str = str(settings.value('/QSWATPlus/LastInputPath'))
+            path = str(settings.value('/QSWATPlus/LastInputPath'))
         else:
             path = ''
-        title: str = QSWATUtils.trans(FileTypes.title(ft))
-        inFileName, _ = QFileDialog.getOpenFileName(None, title, path, FileTypes.filter(ft))
+        title = QSWATUtils.trans(FileTypes.title(ft))
+        if gv.isBatch:
+            # filename in box
+            inFileName = box.text()
+        else:
+            inFileName, _ = QFileDialog.getOpenFileName(None, title, path, FileTypes.filter(ft))
         #QSWATUtils.information('File is |{0}|'.format(inFileName), False)
         if inFileName is not None and inFileName != '':
             settings.setValue('/QSWATPlus/LastInputPath', os.path.dirname(str(inFileName)))
             # copy to saveDir if necessary
-            inInfo: QFileInfo = QFileInfo(inFileName)
-            inDir: QDir = inInfo.absoluteDir()
-            outDir: QDir = QDir(saveDir)
+            inInfo = QFileInfo(inFileName)
+            inFile = inInfo.fileName()
+            inDir = inInfo.absoluteDir()
+            outDir = QDir(saveDir)
             if inDir != outDir:
-                inFile: str = inInfo.fileName()
                 if inFile == 'sta.adf' or inFile == 'hdr.adf':
                     # ESRI grid - whole directory will be copied to saveDir
                     inDirName: str = inInfo.dir().dirName()
@@ -731,7 +858,12 @@ class QSWATUtils:
                     del inDs
                     del outDs
                 else:
-                    QSWATUtils.copyFiles(inInfo, saveDir)
+                    if runFix:
+                        QSWATUtils.fixGeometry(inFileName, saveDir)
+                    else:
+                        QSWATUtils.copyFiles(inInfo, saveDir)
+            # even if runFix is true, has already neen stored in project folder 
+            # and so fixing geometry should be unnecessary
             else:
                 outFileName = inFileName
             if ft == FileTypes._CSV or ft == FileTypes._CHANNELBASINSRASTER:
@@ -742,21 +874,39 @@ class QSWATUtils:
                                                   gv, subLayer, groupName, clipToDEM)[0]
             if not layer:
                 return (None, None)
-            if clipToDEM:
-                # file name has changed if clipped
-                outFileName = layer.dataProvider().dataSourceUri()
+            # layer name will have changed if clipped
+            outFileName = QSWATUtils.layerFilename(layer)
             if box is not None:
                 box.setText(outFileName)
             # if no .prj file, try to create one
             # this is needed, for example, when DEM is created from ESRI grid
             # or if DEM is made by clipping
             QSWATUtils.writePrj(outFileName, layer)
+            # check projection EPSG is same as project
+            if gv.crsProject is not None:  # it is None before DEM is loaded
+                epsgProject = gv.crsProject.authid()
+                epsgLoad = layer.crs().authid()
+                if epsgProject != epsgLoad:
+                    QSWATUtils.error('File {0} has a projection {1} which is different from the project projection {2}, which was set from the DEM.  Please reproject and reload.'.
+                                     format(outFileName, epsgLoad, epsgProject), gv.isBatch)
+                    QgsProject.instance().removeMapLayer(layer.id())
+                    del layer
+                    gv.iface.mapCanvas().refresh()
+                    return (None, None)
             return (outFileName, layer)
         else:
             return (None, None)
         
     @staticmethod
-    def getFeatureByValue(layer: QgsVectorLayer, indx: int, val) -> Optional[QgsFeature]:
+    def fixGeometry(inFile: str, saveDir: str) -> None:
+        """Fix geometries in shapefile.  Assumes saveDir is not the folder of inFile."""
+        filename = os.path.split(inFile)[1]
+        outFile = QSWATUtils.join(saveDir, filename)
+        params = {'INPUT': inFile, 'OUTPUT': outFile}
+        processing.run('native:fixgeometries', params)
+        
+    @staticmethod
+    def getFeatureByValue(layer: QgsVectorLayer, indx: int, val: Any) -> Optional[QgsFeature]:
         """Return feature in features whose attribute with index indx has value val."""
         for f in layer.getFeatures():
             v = f[indx]
@@ -784,17 +934,17 @@ class QSWATUtils:
             You may need to set this map's projection manually""", False)
         
     @staticmethod
-    def tempFolder():
+    def tempFolder(create: bool=True) -> str:
         """Make temporary QSWAT folder and return its absolute path."""
         tempDir = QSWATUtils.join(str(QDir.tempPath()), 'QSWAT')
-        if not QDir(tempDir).exists():
+        if create and not QDir(tempDir).exists():
             QDir().mkpath(tempDir)
         return tempDir
     
     @staticmethod
-    def tempFile(suffix):
+    def tempFile(suffix: str) -> str:
         """Make a new temporary file in tempFolder with suffix."""
-        base = 'tmp' + str(time.clock()).replace('.','')
+        base = 'tmp' + str(time.process_time()).replace('.','')
         folder = QSWATUtils.tempFolder()
         fil = QSWATUtils.join(folder, base + suffix)
         if os.path.exists(fil):
@@ -803,9 +953,9 @@ class QSWATUtils:
         return fil
         
     @staticmethod
-    def deleteTempFolder():
+    def deleteTempFolder() -> None:
         """Delete the temporary folder and its contents."""
-        folder = QSWATUtils.tempFolder()
+        folder = QSWATUtils.tempFolder(create=False)
         if QDir(folder).exists():
             shutil.rmtree(folder, True)
         
@@ -829,7 +979,7 @@ class QSWATUtils:
         nums = strng.split(',')
         # ignore first and last
         for i in range(1, len(nums) - 1):
-            slopeLimits.append(float(nums[i]))
+            slopeLimits.append(locale.atof(nums[i]))
         return slopeLimits
         
     @staticmethod
@@ -845,7 +995,7 @@ class QSWATUtils:
             if i == d:
                 str1 += ('{0!s}, '.format(d))
             else:
-                str1 += ('{0!s}, '.format(i))
+                str1 += ('{0}, '.format(locale.str(i)))
         return str1 + '9999]'
 
     @staticmethod
@@ -871,7 +1021,7 @@ class QSWATUtils:
             return False
      
     @staticmethod   
-    def centreGridCell(cell: QgsFeature):
+    def centreGridCell(cell: QgsFeature) -> Tuple[QgsPointXY, Tuple[float, float], Tuple[float, float]]:
         """Return centre point of (assumed rectangular) cell, 
         plus extent as minimum and maximum x and y values."""
         geom = cell.geometry()
@@ -986,7 +1136,7 @@ class QSWATUtils:
     def landscapeUnitId(SWATChannel: int, landscape: int) -> int:
         """Calculate landscape unit id from SWAT channel and landscape."""
         
-        # SWATVhannel is alreay unique across the watershed
+        # SWATChannel is alreay unique across the watershed
         # Currently landscape ia zero (no landscape division)
         # else 1 (floodplain) or 2 (upslope)
         # This method allows for further landscape divisions in future, e.g.left/right
@@ -994,14 +1144,14 @@ class QSWATUtils:
         return SWATChannel * 10 + landscape
     
     @staticmethod
-    def landscapeUnitIdIsUpslope(lsuId):
+    def landscapeUnitIdIsUpslope(lsuId: int) -> bool:
         """Return true if landscape id is for an upslope landscape."""
         # note this depends on the encoding used in landscapeUnitId and landscapeName
         lscape = lsuId % 10
         return lscape != 0 and lscape % 2 == 0
     
     @staticmethod
-    def landscapeName(lscape: int, useLeftRight: bool, notEmpty=False):
+    def landscapeName(lscape: int, useLeftRight: bool, notEmpty: bool=False) -> str:
         """Return landscape unit name."""
         if lscape == QSWATUtils._NOLANDSCAPE: result = 'NA' if notEmpty else ''
         elif lscape == QSWATUtils._FLOODPLAIN: result = 'Left floodplain' if useLeftRight else 'Floodplain'
@@ -1037,7 +1187,7 @@ class QSWATUtils:
         else: return 'HUp'
         
     @staticmethod
-    def polyCombine(geom1, geom2):
+    def polyCombine(geom1: QgsGeometry, geom2: QgsGeometry) -> QgsGeometry:
         """Combines two polygon or multipolygon geometries by simply appending one list to the other.
         
         Not ideal, as polygons may abut and this leaves a line between them, 
@@ -1047,7 +1197,7 @@ class QSWATUtils:
             list1 = [geom1.asPolygon()]
         else:
             list1 = geom1.asMultiPolygon() 
-        if geom2.wkbType() == QgsWkbTypes.MultiPolygon:
+        if geom2.wkbType() == QgsWkbTypes.Polygon:
             list2 = [geom2.asPolygon()]
         else:
             list2 = geom2.asMultiPolygon()
@@ -1108,7 +1258,7 @@ class MapFuns(Generic[U]):
          
         mmap is assumed not to be circular.
         """
-        nxt: U = mmap.get(b, None)
+        nxt: Optional[U] = mmap.get(b, None)
         if nxt is None:
             return b
         else:
@@ -1124,7 +1274,7 @@ class fileWriter:
     # should be automatically changed for Windows, but isn't
     _END_LINE = os.linesep # '\r\n' for Windows
     
-    def __init__(self, path):
+    def __init__(self, path: str) -> None:
         """Initialise class variables."""
         ## writer
         self.writer = open(path, 'w')
@@ -1133,15 +1283,15 @@ class fileWriter:
         ## close
         self.close = self.writer.close
     
-    def writeLine(self, string):
+    def writeLine(self, string: str) -> None:
         """Write string plus end-of-line."""
         self.writer.write(string + '\n')
         
-    def __enter__(self):
+    def __enter__(self): # type: ignore
         """Return self."""
         return self
         
-    def __exit__(self, typ, value, traceback):  # @UnusedVariable
+    def __exit__(self, typ: Any, value: Any, traceback: Any) -> None:  # @UnusedVariable
         """Close."""
         self.writer.close()
         
@@ -1181,6 +1331,7 @@ class FileTypes:
     _LAKES = 27
     _EXTRAPTSRCANDRES = 28
     _HRUS = 29
+    _AQUIFERS = 30
     _OTHER = 99
     
     @staticmethod
@@ -1197,7 +1348,7 @@ class FileTypes:
                     ft == FileTypes._EXISTINGSUBBASINS or ft == FileTypes._EXISTINGWATERSHED or \
                     ft == FileTypes._GRID or ft == FileTypes._GRIDSTREAMS or ft == FileTypes._DRAINSTREAMS or \
                     ft == FileTypes._BUFFERSHAPE or ft == FileTypes._CHANNELS or ft == FileTypes._LAKES or \
-                    ft == FileTypes._EXTRAPTSRCANDRES:
+                    ft == FileTypes._EXTRAPTSRCANDRES or ft == FileTypes._AQUIFERS:
             return QgsProviderRegistry.instance().fileVectorFilters()
         elif ft == FileTypes._CSV:
             return 'CSV files (*.csv);;All files (*)'
@@ -1219,7 +1370,7 @@ class FileTypes:
     def legend(ft: int) -> str:
         """Legend entry string for file type ft."""
         if ft == FileTypes._DEM:
-            return 'DEM'
+            return QSWATUtils._DEMLEGEND
         elif ft == FileTypes._MASK:
             return 'Mask'
         elif ft == FileTypes._BURN:
@@ -1239,7 +1390,7 @@ class FileTypes:
         elif ft == FileTypes._WATERSHED or ft == FileTypes._EXISTINGWATERSHED:
             return QSWATUtils._WATERSHEDLEGEND
         elif ft == FileTypes._CHANNELREACHES:
-            return 'Channel reaches'
+            return QSWATUtils._CHANNELREACHESLEGEND
         elif ft == FileTypes._STREAMREACHES:
             return 'Stream reaches'
         elif ft == FileTypes._HILLSHADE:
@@ -1262,6 +1413,12 @@ class FileTypes:
             return QSWATUtils._LAKESLEGEND
         elif ft == FileTypes._EXTRAPTSRCANDRES:
             return QSWATUtils._EXTRAPTSRCANDRESLEGEND
+        elif ft == FileTypes._HRUS:
+            return QSWATUtils._HRUSLEGEND
+        elif ft == FileTypes._LSUS:
+            return QSWATUtils._LSUSLEGEND
+        elif ft == FileTypes._AQUIFERS:
+            return QSWATUtils._AQUIFERSLEGEND
         else:
             return ''
         
@@ -1286,7 +1443,7 @@ class FileTypes:
             return 'wshed.qml'
         elif ft == FileTypes._EXISTINGSUBBASINS:
             return 'existingwshed.qml'
-        elif ft == FileTypes._WATERSHED or ft == FileTypes._EXISTINGWATERSHED:
+        elif ft == FileTypes._WATERSHED or ft == FileTypes._EXISTINGWATERSHED or ft == FileTypes._LSUS:
             return 'lsus.qml'
         elif ft == FileTypes._GRID:
             return 'grid.qml'
@@ -1306,6 +1463,8 @@ class FileTypes:
             return 'flood.qml'
         elif ft == FileTypes._LAKES:
             return 'lakes.qml'
+        elif ft == FileTypes._AQUIFERS or ft == FileTypes._HRUS:
+            return 'polygons.qml'
         else:
             return None
 
@@ -1347,6 +1506,27 @@ class FileTypes:
             return ''
         
     @staticmethod
+    def mapTip(ft: int) -> str:
+        if ft == FileTypes._OUTLETS or ft == FileTypes._EXTRAPTSRCANDRES:
+            return '<b>Point id:</b> [% "PointId" %]'
+        elif ft == FileTypes._CHANNELREACHES:
+            return '<b>Channel:</b> [% "Channel" %]'
+        elif ft == FileTypes._GRIDSTREAMS or ft == FileTypes._DRAINSTREAMS:
+            return '<b>Channel:</b> [% "LINKNO" %]'
+        elif ft == FileTypes._LSUS:
+            return '<b>LSU:</b> [% "LSUID" %]'
+        elif ft == FileTypes._HRUS:
+            return '<b>HRU(s):</b> [% "HRUS" %]'
+        elif ft == FileTypes._SUBBASINS or ft == FileTypes._EXISTINGSUBBASINS:
+            return '<b>Subbasin:</b> [% "Subbasin" %]'
+        elif ft == FileTypes._LAKES:
+            return '<b>Lake:</b> [% "LakeId" %]'
+        elif ft == FileTypes._AQUIFERS:
+            return '<b>Aquifer:</b> [% "Aquifer" %]'
+        else:
+            return ''
+        
+    @staticmethod
     def multipleLayersAllowed(ft: int) -> bool:
         """True if more than one layer can exist with the same legend."""
         if ft == FileTypes._BUFFERFLOOD:
@@ -1374,7 +1554,7 @@ class FileTypes:
             return None
 
     @staticmethod
-    def colourDEM(layer: QgsRasterLayer, _) -> None:
+    def colourDEM(layer: QgsRasterLayer, _: Any) -> None:
         """Layer colouring function for DEM."""
         shader: QgsRasterShader = QgsRasterShader()
         stats: QgsRasterBandStats = layer.dataProvider().bandStatistics(1,
@@ -1396,48 +1576,51 @@ class FileTypes:
         shader.setRasterShaderFunction(fcn)
         renderer: QgsSingleBandPseudoColorRenderer = QgsSingleBandPseudoColorRenderer(layer.dataProvider(), 1, shader)
         layer.setRenderer(renderer)
-        
         layer.triggerRepaint()
         
     @staticmethod
     def colourLanduses(layer: QgsRasterLayer, db: Any) -> None:
         """Layer colouring function for landuse grid."""
-        shader: QgsRasterShader = QgsRasterShader()
-        items: List[QgsColorRampShader.ColorRampItem] = []
+        items: List[QgsPalettedRasterRenderer.Class] = []
+        colours = QgsLimitedRandomColorRamp.randomColors(len(db.landuseVals))
+        index = 0
+        # allow for duplicated landuses while using same colour for same landuse
+        colourMap: Dict[str, QColor] = dict()
         for i in db.landuseVals:
-            luse: str = db.getLanduseCode(i)
-            item: QgsColorRampShader.ColorRampItem = \
-                QgsColorRampShader.ColorRampItem(int(i), FileTypes.randColor(), luse)
+            luse = db.getLanduseCode(i)
+            colour = colourMap.setdefault(luse, colours[index])
+            item = QgsPalettedRasterRenderer.Class(int(i), colour, luse)
             items.append(item)
-        fcn: QgsColorRampShader = QgsColorRampShader()
-        fcn.setColorRampType(QgsColorRampShader.Discrete)
-        fcn.setColorRampItemList(items)
-        shader.setRasterShaderFunction(fcn)
-        renderer: QgsSingleBandPseudoColorRenderer = \
-            QgsSingleBandPseudoColorRenderer(layer.dataProvider(), 1, shader)
+            index += 1
+        renderer = QgsPalettedRasterRenderer(layer.dataProvider(), 1, items)
         layer.setRenderer(renderer)
         layer.triggerRepaint()
     
     @staticmethod
     def colourSoils(layer: QgsRasterLayer, db: Any) -> None:
         """Layer colouring function for soil grid."""
-        shader: QgsRasterShader = QgsRasterShader()
-        items: List[QgsColorRampShader.ColorRampItem] = []
+        items: List[QgsPalettedRasterRenderer.Class] = []
+        index = 0
         if db.useSSURGO:
+            colours = QgsLimitedRandomColorRamp.randomColors(len(db.ssurgoSoils))
             for i in db.ssurgoSoils:
-                item: QgsColorRampShader.ColorRampItem = \
-                    QgsColorRampShader.ColorRampItem(int(i), FileTypes.randColor(), str(i))
-                items.append(item)    
-        else:
-            for i, name in db.usedSoilNames.items():
-                item = QgsColorRampShader.ColorRampItem(int(i), FileTypes.randColor(), name)
+                item = QgsPalettedRasterRenderer.Class(int(i), colours[index], str(i))
                 items.append(item)
-        fcn: QgsColorRampShader = QgsColorRampShader()
-        fcn.setColorRampType(QgsColorRampShader.Discrete)
-        fcn.setColorRampItemList(items)
-        shader.setRasterShaderFunction(fcn)
-        renderer: QgsSingleBandPseudoColorRenderer = \
-            QgsSingleBandPseudoColorRenderer(layer.dataProvider(), 1, shader)
+                index += 1    
+        else:
+            # next 2 lines replaced to allow for duplicated soils with different indexes
+            # colours = QgsLimitedRandomColorRamp.randomColors(len(db.usedSoilNames))
+            # for i, name in db.usedSoilNames.items():  
+            # allow for duplicated colours while using same colour for same soil
+            colourMap: Dict[str, QColor] = dict()
+            colours = QgsLimitedRandomColorRamp.randomColors(len(db.soilVals))
+            for i in db.soilVals:
+                name = db.getSoilName(i)[0]
+                colour = colourMap.setdefault(name, colours[index])
+                item = QgsPalettedRasterRenderer.Class(int(i), colour, name)
+                items.append(item)
+                index += 1    
+        renderer = QgsPalettedRasterRenderer(layer.dataProvider(), 1, items)
         layer.setRenderer(renderer)
         layer.triggerRepaint()
         
@@ -1462,7 +1645,7 @@ class FileTypes:
         layer.triggerRepaint()
         
     @staticmethod
-    def colourFlood(layer: QgsRasterLayer, _) -> None:
+    def colourFlood(layer: QgsRasterLayer, _: Any) -> None:
         """Layer colouring for floodplain rasters."""
         renderer: QgsSingleBandGrayRenderer = QgsSingleBandGrayRenderer(layer.dataProvider(), 1)
         renderer.setGradient(QgsSingleBandGrayRenderer.BlackToWhite)
@@ -1472,10 +1655,34 @@ class FileTypes:
         renderer.setContrastEnhancement(enhancement)
         layer.setRenderer(renderer)
         layer.triggerRepaint()
-    
+        
     @staticmethod
-    def randColor() -> QColor:
-        """Return random QColor."""
-        return QColor(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+    def colourStreams(layer: QgsVectorLayer, penWidth: str, drainage: str) -> None:
+        """Colour streams layer classifying drainage with symbol based on penWidth."""
+        # make stream width dependent on drainage values (drainage is accumulation, ie number of dem cells draining to start of stream)
+        numClasses = 5
+        props = {'width_expression': penWidth}
+        symbol = QgsLineSymbol.createSimple(props)
+        # ramp from light to darkish blue
+        color1 = QColor(166,206,227,255)
+        color2 = QColor(0,0,255,255)
+        ramp = QgsGradientColorRamp(color1, color2)
+#         method = QgsClassificationJenks()
+#         method.setLabelFormat('%1 - %2')
+#         classes = method.classes(layer, drainage, numClasses)
+#         ranges = [QgsRendererRange(clas, symbol) for clas in classes]
+#         renderer = QgsGraduatedSymbolRenderer(drainage, ranges)
+#         renderer.setSourceColorRamp(ramp)
+#         renderer.setClassificationMethod(method)
+#         renderer.updateColorRamp(ramp)
+        # these functions are deprecated, but alternative above causes crash in triggerRepaint
+        labelFmt = QgsRendererRangeLabelFormat('%1 - %2', 0)
+        renderer = QgsGraduatedSymbolRenderer.createRenderer(layer, drainage,
+                                                               numClasses, QgsGraduatedSymbolRenderer.Jenks,
+                                                               symbol, ramp, labelFmt)
+        layer.setRenderer(renderer)
+        layer.setOpacity(1)
+        layer.triggerRepaint()
+        
 
     

@@ -10,132 +10,59 @@ from database.project.climate import Weather_sta_cli
 
 invalid_name_msg = 'Invalid name {name}. Please ensure the value exists in your database.'
 
-def get_con_args():
-	parser = reqparse.RequestParser()
-	parser.add_argument('id', type=int, required=False, location='json')
-	parser.add_argument('name', type=str, required=True, location='json')
-	parser.add_argument('gis_id', type=int, required=False, location='json')
-	parser.add_argument('area', type=float, required=True, location='json')
-	parser.add_argument('lat', type=float, required=True, location='json')
-	parser.add_argument('lon', type=float, required=True, location='json')
-	parser.add_argument('elev', type=float, required=False, location='json')
-	parser.add_argument('wst', type=int, required=False, location='json')
-	parser.add_argument('wst_name', type=str, required=False, location='json')
-	parser.add_argument('cst', type=int, required=False, location='json')
-	parser.add_argument('ovfl', type=int, required=False, location='json')
-	parser.add_argument('rule', type=int, required=False, location='json')
-	parser.add_argument('exco', type=int, required=False, location='json')
-	parser.add_argument('exco_name', type=str, required=False, location='json')
-	args = parser.parse_args(strict=True)
-	return args
-
-
 class ExcoConApi(BaseRestModel):
 	def get(self, project_db, id):
 		return self.base_get(project_db, id, Exco_con, 'Exco', True)
 
 	def delete(self, project_db, id):
-		return self.base_delete(project_db, id, Exco_con, 'Exco')
+		return self.base_delete(project_db, id, Exco_con, 'Exco', 'exco', Exco_exc)
 
 	def put(self, project_db, id):
-		args = get_con_args()
-		try:
-			SetupProjectDatabase.init(project_db)
-			m = Exco_con.get(Exco_con.id == id)
-			m.name = args['name']
-			m.area = args['area']
-			m.lat = args['lat']
-			m.lon = args['lon']
-			m.elev = args['elev']
-
-			if args['exco_name'] is not None:
-				m.exco_id = self.get_id_from_name(Exco_exc, args['exco_name'])
-
-			if args['wst_name'] is not None:
-				m.wst_id = self.get_id_from_name(Weather_sta_cli, args['wst_name'])
-
-			result = m.save()
-
-			if result > 0:
-				return 200
-
-			abort(400, message='Unable to update Exco {id}.'.format(id=id))
-		except IntegrityError:
-			abort(400, message='Exco name must be unique.')
-		except Exco_con.DoesNotExist:
-			abort(404, message='Exco {id} does not exist'.format(id=id))
-		except Exco_exc.DoesNotExist:
-			abort(400, message=invalid_name_msg.format(name=args['exco_name']))
-		except Weather_sta_cli.DoesNotExist:
-			abort(400, message=invalid_name_msg.format(name=args['wst_name']))
-		except Exception as ex:
-			abort(400, message="Unexpected error {ex}".format(ex=ex))
+		return self.put_con(project_db, id, 'exco', Exco_con, Exco_exc)
 
 
 class ExcoConPostApi(BaseRestModel):
 	def post(self, project_db):
-		args = get_con_args()
-		SetupProjectDatabase.init(project_db)
-
-		try:
-			e = Exco_con.get(Exco_con.name == args['name'])
-			abort(400, message='Exco name must be unique.  Exco with this name already exists.')
-		except Exco_con.DoesNotExist:
-			try:
-				m = Exco_con()
-				m.name = args['name']
-				m.area = args['area']
-				m.lat = args['lat']
-				m.lon = args['lon']
-				m.elev = args['elev']
-				m.ovfl = 0
-				m.rule = 0
-
-				if args['exco_name'] is not None:
-					m.exco_id = self.get_id_from_name(Exco_exc, args['exco_name'])
-
-				if args['wst_name'] is not None:
-					m.wst_id = self.get_id_from_name(Weather_sta_cli, args['wst_name'])
-
-				result = m.save()
-
-				if result > 0:
-					return model_to_dict(m), 201
-
-				abort(400, message='Unable to create Exco.')
-			except IntegrityError:
-				abort(400, message='Exco name must be unique.')
-			except Exco_exc.DoesNotExist:
-				abort(400, message=invalid_name_msg.format(name=args['exco_name']))
-			except Weather_sta_cli.DoesNotExist:
-				abort(400, message=invalid_name_msg.format(name=args['wst_name']))
-			except Exception as ex:
-				abort(400, message="Unexpected error {ex}".format(ex=ex))
+		return self.post_con(project_db, 'exco', Exco_con, Exco_exc)
 
 
 class ExcoConListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Exco_con
-		list_name = 'exco'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name, True)
+		prop_table = Exco_exc
+		filter_cols = [table.name, table.wst, prop_table.om, prop_table.pest, prop_table.path, prop_table.hmet, prop_table.salt]
+		table_lookups = {
+			table.wst: Weather_sta_cli
+		}
+		props_lookups = {
+			prop_table.om: Exco_om_exc,
+			prop_table.pest: Exco_pest_exc,
+			prop_table.path: Exco_path_exc,
+			prop_table.hmet: Exco_hmet_exc,
+			prop_table.salt: Exco_salt_exc
+		}
+
+		items = self.base_connect_paged_items(project_db, table, prop_table, filter_cols, table_lookups, props_lookups)
+		ml = []
+		for v in items['model']:
+			d = self.base_get_con_item_dict(v)
+			d['om'] = self.base_get_prop_dict(v.exco.om)
+			d['pest'] = self.base_get_prop_dict(v.exco.pest)
+			d['path'] = self.base_get_prop_dict(v.exco.path)
+			d['hmet'] = self.base_get_prop_dict(v.exco.hmet)
+			d['salt'] = self.base_get_prop_dict(v.exco.salt)
+			ml.append(d)
+		
+		return {
+			'total': items['total'],
+			'matches': items['matches'],
+			'items': ml
+		}
 
 
 class ExcoConMapApi(BaseRestModel):
 	def get(self, project_db):
 		return self.get_con_map(project_db, Exco_con)
-
-
-def get_con_out_args():
-	parser = reqparse.RequestParser()
-	parser.add_argument('id', type=int, required=False, location='json')
-	parser.add_argument('order', type=int, required=True, location='json')
-	parser.add_argument('obj_typ', type=str, required=True, location='json')
-	parser.add_argument('obj_id', type=int, required=True, location='json')
-	parser.add_argument('hyd_typ', type=str, required=True, location='json')
-	parser.add_argument('frac', type=float, required=True, location='json')
-	parser.add_argument('exco_con_id', type=int, required=False, location='json')
-	args = parser.parse_args(strict=True)
-	return args
 
 
 class ExcoConOutApi(BaseRestModel):
@@ -146,51 +73,12 @@ class ExcoConOutApi(BaseRestModel):
 		return self.base_delete(project_db, id, Exco_con_out, 'Outflow')
 
 	def put(self, project_db, id):
-		try:
-			args = get_con_out_args()
-			SetupProjectDatabase.init(project_db)
-
-			m = Exco_con_out.get(Exco_con_out.id == id)
-			m.order = args['order']
-			m.obj_typ = args['obj_typ']
-			m.obj_id = args['obj_id']
-			m.hyd_typ = args['hyd_typ']
-			m.frac = args['frac']
-
-			result = m.save()
-
-			if result > 0:
-				return 200
-
-			abort(400, message='Unable to update exco outflow {id}.'.format(id=id))
-		except Exco_con_out.DoesNotExist:
-			abort(404, message='Exco outflow {id} does not exist'.format(id=id))
-		except Exception as ex:
-			abort(400, message="Unexpected error {ex}".format(ex=ex))
+		return self.put_con_out(project_db, id, 'exco_con', Exco_con_out)
 
 
 class ExcoConOutPostApi(BaseRestModel):
 	def post(self, project_db):
-		args = get_con_out_args()
-		SetupProjectDatabase.init(project_db)
-
-		try:
-			m = Exco_con_out()
-			m.order = args['order']
-			m.obj_typ = args['obj_typ']
-			m.obj_id = args['obj_id']
-			m.hyd_typ = args['hyd_typ']
-			m.frac = args['frac']
-			m.exco_con_id = args['exco_con_id']
-
-			result = m.save()
-
-			if result > 0:
-				return model_to_dict(m), 201
-
-			abort(400, message='Unable to create exco outflow.')
-		except Exception as ex:
-			abort(400, message="Unexpected error {ex}".format(ex=ex))
+		return self.post_con_out(project_db, 'exco_con', Exco_con_out)
 
 
 def get_exco_args(get_selected_ids=False):
@@ -198,24 +86,26 @@ def get_exco_args(get_selected_ids=False):
 
 	if get_selected_ids:
 		parser.add_argument('selected_ids', type=int, action='append', required=False, location='json')
+		parser.add_argument('elev', type=float, required=False, location='json')
+		parser.add_argument('wst_name', type=str, required=False, location='json')
 	else:
 		parser.add_argument('id', type=int, required=False, location='json')
 		parser.add_argument('name', type=str, required=True, location='json')
 
-	parser.add_argument('om_name', type=str, required=True, location='json')
-	parser.add_argument('pest_name', type=str, required=True, location='json')
-	parser.add_argument('path_name', type=str, required=True, location='json')
-	parser.add_argument('hmet_name', type=str, required=True, location='json')
-	parser.add_argument('salt_name', type=str, required=True, location='json')
-	args = parser.parse_args(strict=True)
+	parser.add_argument('om_name', type=str, required=False, location='json')
+	parser.add_argument('pest_name', type=str, required=False, location='json')
+	parser.add_argument('path_name', type=str, required=False, location='json')
+	parser.add_argument('hmet_name', type=str, required=False, location='json')
+	parser.add_argument('salt_name', type=str, required=False, location='json')
+	args = parser.parse_args(strict=False)
 	return args
 
 
 class ExcoExcListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Exco_exc
-		list_name = 'exco'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name, True)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols, True)
 
 
 class ExcoExcApi(BaseRestModel):
@@ -283,9 +173,11 @@ class ExcoExcUpdateManyApi(BaseRestModel):
 			if args['salt_name'] is not None:
 				param_dict['salt_id'] = self.get_id_from_name(Exco_salt_exc, args['salt_name'])
 
-			query = Exco_exc.update(param_dict).where(Exco_exc.id.in_(args['selected_ids']))
-			result = query.execute()
+			con_table = Exco_con
+			con_prop_field = Exco_con.exco_id
+			prop_table = Exco_exc
 
+			result = self.base_put_many_con(args, param_dict, con_table, con_prop_field, prop_table)
 			if result > 0:
 				return 200
 
@@ -321,7 +213,7 @@ class ExcoExcPostApi(BaseRestModel):
 			result = m.save()
 
 			if result > 0:
-				return 200
+				return {'id': m.id }, 200
 
 			abort(400, message='Unable to update exco properties {id}.'.format(id=id))
 		except IntegrityError as e:
@@ -341,10 +233,10 @@ class ExcoExcPostApi(BaseRestModel):
 
 
 class ExcoOMListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Exco_om_exc
-		list_name = 'exco'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 def save_exco_om_exc(m, args):

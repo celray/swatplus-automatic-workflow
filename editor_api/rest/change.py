@@ -56,10 +56,10 @@ class CodesSftApi(BaseRestModel):
 
 
 class CalParmsCalListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = change.Cal_parms_cal
-		list_name = 'cal_parms'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name, table.obj_typ, table.units]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class CalParmsCalApi(BaseRestModel):
@@ -84,18 +84,12 @@ class CalParmsTypesApi(BaseRestModel):
 
 
 class CalibrationCalListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = change.Calibration_cal
-		list_name = 'calibrations'
-
-		SetupProjectDatabase.init(project_db)
-		total = table.select().count()
-
-		sort_val = SQL(sort)
-		if reverse == 'true':
-			sort_val = SQL(sort).desc()
-
-		m = table.select().order_by(sort_val).paginate(int(page), int(items_per_page))
+		filter_cols = [table.chg_typ]
+		
+		items = self.base_paged_items(project_db, table, filter_cols)
+		m = items['model']
 		ml = []
 		for v in m:
 			d = model_to_dict(v, recurse=True)
@@ -103,7 +97,11 @@ class CalibrationCalListApi(BaseRestModel):
 			d['obj_tot'] = len(v.elements)
 			ml.append(d)
 
-		return {'total': total, list_name: ml}
+		return {
+			'total': items['total'],
+			'matches': items['matches'],
+			'items': ml
+		}
 
 
 class CalibrationCalApi(BaseRestModel):
@@ -202,94 +200,141 @@ class CalibrationCalPostApi(BaseRestModel):
 
 
 class WbParmsSftListApi(BaseRestModel):
-    def get(self, project_db, sort, reverse, page, items_per_page):
-        table = change.Wb_parms_sft
-        list_name = 'parms'
-        return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+	def get(self, project_db):
+		table = change.Wb_parms_sft
+		filter_cols = [table.name, table.chg_typ]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class WbParmsSftApi(BaseRestModel):
-    def get(self, project_db, id):
-        return self.base_get(project_db, id, change.Wb_parms_sft, 'Parameter')
+	def get(self, project_db, id):
+		return self.base_get(project_db, id, change.Wb_parms_sft, 'Parameter')
 
-    def delete(self, project_db, id):
-        return self.base_delete(project_db, id, change.Wb_parms_sft, 'Parameter')
+	def delete(self, project_db, id):
+		return self.base_delete(project_db, id, change.Wb_parms_sft, 'Parameter')
 
-    def put(self, project_db, id):
-        return self.base_put(project_db, id, change.Wb_parms_sft, 'Parameter')
+	def put(self, project_db, id):
+		return self.base_put(project_db, id, change.Wb_parms_sft, 'Parameter')
 
 
 class WbParmsSftPostApi(BaseRestModel):
-    def post(self, project_db):
-        return self.base_post(project_db, change.Wb_parms_sft, 'Parameter')
+	def post(self, project_db):
+		return self.base_post(project_db, change.Wb_parms_sft, 'Parameter')
 
 
 class ChsedParmsSftListApi(BaseRestModel):
-    def get(self, project_db, sort, reverse, page, items_per_page):
-        table = change.Ch_sed_parms_sft
-        list_name = 'parms'
-        return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+	def get(self, project_db):
+		table = change.Ch_sed_parms_sft
+		filter_cols = [table.name, table.chg_typ]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 class ChsedParmsSftApi(BaseRestModel):
-    def get(self, project_db, id):
-        return self.base_get(project_db, id, change.Ch_sed_parms_sft, 'Parameter')
+	def get(self, project_db, id):
+		return self.base_get(project_db, id, change.Ch_sed_parms_sft, 'Parameter')
 
-    def delete(self, project_db, id):
-        return self.base_delete(project_db, id, change.Ch_sed_parms_sft, 'Parameter')
+	def delete(self, project_db, id):
+		return self.base_delete(project_db, id, change.Ch_sed_parms_sft, 'Parameter')
 
-    def put(self, project_db, id):
-        return self.base_put(project_db, id, change.Ch_sed_parms_sft, 'Parameter')
+	def put(self, project_db, id):
+		return self.base_put(project_db, id, change.Ch_sed_parms_sft, 'Parameter')
 
 
 class ChsedParmsSftPostApi(BaseRestModel):
-    def post(self, project_db):
-        return self.base_post(project_db, change.Ch_sed_parms_sft, 'Parameter')
+	def post(self, project_db):
+		return self.base_post(project_db, change.Ch_sed_parms_sft, 'Parameter')
 
 
 class PlantParmsSftListApi(BaseRestModel):
-    def get(self, project_db, sort, reverse, page, items_per_page):
-        table = change.Plant_parms_sft
-        list_name = 'parms'
-        return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
-
-
-class PlantParmsSftApi(BaseRestModel):
-    def get(self, project_db, id):
-        return self.base_get(project_db, id, change.Plant_parms_sft, 'Parameter')
-
-    def delete(self, project_db, id):
-        return self.base_delete(project_db, id, change.Plant_parms_sft, 'Parameter')
-
-    def put(self, project_db, id):
-        return self.base_put(project_db, id, change.Plant_parms_sft, 'Parameter')
-
-
-class PlantParmsSftPostApi(BaseRestModel):
-    def post(self, project_db):
-        return self.base_post(project_db, change.Plant_parms_sft, 'Parameter')
-
-
-class WaterBalanceSftListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
-		table = change.Water_balance_sft
-		list_name = 'calibrations'
-
-		SetupProjectDatabase.init(project_db)
-		total = table.select().count()
-
-		sort_val = SQL(sort)
-		if reverse == 'true':
-			sort_val = SQL(sort).desc()
-
-		m = table.select().order_by(sort_val).paginate(int(page), int(items_per_page))
+	def get(self, project_db):
+		table = change.Plant_parms_sft
+		filter_cols = [table.name]
+		items = self.base_paged_items(project_db, table, filter_cols)
+		m = items['model']
 		ml = []
 		for v in m:
 			d = model_to_dict(v, recurse=True)
 			d['items'] = len(v.items)
 			ml.append(d)
 
-		return {'total': total, list_name: ml}
+		return {
+			'total': items['total'],
+			'matches': items['matches'],
+			'items': ml
+		}
+
+
+class PlantParmsSftApi(BaseRestModel):
+	def get(self, project_db, id):
+		return self.base_get(project_db, id, change.Plant_parms_sft, 'Parameter', back_refs=True, max_depth=1)
+
+	def delete(self, project_db, id):
+		return self.base_delete(project_db, id, change.Plant_parms_sft, 'Parameter')
+
+	def put(self, project_db, id):
+		table = change.Plant_parms_sft
+		item_table = change.Plant_parms_sft_item
+		description = 'Calibration'
+
+		parser = reqparse.RequestParser()
+		parser.add_argument('id', type=int, required=False, location='json')
+		parser.add_argument('name', type=str, required=True, location='json')
+		parser.add_argument('items', type=list, required=False, location='json')
+		args = parser.parse_args(strict=False)
+
+		try:
+			SetupProjectDatabase.init(project_db)
+			result = self.save_args(table, args, id=id)
+
+			if args['items'] is not None:
+				items = []
+				for c in args['items']:
+					items.append({
+						'plant_parms_sft_id': id,
+						'var': c['var'],
+						'name': c['name'],
+						'init': c['init'],
+						'chg_typ': c['chg_typ'],
+						'neg': c['neg'],
+						'pos': c['pos'],
+						'lo': c['lo'],
+						'up': c['up']
+					})
+				
+				item_table.delete().where(item_table.plant_parms_sft_id == id).execute()
+				lib.bulk_insert(project_base.db, item_table, items)
+
+			return 200
+		except IntegrityError as e:
+			abort(400, message='{item} save error. '.format(item=description) + str(e))
+		except table.DoesNotExist:
+			abort(404, message='{item} {id} does not exist'.format(item=description, id=id))
+		except Exception as ex:
+			abort(400, message="Unexpected error {ex}".format(ex=ex))
+
+
+class PlantParmsSftPostApi(BaseRestModel):
+	def post(self, project_db):
+		return self.base_post(project_db, change.Plant_parms_sft, 'Parameter')
+
+
+class WaterBalanceSftListApi(BaseRestModel):
+	def get(self, project_db):
+		table = change.Water_balance_sft
+		filter_cols = [table.name]
+		items = self.base_paged_items(project_db, table, filter_cols)
+		m = items['model']
+		ml = []
+		for v in m:
+			d = model_to_dict(v, recurse=True)
+			d['items'] = len(v.items)
+			ml.append(d)
+
+		return {
+			'total': items['total'],
+			'matches': items['matches'],
+			'items': ml
+		}
 
 
 class WaterBalanceSftApi(BaseRestModel):
@@ -327,9 +372,8 @@ class WaterBalanceSftApi(BaseRestModel):
 						'tileq_rto': c['tileq_rto'],
 						'pet': c['pet'],
 						'sed': c['sed'],
-						'orgn': c['orgn'],
-						'orgp': c['orgp'],
-						'no3': c['no3'],
+						'wyr': c['wyr'],
+						'bfr': c['bfr'],
 						'solp': c['solp']
 					})
 				
@@ -351,30 +395,27 @@ class WaterBalanceSftPostApi(BaseRestModel):
 
 
 class ChsedBudgetSftListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = change.Ch_sed_budget_sft
-		list_name = 'calibrations'
-
-		SetupProjectDatabase.init(project_db)
-		total = table.select().count()
-
-		sort_val = SQL(sort)
-		if reverse == 'true':
-			sort_val = SQL(sort).desc()
-
-		m = table.select().order_by(sort_val).paginate(int(page), int(items_per_page))
+		filter_cols = [table.name]
+		items = self.base_paged_items(project_db, table, filter_cols)
+		m = items['model']
 		ml = []
 		for v in m:
 			d = model_to_dict(v, recurse=True)
 			d['items'] = len(v.items)
 			ml.append(d)
 
-		return {'total': total, list_name: ml}
+		return {
+			'total': items['total'],
+			'matches': items['matches'],
+			'items': ml
+		}
 
 
 class ChsedBudgetSftApi(BaseRestModel):
 	def get(self, project_db, id):
-		return self.base_get(project_db, id, change.Ch_sed_budget_sft, 'Calibration')
+		return self.base_get(project_db, id, change.Ch_sed_budget_sft, 'Calibration', back_refs=True, max_depth=1)
 
 	def delete(self, project_db, id):
 		return self.base_delete(project_db, id, change.Ch_sed_budget_sft, 'Calibration')
@@ -424,30 +465,27 @@ class ChsedBudgetSftPostApi(BaseRestModel):
 
 
 class PlantGroSftListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = change.Plant_gro_sft
-		list_name = 'calibrations'
-
-		SetupProjectDatabase.init(project_db)
-		total = table.select().count()
-
-		sort_val = SQL(sort)
-		if reverse == 'true':
-			sort_val = SQL(sort).desc()
-
-		m = table.select().order_by(sort_val).paginate(int(page), int(items_per_page))
+		filter_cols = [table.name]
+		items = self.base_paged_items(project_db, table, filter_cols)
+		m = items['model']
 		ml = []
 		for v in m:
 			d = model_to_dict(v, recurse=True)
 			d['items'] = len(v.items)
 			ml.append(d)
 
-		return {'total': total, list_name: ml}
+		return {
+			'total': items['total'],
+			'matches': items['matches'],
+			'items': ml
+		}
 
 
 class PlantGroSftApi(BaseRestModel):
 	def get(self, project_db, id):
-		return self.base_get(project_db, id, change.Plant_gro_sft, 'Calibration')
+		return self.base_get(project_db, id, change.Plant_gro_sft, 'Calibration', back_refs=True, max_depth=1)
 
 	def delete(self, project_db, id):
 		return self.base_delete(project_db, id, change.Plant_gro_sft, 'Calibration')

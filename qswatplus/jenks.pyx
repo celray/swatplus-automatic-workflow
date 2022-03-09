@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# cython: language_level=3
 '''
 /***************************************************************************
  QSWATPlus
@@ -32,7 +33,6 @@ cimport cython
 DTYPE = np.float32
 ctypedef np.float32_t DTYPE_t
 
-# cython: language_level=3
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.nonecheck(False)

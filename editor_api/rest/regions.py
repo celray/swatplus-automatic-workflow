@@ -10,21 +10,18 @@ from database.project.regions import Ls_unit_def, Ls_unit_ele
 
 
 class LsUnitDefListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Ls_unit_def
-		list_name = 'ls_units'
-
-		SetupProjectDatabase.init(project_db)
-		total = table.select().count()
-
-		sort_val = SQL(sort)
-		if reverse == 'true':
-			sort_val = SQL(sort).desc()
-
-		m = table.select().order_by(sort_val).paginate(int(page), int(items_per_page))
+		filter_cols = [table.name]
+		items = self.base_paged_items(project_db, table, filter_cols)
+		m = items['model']
 		ml = [{'id': v.id, 'name': v.name, 'area': v.area, 'num_elements': len(v.elements)} for v in m]
 
-		return {'total': total, list_name: ml}
+		return {
+			'total': items['total'],
+			'matches': items['matches'],
+			'items': ml
+		}
 
 
 class LsUnitDefApi(BaseRestModel):
@@ -44,10 +41,10 @@ class LsUnitDefPostApi(BaseRestModel):
 
 
 class LsUnitEleListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Ls_unit_ele
-		list_name = 'ls_unit_eles'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name, back_refs=True)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols, back_refs=True)
 
 
 class LsUnitEleApi(BaseRestModel):

@@ -56,7 +56,7 @@
     <BackgroundColor alpha="255" red="255" blue="255" green="255"/>
    </ComposerItem>
   </ComposerScaleBar>
-  <ComposerLabel valign="128" labelText="SWAT results: %%ProjectName%%" htmlState="0" halign="4" margin="1">
+  <ComposerLabel valign="128" labelText="SWAT+ results: %%ProjectName%%" htmlState="0" halign="4" margin="1">
    <LabelFont description="MS Shell Dlg 2,24,-1,5,75,0,0,0,0,0"/>
    <FontColor red="0" blue="0" green="0"/>
    <ComposerItem pagey="10" page="1" id="title" lastValidViewScaleFactor="-1" positionMode="0" positionLock="false" x="10" y="10" visibility="1" zValue="5" background="false" transparency="0" frameJoinStyle="miter" blendMode="0" width="180" outlineWidth="0.3" excludeFromExports="0" uuid="{92db36f4-e682-4137-b884-112387d9b64b}" height="20" itemRotation="0" frame="false" pagex="10">

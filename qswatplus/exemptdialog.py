@@ -20,18 +20,12 @@
  ***************************************************************************/
 """
 
-import os
+from qgis.PyQt import QtWidgets
 
-from PyQt5 import uic
-from PyQt5 import QtWidgets
-
-pdir = os.path.dirname(__file__)
-FORM_CLASS, _ = uic.loadUiType(os.path.join(pdir, 'ui_exempt.ui'), 
-                               from_imports=True, 
-                               import_from=os.path.basename(pdir))
+from .ui_exempt import Ui_ExemptDialog
 
 
-class ExemptDialog(QtWidgets.QDialog, FORM_CLASS):
+class ExemptDialog(QtWidgets.QDialog, Ui_ExemptDialog):
     """Set up dialog from designer."""
     def __init__(self, parent=None):
         """Constructor."""

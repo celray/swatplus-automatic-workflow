@@ -6,9 +6,10 @@ import database.project.reservoir as db
 
 
 class Reservoir_res(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -41,9 +42,10 @@ class Reservoir_res(BaseFileModel):
 
 
 class Hydrology_res(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database='project'):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -53,9 +55,10 @@ class Hydrology_res(BaseFileModel):
 
 
 class Initial_res(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database='project'):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -91,9 +94,10 @@ class Initial_res(BaseFileModel):
 
 
 class Sediment_res(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database='project'):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -103,9 +107,10 @@ class Sediment_res(BaseFileModel):
 
 
 class Nutrients_res(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database='project'):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -115,9 +120,10 @@ class Nutrients_res(BaseFileModel):
 
 
 class Weir_res(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database='project'):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -127,9 +133,10 @@ class Weir_res(BaseFileModel):
 
 
 class Wetland_wet(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -162,9 +169,10 @@ class Wetland_wet(BaseFileModel):
 
 
 class Hydrology_wet(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database='project'):
 		raise NotImplementedError('Reading not implemented yet.')

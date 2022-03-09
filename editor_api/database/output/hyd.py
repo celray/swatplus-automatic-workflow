@@ -96,19 +96,48 @@ class PtsBase(BaseModel):
 	temp = DoubleField(null=True)
 
 
-class Basin_psc_day(PtsBase):
+class PtsNoTypeBase(BaseModel):
+	jday = IntegerField(null=True)
+	mon = IntegerField(null=True)
+	day = IntegerField(null=True)
+	yr = IntegerField(null=True)
+	#unit = IntegerField(null=True)
+	#gis_id = IntegerField(null=True)
+	name = CharField(null=True)
+	#type = CharField(null=True)
+	flo = DoubleField(null=True)
+	sed = DoubleField(null=True)
+	orgn = DoubleField(null=True)
+	sedp = DoubleField(null=True)
+	no3 = DoubleField(null=True)
+	solp = DoubleField(null=True)
+	chla = DoubleField(null=True)
+	nh3 = DoubleField(null=True)
+	no2 = DoubleField(null=True)
+	cbod = DoubleField(null=True)
+	dox = DoubleField(null=True)
+	san = DoubleField(null=True)
+	sil = DoubleField(null=True)
+	cla = DoubleField(null=True)
+	sag = DoubleField(null=True)
+	lag = DoubleField(null=True)
+	grv = DoubleField(null=True)
+	temp = DoubleField(null=True)
+
+
+class Basin_psc_day(PtsNoTypeBase):
 	pass
 
 
-class Basin_psc_mon(PtsBase):
+class Basin_psc_mon(PtsNoTypeBase):
 	pass
 
 
-class Basin_psc_yr(PtsBase):
+class Basin_psc_yr(PtsNoTypeBase):
 	pass
 
 
-class Basin_psc_aa(PtsBase):
+class Basin_psc_aa(PtsNoTypeBase):
 	pass
 
 

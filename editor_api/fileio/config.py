@@ -8,9 +8,10 @@ from database.project import simulation, climate, connect, channel, reservoir, r
 
 
 class File_cio(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 	
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -50,6 +51,9 @@ class File_cio(BaseFileModel):
 				file.write("\n")
 
 	def get_classifications(self, is_lte=False):
+		rec_cnt = recall.Recall_rec.select().where(recall.Recall_rec.rec_typ != 4).count()
+		exco_cnt = recall.Recall_dat.select().join(recall.Recall_rec).where((recall.Recall_rec.rec_typ == 4) & (recall.Recall_dat.flo != 0)).count()
+
 		sim_conditions = {
 			1: True,
 			2: True,
@@ -84,8 +88,8 @@ class File_cio(BaseFileModel):
 			6: connect.Aquifer2d_con.select().count() > 0,
 			7: connect.Channel_con.select().count() > 0,
 			8: connect.Reservoir_con.select().count() > 0,
-			9: connect.Recall_con.select().count() > 0,
-			10: connect.Exco_con.select().count() > 0,
+			9: rec_cnt > 0,
+			10: exco_cnt > 0,
 			11: connect.Delratio_con.select().count() > 0,
 			12: connect.Outlet_con.select().count() > 0,
 			13: connect.Chandeg_con.select().count() > 0
@@ -126,8 +130,8 @@ class File_cio(BaseFileModel):
 		}
 		
 		exco_conditions = {
-			1: exco.Exco_exc.select().count() > 0 or recall.Recall_rec.select().where(recall.Recall_rec.rec_typ == 4).count() > 0,
-			2: exco.Exco_om_exc.select().count() > 0 or recall.Recall_rec.select().where(recall.Recall_rec.rec_typ == 4).count() > 0,
+			1: exco_cnt > 0,
+			2: exco_cnt > 0,
 			3: exco.Exco_pest_exc.select().count() > 0,
 			4: exco.Exco_path_exc.select().count() > 0,
 			5: exco.Exco_hmet_exc.select().count() > 0,
@@ -135,7 +139,7 @@ class File_cio(BaseFileModel):
 		}
 		
 		recall_conditions = {
-			1: recall.Recall_rec.select().count() > 0
+			1: rec_cnt > 0
 		}
 		
 		dr_conditions = {
@@ -234,10 +238,10 @@ class File_cio(BaseFileModel):
 		}
 		
 		decision_table_conditions = {
-			1: True,
-			2: True,
-			3: True,
-			4: True
+			1: decision_table.D_table_dtl.select().where(decision_table.D_table_dtl.file_name == 'lum.dtl').count() > 0,
+			2: decision_table.D_table_dtl.select().where(decision_table.D_table_dtl.file_name == 'res_rel.dtl').count() > 0,
+			3: decision_table.D_table_dtl.select().where(decision_table.D_table_dtl.file_name == 'scen_lu.dtl').count() > 0,
+			4: decision_table.D_table_dtl.select().where(decision_table.D_table_dtl.file_name == 'flo_con.dtl').count() > 0
 		}
 		
 		regions_conditions = {

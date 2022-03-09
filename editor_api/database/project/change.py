@@ -3,7 +3,7 @@ from . import base
 
 
 class Cal_parms_cal(base.BaseModel):
-	name = CharField(unique=True)
+	name = CharField()
 	obj_typ = CharField()
 	abs_min = DoubleField()
 	abs_max = DoubleField()
@@ -70,9 +70,8 @@ class Water_balance_sft_item(base.BaseModel):
 	tileq_rto = DoubleField()
 	pet = DoubleField()
 	sed = DoubleField()
-	orgn = DoubleField()
-	orgp = DoubleField()
-	no3 = DoubleField()
+	wyr = DoubleField()
+	bfr = DoubleField()
 	solp = DoubleField()
 
 
@@ -99,6 +98,13 @@ class Ch_sed_parms_sft(base.BaseModel):
 
 class Plant_parms_sft(base.BaseModel):
 	name = CharField(unique=True)
+
+
+class Plant_parms_sft_item(base.BaseModel):
+	plant_parms_sft = ForeignKeyField(Plant_parms_sft, on_delete='CASCADE', related_name='items')
+	var = CharField()
+	name = CharField()
+	init = DoubleField()
 	chg_typ = CharField()  # absval, abschg, pctchg
 	neg = DoubleField()
 	pos = DoubleField()

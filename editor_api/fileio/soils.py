@@ -8,21 +8,23 @@ from database.datasets import base as datasets_base
 
 
 class Nutrients_sol(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
 
 	def write(self):
-		self.write_default_table(db.Nutrients_sol, ignore_id_col=True)
+		self.write_default_table(db.Nutrients_sol, ignore_id_col=True, non_zero_min_cols=['exp_co'])
 
 
 class Soils_sol(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self):
 		raise NotImplementedError('Reading not implemented yet.')
@@ -97,9 +99,10 @@ class Soils_sol(BaseFileModel):
 
 
 class Soils_lte_sol(BaseFileModel):
-	def __init__(self, file_name, version=None):
+	def __init__(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	def read(self, database='project'):
 		if database == 'project':

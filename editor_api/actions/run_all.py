@@ -18,7 +18,7 @@ class RunAll(ExecutableApi):
 		weather_dir, weather_save_dir='', weather_import_format='plus',
 		wgn_import_method='database', wgn_db='C:/SWAT/SWATPlus/Databases/swatplus_wgn.sqlite', wgn_table='wgn_cfsr_world', wgn_csv_sta_file=None, wgn_csv_mon_file=None,
 		year_start=None, day_start=None, year_end=None, day_end=None,
-		input_files_dir=None):
+		input_files_dir=None, swat_version=None):
 		# Setup project databases and import GIS data
 		SetupProject(project_db, editor_version, project_db.replace('.sqlite', '.json', 1))
 
@@ -53,7 +53,7 @@ class RunAll(ExecutableApi):
 			Time_sim.update_and_exec(day_start, year_start, day_end, year_end, 0)
 
 		# Write input files
-		write_api = WriteFiles(project_db)
+		write_api = WriteFiles(project_db, swat_version)
 		write_api.write()
 
 		# Run the model
@@ -93,10 +93,11 @@ if __name__ == '__main__':
 	parser.add_argument("--year_end", type=str, help="ending year of simulation (omit to use weather files dates)", nargs="?")
 	parser.add_argument("--day_end", type=str, help="ending day of simulation (omit to use weather files dates)", nargs="?")
 	parser.add_argument("--input_files_dir", type=str, help="full path of where to write input files, defaults to Scenarios/Default/TxtInOut", nargs="?")
+	parser.add_argument("--swat_version", type=str, help="SWAT+ revision number", nargs="?")
 
 	args = parser.parse_args()
 	api = RunAll(args.project_db_file, args.editor_version, args.swat_exe_file,
 		args.weather_dir, args.weather_save_dir, args.weather_import_format,
 		args.wgn_import_method, args.wgn_db, args.wgn_table, args.wgn_csv_sta_file, args.wgn_csv_mon_file,
 		args.year_start, args.day_start, args.year_end, args.day_end,
-		args.input_files_dir)
+		args.input_files_dir, args.swat_version)

@@ -183,9 +183,10 @@ def read_file(file_name, table, db, expected_cols, ignore_id_col=False, start_li
 class BaseFileModel:
 	__metaclass__ = ABCMeta
 
-	def __init(self, file_name, version=None):
+	def __init(self, file_name, version=None, swat_version=None):
 		self.file_name = file_name
 		self.version = version
+		self.swat_version = swat_version
 
 	@abstractmethod
 	def read(self): pass
@@ -203,9 +204,13 @@ class BaseFileModel:
 		if self.version is not None:
 			vtxt = " v{version}".format(version=self.version)
 
+		svtxt = ""
+		if self.swat_version is not None:
+			svtxt = "for SWAT+ rev.{swat_version}".format(swat_version=self.swat_version)
+
 		name = self.file_name if alt_file_name == "" else alt_file_name
 
-		return "{file}: written by SWAT+ editor{version} on {date}\n".format(file=ntpath.basename(name), version=vtxt, date=time.strftime("%Y-%m-%d %H:%M"))
+		return "{file}: written by SWAT+ editor{version} on {date} {swat_version}\n".format(file=ntpath.basename(name), version=vtxt, date=time.strftime("%Y-%m-%d %H:%M"), swat_version=svtxt)
 
 	def write_meta_line(self, file, alt_file_name=""):
 		file.write(self.get_meta_line(alt_file_name=alt_file_name))
@@ -328,6 +333,7 @@ class BaseFileModel:
 		read_file(self.file_name, table, db, expected_cols, ignore_id_col, start_line, csv, convert_name_to_lower, overwrite)
 
 
+	# keep still for smaller uses like aquifers and calibration
 	def write_ele_ids(self, file, table, element_table, elements, use_obj_id=True):
 		"""
 		SWAT+ requires line numbers rather than designated ID numbers.
@@ -347,6 +353,47 @@ class BaseFileModel:
 					obj_id_col = ele.obj_typ_no
 
 				obj_id = elem_table.select().where(elem_table.id <= obj_id_col).count()
+				if last_id == 0:
+					ele_to_write.append(utils.int_pad(obj_id))
+					just_wrote = True
+					last_appended_id = obj_id
+				elif obj_id > (last_id + 1):
+					if last_appended_id != last_id:
+						ele_to_write.append(utils.int_pad(last_id * -1))
+					ele_to_write.append(utils.int_pad(obj_id))
+					last_appended_id = obj_id
+					just_wrote = True
+				else:
+					just_wrote = False
+				last_id = obj_id
+
+		if not just_wrote and len(elements) > 0:
+			ele_to_write.append(utils.int_pad(last_id * -1))
+
+		file.write(utils.int_pad(len(ele_to_write)))
+		for w in ele_to_write:
+			file.write(w)
+
+	def write_ele_ids2(self, file, table, element_table, elements, elem_table, element_ids, use_obj_id=True):
+		"""
+		SWAT+ requires line numbers rather than designated ID numbers.
+		The following writes the number of the element based on what line it will be in the ls_unit.ele file.
+		The format of the element list uses a "-" to denote "through"
+		"""
+		last_id = 0
+		last_appended_id = 0
+		just_wrote = False
+		ele_to_write = []
+		for ele in elements.order_by(element_table.id):
+			#elem_table = table_mapper.obj_typs.get(ele.obj_typ, None)
+			if elem_table is not None:
+				if use_obj_id:
+					obj_id_col = ele.obj_id
+				else:
+					obj_id_col = ele.obj_typ_no
+
+				#obj_id = elem_table.select().where(elem_table.id <= obj_id_col).count()
+				obj_id = element_ids.index(obj_id_col) + 1
 				if last_id == 0:
 					ele_to_write.append(utils.int_pad(obj_id))
 					just_wrote = True

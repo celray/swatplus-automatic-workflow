@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# cython: language_level=3
 
 '''
 /***************************************************************************
@@ -23,8 +24,8 @@
  Cython version of Polygonize
 '''
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import *  # @UnusedWildImport
-from PyQt5.QtGui import *  # @UnusedWildImport
+from qgis.PyQt.QtCore import *  # @UnusedWildImport
+from qgis.PyQt.QtGui import *  # @UnusedWildImport
 from qgis.core import * # @UnusedWildImport
 from qgis.gui import * # @UnusedWildImport
 #from multiprocessing import Pool # cannot translate this
@@ -245,7 +246,7 @@ cdef int findIndexByPosition(object p, int start, int finish, int x, int y):
         
 
 @staticmethod
-cdef int findIndexByLink(p, int start, int finish, Link f):
+cdef int findIndexByLink(object p, int start, int finish, Link f):
     """
     Return index of the first item of p in range(start, finish) which is the same as f, else -1.
     
@@ -435,7 +436,7 @@ cdef makeHole(l, int first, int last):
     return hole
     
 @staticmethod
-cdef Indexes hasHole(l):
+cdef Indexes hasHole(object l):
     """
     Return (a, b) if there is a link at a complemented by a non-adjacent one at b, else (-1, -1).
     
@@ -446,8 +447,10 @@ cdef Indexes hasHole(l):
     """
     cdef:
         Link link, findLink
+        int first, last
+        int length = len(l)
     
-    for first in range(len(l) - 2):
+    for first in range(length - 2):
         link = l[first]
         if link.d == _LEFT:
             findLink = Link(link.x - 1, link.y, _RIGHT)
@@ -455,7 +458,7 @@ cdef Indexes hasHole(l):
             findLink = Link(link.x + 1, link.y, _LEFT)
         else: 
             continue
-        last = findIndexByLink(l, first+2, len(l), findLink)
+        last = findIndexByLink(l, first+2, length, findLink)
         if last >= 0:
             # last compliments first, with last > first
             # the shorter of first+1 to last-1 and last+1 (wrapping) to first-1
@@ -470,9 +473,9 @@ cpdef isClockwise(Ring ring, int first, int last):
     Returns True if the sublist from first to last (wrapping round if necessary) is a clockwise ring.
     
     The ring is clockwise if a leftmost link is up.
-    Since we have bounds, we can stop searching for leftmost if a link is on the boundary.
-    We assume first and last are valid indexes, and that there are no complementary boundary links
-    (from the way that polygons are formed as boxes and then boxes are merged).
+    Since we have bounds, we can stop searching for leftmost if a link is on the left/right boundary.
+    We assume first and last are valid indexes, and that there are no complementary vertical links
+    (hence the use only of leftmost/rightmost links - there may be complementary horizontal links).
     """
     cdef:
         int i, x, direction, indx
@@ -485,21 +488,10 @@ cpdef isClockwise(Ring ring, int first, int last):
         
     if first > last:
         last = last + size
-    for i in xrange(first, last+1):
+    for i in range(first, last+1):
         indx = i - size if i >= size else i
         link = l[indx]
         direction = link.d
-        y = link.y
-        if y == bounds.ymin:
-            if direction == _RIGHT:
-                return True
-            elif direction == _LEFT:
-                return False
-        elif y == bounds.ymax:
-            if direction == _LEFT:
-                return True
-            elif direction == _RIGHT:
-                return False
         if direction == _RIGHT or direction == _LEFT:
             continue
         x = link.x
@@ -530,7 +522,7 @@ cpdef isClockwise(Ring ring, int first, int last):
 #     achievesYMax = False
 #     achievesYMin = False
 #     if first <= last:
-#         for i in xrange(first, last+1):
+#         for i in range(first, last+1):
 #             link = l[i]
 #             if link.x == bounds.xmax: achievesXMax = True
 #             if link.x == bounds.xmin: achievesXMin = True
@@ -541,7 +533,7 @@ cpdef isClockwise(Ring ring, int first, int last):
 #         return False
 #     else:
 #         size = len(l)
-#         for i in xrange(first, size):
+#         for i in range(first, size):
 #             link = l[i]
 #             if link.x == bounds.xmax: achievesXMax = True
 #             if link.x == bounds.xmin: achievesXMin = True
@@ -549,7 +541,7 @@ cpdef isClockwise(Ring ring, int first, int last):
 #             if link.y == bounds.ymin: achievesYMin = True
 #             if (achievesXMax and achievesXMin and achievesYMax and achievesYMin):
 #                 return True
-#         for i in xrange(0, last+1):
+#         for i in range(0, last+1):
 #             link = l[i]
 #             if link.x == bounds.xmax: achievesXMax = True
 #             if link.x == bounds.xmin: achievesXMin = True
@@ -592,11 +584,20 @@ cdef class Polygonize:
 
     cdef public object shapesTable
     cdef public object offset
+    cdef public bint connected4
+    cdef public int numCols
+    cdef public int noData
 
-    def __init__(self, object p, double dX, double dY):
+    def __init__(self, bint connected4, int numCols, int noData, object p, double dX, double dY):
         """Initialise class variables."""
         ## shapes data
         self.shapesTable = dict()
+        ## flag to show if using 4connectedness (or, if false, 8)
+        self.connected4 = connected4
+        ## number of values in row
+        self.numCols = numCols
+        ## noData value
+        self.noData = noData
         ## Top left corner and dimensions of grid
         self.offset = OffSet(p, dX, dY)
         
@@ -650,7 +651,7 @@ cdef class Polygonize:
     #     #start = time.process_time()
     #     pool = QThreadPool().globalInstance()
     #     # QSWATUtils.loginfo('Max thread count is {0!s}'.format(pool.maxThreadCount()))
-    #     for (hru, dataItem) in self.shapesTable.iteritems():
+    #     for (hru, dataItem) in self.shapesTable.items():
     #         worker = Worker(hru, dataItem)
     #         worker.signals.result.connect(self.process_result)
     #         pool.start(worker)
@@ -671,44 +672,24 @@ cdef class Polygonize:
     #         
     #     jobs = []
     #     queues = dict()
-    #     for hru, dataItem in self.shapesTable.iteritems():
+    #     for hru, dataItem in self.shapesTable.items():
     #         queues[hru] = Queue()
     #         jobs.append(Process(target=finishItem, args = (dataItem, queues[hru])))
     #     for j in jobs: j.start()
-    #     for hru, queue in queues.iteritems():
+    #     for hru, queue in queues.items():
     #         self.shapesTable[hru] = queue.get()
     #     for j in jobs: j.join()        
     #===========================================================================
         
         # Sequential version
-    # This has to be a Python function (def, not cpdef) if progressBar is to work.  
-    # Else just seems to exit immediately
-    def finishShapes(self, progressBar):
+    cpdef finishShapes(self):
                  
         """
         Finish by creating polygons, merging shapes and making holes for each set of data in the ShapesTable.
-        
-        progressBar may be None for batch runs and testing.
         """
-        #start = time.process_time()
-        if not progressBar is None:
-            fivePercent = len(self.shapesTable) // 20
-            progressCount = 0
-            progressBar.setVisible(True)
-            progressBar.setValue(0)
-            for data in self.shapesTable.values():
-                if progressCount == fivePercent:
-                    progressBar.setValue(progressBar.value() + 5)
-                    progressCount = 1
-                else:
-                    progressCount += 1
-                data.finishData()
-            progressBar.setVisible(False)
-        else:
-            for data in self.shapesTable.values():
-                data.finishData()
-        #finish = time.process_time()
-        #QSWATUtils.loginfo('Made FullHRUs shapes in {0!s} seconds'.format(int(finish - start)))
+
+        for data in self.shapesTable.values():
+            data.finishData()
             
     cpdef getGeometry(self, int val):
         """Return geometry for val."""
@@ -752,7 +733,7 @@ cdef class Polygonize:
             res += '\n'
         return res
     
-    cpdef addRow(self, np.ndarray[np.int_t] row, int rowNum, int length, int noData):
+    cpdef addRow(self, np.ndarray[np.int_t] row, int rowNum):
         """
         Add boxes from row.
         
@@ -766,18 +747,18 @@ cdef class Polygonize:
         col = 0
         width = 1
         last = row[0]
-        bound = length - 1
+        bound = self.numCols - 1
         while col < bound:
             nxt = row[col+1]
             if nxt == last:
                 width += 1
             else:
-                if last != noData:
+                if last != self.noData:
                     self.addBox(last, Box(col + 1 - width, rowNum, width))
                 last = nxt
                 width = 1
             col += 1
-        if last != noData:
+        if last != self.noData:
             self.addBox(last, Box(col + 1 - width, rowNum, width))
                 
 cdef class Data:
@@ -802,6 +783,9 @@ cdef class Data:
         
     cdef void boxesToPolygons(self):
         """Make polygons from all boxes."""
+        cdef:
+            Box b
+            
         self.polygons = []
         for b in self.boxes:
             self.polygons.append([boxToRing(b)])
@@ -815,18 +799,25 @@ cdef class Data:
         
         There are no holes yet, so each polygon is a single ring at the start of its list.
         """
+        cdef:
+            int i
+            bint changed
+            Indexes inds
+            Ring p0, pi
+            object done
+            
         done = []
         while len(self.polygons) > 0:
             p0 = self.polygons.pop(0)[0]
-            changed = False
             i = 0
+            changed = False
             while i < len(self.polygons):
-                inds = canMerge(p0, self.polygons[i][0])
+                pi = self.polygons[i][0]
+                inds = canMerge(p0, pi)
                 if inds.first >= 0:
-                    p = merge(p0, inds.first, self.polygons[i][0], inds.second)
-                    # QSWATUtils.loginfo('Merged {0!s} and {1!s} at {2!s} and {3!s} to make {4!s}'.format(p0.perimeter, self.polygons[i][0].perimeter, i0, i1, p.perimeter)) 
+                    p0 = merge(p0, inds.first, pi, inds.second)
                     del self.polygons[i]
-                    self.polygons.append([p])
+                    self.polygons.append([p0])
                     changed = True
                     break
                 else:
@@ -837,10 +828,14 @@ cdef class Data:
         
     cdef void makeAllHoles(self):
         """Separate out the holes for all polygons."""
+        cdef:
+            object poly
+         
+        todoCount = len(self.polygons)  
         for poly in self.polygons:
             self.makeHoles(poly)
 
-    cdef void makeHoles(self, poly):
+    cdef void makeHoles(self, object poly):
         """
         Separate out the holes in a polygon, adding them to its list of rings.
         
@@ -851,6 +846,8 @@ cdef class Data:
         cdef:
             int index
             Indexes inds
+            Ring ring
+            object links
             
         todo = [0]
         outerFound = False

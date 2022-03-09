@@ -20,17 +20,12 @@
  ***************************************************************************/
 """
 
-import os
+from qgis.PyQt import QtWidgets
 
-from PyQt5 import uic
-from PyQt5 import QtWidgets
+from .ui_selectsubs import Ui_SelectSubbasinsDialog
 
-pdir = os.path.dirname(__file__)
-FORM_CLASS, _ = uic.loadUiType(os.path.join(pdir, 'ui_selectsubs.ui'), 
-                               from_imports=True, 
-                               import_from=os.path.basename(pdir))
 
-class SelectSubbasinsDialog(QtWidgets.QDialog, FORM_CLASS):
+class SelectSubbasinsDialog(QtWidgets.QDialog, Ui_SelectSubbasinsDialog):
     """Set up dialog from designer."""
     def __init__(self, parent=None):
         """Constructor."""
@@ -41,3 +36,4 @@ class SelectSubbasinsDialog(QtWidgets.QDialog, FORM_CLASS):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
+

@@ -19,16 +19,16 @@
  *                                                                         *
  ***************************************************************************/
  """
-
-from osgeo import gdal
-from osgeo.gdalconst import GA_ReadOnly, GA_Update
+from qgis.core import QgsCoordinateReferenceSystem
+from osgeo import gdal  # type: ignore
 from qgis.core import QgsRasterLayer
 import numpy as np
 import os
 from distutils.version import LooseVersion
+from typing import Any, Dict, Union, Optional, cast
 
 try:
-    from QSWATUtils import QSWATUtils #, fileWriter, FileTypes
+    from .QSWATUtils import QSWATUtils # type: ignore 
 except:
     pass  # not needed by convertFromArc (already imported)
 
@@ -41,7 +41,7 @@ class Raster():
     In the interest of efficiency, this is limited to only using band 1 (to avoid arrays of buffers etc).
     """
      
-    def __init__(self, fileName, gv, canWrite=False, isInt=True):
+    def __init__(self, fileName: str, gv: Any, canWrite: bool=False, isInt: bool=True) -> None:
         
         """Generator."""
         
@@ -51,11 +51,11 @@ class Raster():
         ## number of chunks to be used when reading and writing raster
         self.chunkCount = 0
         ## chunks
-        self.chunks = dict()
+        self.chunks: Dict[int, Chunk] = dict()
         ## current chunk index: in domain of chunks indicates has data
         self.currentIndex = -1
         ## current array of values
-        self.array = None
+        self.array: Optional[np.ndarray[Any]] = None
         ## flag set if array data potentially changed
         self.arrayChanged = False
         ## rows in whole raster
@@ -75,7 +75,8 @@ class Raster():
         #self.readCount = 0
         #self.writeCount = 0
         
-    def open(self, chunkCount, numRows=0, numCols=0, transform=None, projection=None, noData=-1):
+    def open(self, chunkCount: int, numRows: int=0, numCols: int=0, transform: Optional[Dict[int, float]]=None, 
+             projection: Optional[QgsCoordinateReferenceSystem]=None, noData: int=-1) -> bool:
         """
         Open raster for reading or writing.
         
@@ -85,31 +86,33 @@ class Raster():
         try:
             if self.canWrite:
                 if os.path.exists(self.fileName):
-                    self.ds = gdal.Open(self.fileName, GA_Update)
+                    self.ds = gdal.Open(self.fileName, gdal.GA_Update)
                 else:
                     typ = gdal.GDT_Int32 if self.isInt else gdal.GDT_Float32
                     self.ds = gdal.GetDriverByName('GTiff').Create(self.fileName, numCols, numRows, 1, typ)
+                assert self.ds is not None
                 self.numRows = numRows
                 self.numCols = numCols
                 self.ds.SetGeoTransform(transform)
                 self.ds.SetProjection(projection)
                 self.band = self.ds.GetRasterBand(1)
+                assert self.band is not None
                 self.arrayChanged = False
                 self.band.SetNoDataValue(noData)
                 self.noData  = noData
             else:
-                self.ds = gdal.Open(self.fileName, GA_ReadOnly)
+                self.ds = gdal.Open(self.fileName, gdal.GA_ReadOnly)
+                assert self.ds is not None
                 self.numRows = self.ds.RasterYSize
                 self.numCols = self.ds.RasterXSize
                 self.band = self.ds.GetRasterBand(1)
+                assert self.band is not None
                 self.arrayChanged = False
                 self.noData = self.band.GetNoDataValue()
             layer = QgsRasterLayer(self.fileName, '')
             provider = layer.dataProvider()
             # xBlockSize = provider.xBlockSize()
             yBlockSize = provider.yBlockSize()
-            provider = None
-            layer = None
             self.chunkCount = chunkCount
             if chunkCount <= 1: # avoid accidentally dividing by zero later
                 chunkSize = self.numRows
@@ -161,9 +164,11 @@ class Raster():
                 # mumpy.core.full introduced in version 1.8
                 if LooseVersion(np.__version__) < LooseVersion('1.8'):
                     self.array = np.empty((chunkSize, self.numCols), dtype)
+                    assert self.array is not None
                     self.array.fill(noData)
                 else:
                     self.array = np.core.full((chunkSize, self.numCols), noData, dtype)
+                    assert self.array is not None
                 for ch in self.chunks.values():
                     self.band.WriteArray(self.array[:ch.numRows], 0, ch.rowOffset)
                 self.currentIndex = 0
@@ -176,11 +181,11 @@ class Raster():
             QSWATUtils.exceptionError('Failed to open raster {0}'.format(self.fileName), self._gv.isBatch)
             return False
         
-    def read(self, row, col):
+    def read(self, row: int, col: int) -> Union[int, float]:
         """Return raster value at [row, col]."""
         if 0 > col or col >= self.numCols:
             return self.noData
-        chunk = self.chunks.get(self.currentIndex, None)
+        chunk: Optional[Chunk] = self.chunks.get(self.currentIndex, None)
         index = self.currentIndex if chunk is not None and chunk.rowOffset <= row < chunk.rowOffset + chunk.numRows else -1
         if index == -1:
             for i, ch in self.chunks.items():
@@ -191,7 +196,9 @@ class Raster():
             if index == -1:
                 #QSWATUtils.error(u'Failed to read row {0} column {1} of raster {2}'.format(row, col, self.fileName), self._gv.isBatch)
                 return self.noData
+        assert chunk is not None
         if self.currentIndex != index:
+            assert self.band is not None
             if self.canWrite and self.arrayChanged:
                 self.band.WriteArray(self.array, 0, self.chunks[self.currentIndex].rowOffset)
                 #self.writeCount += 1
@@ -199,16 +206,20 @@ class Raster():
             self.array = self.band.ReadAsArray(0, chunk.rowOffset, self.numCols, chunk.numRows)
             #self.readCount += 1
             self.currentIndex = index
-        return self.array[row - chunk.rowOffset, col].astype(int) if self.isInt else self.array[row - chunk.rowOffset, col].astype(float)
+        assert self.array is not None
+        if self.isInt:
+            return cast(int, self.array[row - chunk.rowOffset, col].astype(int))
+        else:
+            return cast(float, self.array[row - chunk.rowOffset, col].astype(float))
     
-    def write(self, row, col, val):
+    def write(self, row: int, col: int, val: Union[int, float]) -> None:
         """Write val at [row, col]."""
         if 0 > col or col >= self.numCols:
             return
         if not self.canWrite:
             QSWATUtils.error('Trying to write to readonly raster {0}'.format(self.fileName), self._gv.isBatch)
             return
-        chunk = self.chunks.get(self.currentIndex, None)
+        chunk: Optional[Chunk] = self.chunks.get(self.currentIndex, None)
         index = self.currentIndex if chunk is not None and chunk.rowOffset <= row < chunk.rowOffset + chunk.numRows else -1
         if index == -1:
             for i, ch in self.chunks.items():
@@ -219,19 +230,23 @@ class Raster():
             if index == -1:
                 QSWATUtils.error('Failed to write row {0} column {1} of raster {2}'.format(row, col, self.fileName), self._gv.isBatch)
                 return
+        assert chunk is not None
         if self.currentIndex != index:
+            assert self.band is not None
             if self.arrayChanged:
                 self.band.WriteArray(self.array, 0, self.chunks[self.currentIndex].rowOffset)
                 #self.writeCount += 1
             self.array = self.band.ReadAsArray(0, chunk.rowOffset, self.numCols, chunk.numRows)
             self.currentIndex = index
+        assert self.array is not None
         self.array[row - chunk.rowOffset, col] = val
         self.arrayChanged = True
         
-    def close(self):
+    def close(self) -> None:
         """Write if necessary and release memory (which also flushes)."""
         if self.canWrite:
             if self.arrayChanged:
+                assert self.band is not None
                 self.band.WriteArray(self.array, 0, self.chunks[self.currentIndex].rowOffset)
                 self.arrayChanged = False
         #    self.writeCount += 1
@@ -241,7 +256,7 @@ class Raster():
         #    QSWATUtils.loginfo(u'{0} chunks of {2} rows read {1} times'.format(self.fileName, self.readCount, self.chunks[0].numRows))
         self.release()
         
-    def release(self):
+    def release(self) -> None:
         """Release memory (which also flushes)."""
         # resetting currentIndex allows a Raster object to be closed and reopened
         self.chunks = dict()
@@ -254,7 +269,7 @@ class Chunk():
     
     """Piece of a raster: a number of rows starting from rowOffset."""
     
-    def __init__(self, numRows, rowOffset):
+    def __init__(self, numRows: int, rowOffset: int) -> None:
         
         """Generator."""
         

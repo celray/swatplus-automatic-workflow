@@ -3,10 +3,14 @@ from playhouse.shortcuts import model_to_dict
 from peewee import *
 
 from .base import BaseRestModel
+from database import lib as db_lib
 from database.project.setup import SetupProjectDatabase
 
-from database.project.init import Soil_plant_ini, Salt_hru_ini, Hmet_hru_ini, Path_hru_ini, Pest_hru_ini, Om_water_ini, Plant_ini, Plant_ini_item
+from database.project.init import Soil_plant_ini, Salt_hru_ini, Salt_hru_ini_item, Hmet_hru_ini, Hmet_hru_ini_item, Path_hru_ini, Pest_hru_ini, Path_hru_ini_item, Pest_hru_ini_item, Om_water_ini, Plant_ini, Plant_ini_item, Salt_water_ini, Hmet_water_ini, Path_water_ini, Pest_water_ini, Salt_water_ini_item, Hmet_water_ini_item, Path_water_ini_item, Pest_water_ini_item
 from database.project.soils import Nutrients_sol
+from database.project.simulation import Constituents_cs
+from database.project.hru_parm_db import Pesticide_pst, Pathogens_pth, Metals_mtl, Salts_slt
+from database.project import base as project_base
 
 invalid_name_msg = 'Invalid name {name}. Please ensure the value exists in your database.'
 
@@ -31,10 +35,10 @@ def get_soil_plant_args(get_selected_ids=False):
 
 
 class SoilPlantListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Soil_plant_ini
-		list_name = 'soil_plant'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name, True)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols, back_refs=True)
 
 
 class SoilPlantApi(BaseRestModel):
@@ -167,10 +171,10 @@ class SoilPlantPostApi(BaseRestModel):
 """ Organic mineral water """
 
 class OMWaterListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
+	def get(self, project_db):
 		table = Om_water_ini
-		list_name = 'om_water'
-		return self.base_paged_list(project_db, sort, reverse, page, items_per_page, table, list_name)
+		filter_cols = [table.name]
+		return self.base_paged_list(project_db, table, filter_cols)
 
 
 def save_om_water(m, args):
@@ -272,20 +276,41 @@ class OMWaterPostApi(BaseRestModel):
 
 """ Plant Communities """
 class PlantIniListApi(BaseRestModel):
-	def get(self, project_db, sort, reverse, page, items_per_page):
-		table = Plant_ini
-		list_name = 'plants'
+	def get(self, project_db):
 		SetupProjectDatabase.init(project_db)
+		args = self.get_table_args()
+
+		table = Plant_ini
+		filter_cols = [table.name, table.rot_yr_ini, table.description]
 		total = table.select().count()
+		sort = self.get_arg(args, 'sort', 'name')
+		reverse = self.get_arg(args, 'reverse', 'n')
+		page = self.get_arg(args, 'page', 1)
+		per_page = self.get_arg(args, 'per_page', 50)
+		filter_val = self.get_arg(args, 'filter', None)
 
-		sort_val = SQL(sort)
-		if reverse == 'true':
-			sort_val = SQL(sort).desc()
+		if filter_val is not None:
+			w = None
+			for f in filter_cols:
+				w = w | (f.contains(filter_val))
+			s = table.select().where(w)
+		else:
+			s = table.select()
 
-		m = table.select().order_by(sort_val).paginate(int(page), int(items_per_page))
+		matches = s.count()
+
+		sort_val = SQL('[{}]'.format(sort))
+		if reverse == 'y':
+			sort_val = SQL('[{}]'.format(sort)).desc()
+
+		m = s.order_by(sort_val).paginate(int(page), int(per_page))
 		ml = [{'id': v.id, 'name': v.name, 'rot_yr_ini': v.rot_yr_ini, 'description': v.description, 'num_plants': len(v.plants)} for v in m]
 
-		return {'total': total, list_name: ml}
+		return {
+			'total': total,
+			'matches': matches,
+			'items': ml
+		}
 
 
 class PlantIniApi(BaseRestModel):
@@ -319,3 +344,185 @@ class PlantIniItemPostApi(BaseRestModel):
 	def post(self, project_db):
 		return self.base_post(project_db, Plant_ini_item, 'Plant')
 """ Plant Communities """
+
+
+def create_constit_ini_tables():
+	project_base.db.create_tables([Pest_hru_ini, Pest_hru_ini_item, Pest_water_ini, Pest_water_ini_item, 
+		Path_hru_ini, Path_hru_ini_item, Path_water_ini, Path_water_ini_item, 
+		Hmet_hru_ini, Hmet_hru_ini_item, Hmet_water_ini, Hmet_water_ini_item, 
+		Salt_hru_ini, Salt_hru_ini_item, Salt_water_ini, Salt_water_ini_item])
+
+
+class ConstituentsApi(BaseRestModel):
+	def get(self, project_db):
+		SetupProjectDatabase.init(project_db)
+		create_constit_ini_tables()
+
+		if Constituents_cs.select().count() > 0:
+			m = Constituents_cs.get()
+			return {
+				'using': True,
+				'pests': [] if m.pest_coms is None else sorted(m.pest_coms.split(',')),
+				'paths': [] if m.path_coms is None else sorted(m.path_coms.split(',')),
+				'hmets': [] if m.hmet_coms is None else sorted(m.hmet_coms.split(',')),
+				'salts': [] if m.salt_coms is None else sorted(m.salt_coms.split(','))
+			}
+
+		return {
+			'using': False,
+			'pests': [],
+			'paths': [],
+			'hmets': [],
+			'salts': []
+		}
+
+	def delete(self, project_db):
+		SetupProjectDatabase.init(project_db)
+		if Constituents_cs.select().count() > 0:
+			project_base.db.execute_sql("PRAGMA foreign_keys = ON")
+			Pest_hru_ini.delete().execute()
+			Pest_water_ini.delete().execute()
+			Path_hru_ini.delete().execute()
+			Path_water_ini.delete().execute()
+			Hmet_hru_ini.delete().execute()
+			Hmet_water_ini.delete().execute()
+			Salt_hru_ini.delete().execute()
+			Salt_water_ini.delete().execute()
+			return self.base_delete(project_db, 1, Constituents_cs, 'Constituents')
+
+		return 204
+
+	def put(self, project_db):
+		try:
+			SetupProjectDatabase.init(project_db)
+			parser = reqparse.RequestParser()
+			parser.add_argument('pests', type=list, location='json')
+			parser.add_argument('paths', type=list, location='json')
+			parser.add_argument('hmets', type=list, location='json')
+			parser.add_argument('salts', type=list, location='json')
+			args = parser.parse_args(strict=False)
+
+			pest_coms = None if args['pests'] is None or len(args['pests']) < 1 else ','.join(args['pests'])
+			path_coms = None if args['paths'] is None or len(args['paths']) < 1 else ','.join(args['paths'])
+			hmet_coms = None if args['hmets'] is None or len(args['hmets']) < 1 else ','.join(args['hmets'])
+			salt_coms = None if args['salts'] is None or len(args['salts']) < 1 else ','.join(args['salts'])
+
+			pest_ids = Pesticide_pst.select().where(Pesticide_pst.name.in_(args['pests']))
+			Pest_hru_ini_item.delete().where(Pest_hru_ini_item.name.not_in(pest_ids)).execute()
+			Pest_water_ini_item.delete().where(Pest_water_ini_item.name.not_in(pest_ids)).execute()
+
+			path_ids = Pathogens_pth.select().where(Pathogens_pth.name.in_(args['paths']))
+			Path_hru_ini_item.delete().where(Path_hru_ini_item.name.not_in(path_ids)).execute()
+			Path_water_ini_item.delete().where(Path_water_ini_item.name.not_in(path_ids)).execute()
+
+			"""hmet_ids = Metals_mtl.select().where(Metals_mtl.name.in_(args['hmets']))
+			Hmet_hru_ini_item.delete().where(Hmet_hru_ini_item.name.not_in(hmet_ids)).execute()
+			Hmet_water_ini_item.delete().where(Hmet_water_ini_item.name.not_in(hmet_ids)).execute()
+
+			salt_ids = Salts_slt.select().where(Salts_slt.name.in_(args['salts']))
+			Salt_hru_ini_item.delete().where(Salt_hru_ini_item.name.not_in(path_ids)).execute()
+			Salt_water_ini_item.delete().where(Salt_water_ini_item.name.not_in(path_ids)).execute()"""
+
+			if Constituents_cs.select().count() > 0:
+				q = Constituents_cs.update(pest_coms=pest_coms, path_coms=path_coms, hmet_coms=hmet_coms, salt_coms=salt_coms)
+				result = q.execute()
+			else:
+				v = Constituents_cs.create(id=1, name='Constituents', pest_coms=pest_coms, path_coms=path_coms, hmet_coms=hmet_coms, salt_coms=salt_coms)
+				result = 1 if v is not None else 0
+
+			if result > 0:
+				return 200
+
+			abort(400, message='Unable to update save changes to constituents.')
+		except Exception as ex:
+			abort(400, message="Unexpected error {ex}".format(ex=ex))
+
+
+def get_constituents_ini(project_db, ini_table, db_table, col_name):
+	SetupProjectDatabase.init(project_db)
+	items = [model_to_dict(v, backrefs=True, max_depth=1) for v in ini_table.select()]
+	constituents = []
+	if Constituents_cs.select().count() > 0:
+		c = model_to_dict(Constituents_cs.get())[col_name]
+		names = [] if c is None else sorted(c.split(','))
+		constituents = [{'id': v.id, 'name': v.name} for v in db_table.select().where(db_table.name.in_(names))]
+
+	return {
+		'items': items,
+		'constituents': constituents
+	}
+
+def save_constituents_ini(project_db, ini_table, ini_item_table, rel_col_name, row1='plant', row2='soil'):
+	SetupProjectDatabase.init(project_db)
+	parser = reqparse.RequestParser()
+	parser.add_argument('items', type=list, location='json')
+	args = parser.parse_args(strict=False)
+	
+	ini_item_table.delete().execute()
+	ini_table.delete().execute()
+
+	for item in args['items']:
+		m = ini_table(name = item['name'])
+		m.save()
+
+		rows = []
+		for row in item['rows']:
+			rows.append({
+				rel_col_name: m.id,
+				'name_id': row['name_id'],
+				row1: row[row1],
+				row2: row[row2]
+			})
+
+		db_lib.bulk_insert(project_base.db, ini_item_table, rows)
+
+class PestHruIniApi(BaseRestModel):
+	def get(self, project_db):
+		create_constit_ini_tables()
+		return get_constituents_ini(project_db, Pest_hru_ini, Pesticide_pst, 'pest_coms')
+
+	def put(self, project_db):
+		try:
+			save_constituents_ini(project_db, Pest_hru_ini, Pest_hru_ini_item, 'pest_hru_ini_id')
+			return 200
+		except Exception as ex:
+			abort(400, message="Unexpected error {ex}".format(ex=ex))
+
+
+class PestWaterIniApi(BaseRestModel):
+	def get(self, project_db):
+		create_constit_ini_tables()
+		return get_constituents_ini(project_db, Pest_water_ini, Pesticide_pst, 'pest_coms')
+
+	def put(self, project_db):
+		try:
+			save_constituents_ini(project_db, Pest_water_ini, Pest_water_ini_item, 'pest_water_ini_id', row1='water', row2='benthic')
+			return 200
+		except Exception as ex:
+			abort(400, message="Unexpected error {ex}".format(ex=ex))
+
+
+class PathHruIniApi(BaseRestModel):
+	def get(self, project_db):
+		create_constit_ini_tables()
+		return get_constituents_ini(project_db, Path_hru_ini, Pathogens_pth, 'path_coms')
+
+	def put(self, project_db):
+		try:
+			save_constituents_ini(project_db, Path_hru_ini, Path_hru_ini_item, 'path_hru_ini_id')
+			return 200
+		except Exception as ex:
+			abort(400, message="Unexpected error {ex}".format(ex=ex))
+
+
+class PathWaterIniApi(BaseRestModel):
+	def get(self, project_db):
+		create_constit_ini_tables()
+		return get_constituents_ini(project_db, Path_water_ini, Pathogens_pth, 'path_coms')
+
+	def put(self, project_db):
+		try:
+			save_constituents_ini(project_db, Path_water_ini, Path_water_ini_item, 'path_water_ini_id', row1='water', row2='benthic')
+			return 200
+		except Exception as ex:
+			abort(400, message="Unexpected error {ex}".format(ex=ex))

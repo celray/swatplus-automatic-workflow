@@ -42,10 +42,10 @@ WEATHER_DESC = {
 	"wnd": "Wind speed"
 }
 
-def weather_sta_name(lat, lon):
+def weather_sta_name(lat, lon, prefix = 's', mult = 1000):
 	latp = "n" if lat >= 0 else "s"
 	lonp = "e" if lon >= 0 else "w"
-	name = "sta{lat}{latp}{lon}{lonp}".format(lat=abs(round(lat * 100)), latp=latp, lon=abs(round(lon * 100)), lonp=lonp)
+	name = "{prefix}{lat}{latp}{lon}{lonp}".format(prefix=prefix, lat=abs(round(lat * mult)), latp=latp, lon=abs(round(lon * mult)), lonp=lonp)
 	return name
 
 
@@ -262,16 +262,18 @@ class WeatherImport(ExecutableApi):
 		starts = [v for v in starts if v is not None]
 		ends = [v for v in ends if v is not None]
 		if len(starts) > 0:
-			ustarts = list(dict.fromkeys(starts))
+			"""ustarts = list(dict.fromkeys(starts))
 			uends = list(dict.fromkeys(ends))
 			if len(ustarts) > 1 or len(uends) > 1:
 				raise ValueError("Dates in weather files do not match. Make sure all weather files have the same starting and ending dates.")
-			
-			st = ustarts[0].timetuple()
+			"""
+			start_date = max(starts)
+			end_date = min(ends)
+			st = start_date.timetuple()
 			start_day = st.tm_yday if st.tm_yday > 1 else 0
 			start_year = st.tm_year
 
-			et = uends[0].timetuple()
+			et = end_date.timetuple()
 			end_day = 0 if et.tm_mon == 12 and et.tm_mday == 31 else et.tm_yday
 			end_year = et.tm_year
 
@@ -296,6 +298,8 @@ class WeatherImport(ExecutableApi):
 	def add_weather_files_type(self, source_file, weather_type, prog):
 		start_date = None
 		end_date = None
+		starts = []
+		ends = []
 		if os.path.exists(source_file):
 			self.emit_progress(prog, "Inserting {type} files and coordinates...".format(type=weather_type))
 			weather_files = []
@@ -340,10 +344,11 @@ class WeatherImport(ExecutableApi):
 
 										date = datetime.datetime(int(begin_data[0]), 1, 1)
 										current_start_date = date + datetime.timedelta(days=int(begin_data[1])-1)
-										if start_date is not None and current_start_date != start_date:
-											raise ValueError("Start dates in weather files do not match. Make sure all weather files have the same starting and ending dates.")
+										#if start_date is not None and current_start_date != start_date:
+										#	raise ValueError("Start dates in weather files do not match. Make sure all weather files have the same starting and ending dates.")
 
-										start_date = current_start_date
+										#start_date = current_start_date
+										starts.append(current_start_date)
 									elif j > 3:
 										break
 
@@ -353,14 +358,18 @@ class WeatherImport(ExecutableApi):
 								last_line = non_empty_lines[len(non_empty_lines)-1].strip().split()
 								date = datetime.datetime(int(last_line[0]), 1, 1)
 								current_end_date = date + datetime.timedelta(days=int(last_line[1])-1)
-								if end_date is not None and current_end_date != end_date:
-									raise ValueError("Ending dates in weather files do not match. Make sure all weather files have the same starting and ending dates.")
+								#if end_date is not None and current_end_date != end_date:
+								#	raise ValueError("Ending dates in weather files do not match. Make sure all weather files have the same starting and ending dates.")
 
-								end_date = current_end_date
+								#end_date = current_end_date
+								ends.append(current_end_date)
 
 					i += 1
 
 			db_lib.bulk_insert(project_base.db, Weather_file, weather_files)
+			if len(starts) > 0 and len(ends) > 0:
+				start_date = max(starts)
+				end_date = min(ends)
 		return start_date, end_date
 
 
@@ -650,6 +659,7 @@ class WgnImport(ExecutableApi):
 
 		data = cursor.fetchall()
 		records = len(data)
+		#print(records)
 
 		i = 1
 		for row in data:
@@ -673,7 +683,7 @@ class WgnImport(ExecutableApi):
 				}
 				wgns.append(wgn)
 
-		prog = round(i * (total_prog / 2) / records) + start_prog
+		prog = start_prog if records < 1 else round(i * (total_prog / 2) / records) + start_prog
 		self.emit_progress(prog, "Inserting {total} weather generators...".format(total=len(ids)))
 		db_lib.bulk_insert(project_base.db, Weather_wgn_cli, wgns)
 

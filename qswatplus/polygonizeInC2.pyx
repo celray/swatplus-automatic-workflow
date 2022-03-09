@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# cython: language_level=3
 
 '''
 /***************************************************************************
@@ -40,8 +41,6 @@
 #  left the polygon for the upper right X unconnected to the polygon for the other Xs
 #  because the right link above the (second) lower X needs to be connected at both ends when it is added.
 #  This has also been fixed by checking if adding a right link can join two rings
-
-# cython: language_level=3
 
 from qgis.core import * # @UnusedWildImport
 

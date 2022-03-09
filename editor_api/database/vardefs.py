@@ -1,7 +1,7 @@
 from peewee import *
 import os
 
-db = SqliteDatabase(os.path.join(os.getcwd(), 'swatplus_vardefs.sqlite'))
+db = SqliteDatabase(None)
 
 
 class BaseModel(Model):
@@ -26,6 +26,7 @@ class Var_range(BaseModel):
 	default_text = CharField(null=True)
 	units = CharField(null=True)
 	description = CharField(null=True)
+	disabled = BooleanField()
 	
 	
 class Var_range_option(BaseModel):
@@ -34,3 +35,9 @@ class Var_range_option(BaseModel):
 	text = CharField()
 	text_only = BooleanField()
 	text_value = CharField(null=True)
+
+
+class SetupVardefsDatabase():
+	@staticmethod
+	def init(datasets_db: str = None):
+		db.init(datasets_db, pragmas={'journal_mode': 'off'})
