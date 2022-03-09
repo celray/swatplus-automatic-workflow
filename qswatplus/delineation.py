@@ -25,7 +25,7 @@ from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.core import Qgis, QgsUnitTypes, QgsWkbTypes, QgsCoordinateTransformContext, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsLayerTree, QgsLayerTreeModel, QgsLayerTreeLayer, QgsRasterLayer, QgsVectorLayer, QgsVectorFileWriter, QgsProject
 from qgis.gui import QgsMapCanvas, QgsMapTool, QgsMapToolEmitPoint
 from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry
-import os
+import os, sys
 import glob
 import shutil
 import math
@@ -373,7 +373,7 @@ class Delineation(QObject):
         self.saveProj()
         if self.checkDEMProcessed():
             recalculate = self._gv.existingWshed and self._dlg.recalcButton.isChecked()
-            self.progress('Constructing topology ...')
+            # self.progress('Constructing topology ...')
             if self._gv.outletFile == '':
                 outletLayer: Optional[QgsVectorLayer] = None
             elif not self._gv.existingWshed and os.path.exists(self._gv.snapFile):
@@ -394,11 +394,11 @@ class Delineation(QObject):
                         basinsLayer.setExpanded(False)
                 self.makeDistancesToOutlets()
                 self.delineationFinishedOK = True
-                self.progress('')
+                # self.progress('')
                 self.doClose()
                 return
             else:
-                self.progress('')
+                # self.progress('')
                 return
         return
     
@@ -442,7 +442,7 @@ class Delineation(QObject):
         else:
             reportErrors = not self._dlg.lakeMessagesBox.isChecked()
             if not self._gv.useGridModel and not self.lakePointsAdded and not self._gv.existingWshed:
-                self.progress('Splitting lake channels ...')
+                # self.progress('Splitting lake channels ...')
                 assert channelsLayer is not None  # since not grid model
                 if not self.splitChannelsByLakes(lakesLayer, channelsLayer, demLayer, reportErrors):
                     QSWATUtils.error('Failed to split lake channels', self._gv.isBatch)
@@ -472,10 +472,10 @@ class Delineation(QObject):
                 if chBasinsLayer is None:
                     chBasinsLayer = QgsVectorLayer(self._gv.wshedFile, 'chBasins', 'ogr')
             if self._gv.useGridModel and not self.gridLakesAdded:
-                self.progress('Making grid lakes ...')
+                # self.progress('Making grid lakes ...')
                 assert subbasinsLayer is not None
                 self.makeGridLakes(lakesLayer, subbasinsLayer)
-                self.progress('')
+                # self.progress('')
                 if lakesLayer is None:
                     QSWATUtils.error('Failed to make grid lakes', self._gv.isBatch)
                     return
@@ -483,7 +483,7 @@ class Delineation(QObject):
         self.lakesDone = True
         self._dlg.lakesTab.setEnabled(False)
         self._dlg.mergeTab.setEnabled(False)
-        self.progress('Adding lakes ...')
+        # self.progress('Adding lakes ...')
         self._dlg.setCursor(Qt.WaitCursor)
         self._gv.topo.lakesData.clear()
         if self._gv.useGridModel:
@@ -503,7 +503,7 @@ class Delineation(QObject):
                                        demLayer, snapThreshold, self._gv, reportErrors=reportErrors)
                 self._gv.chBasinNoLakeFile = self.createBasinFile(self._gv.wshedFile, demLayer, 'wChannelNoLake', root)
         self._gv.topo.saveLakesData(self._gv.db)
-        self.progress('')
+        # self.progress('')
         self._dlg.setCursor(Qt.ArrowCursor)
         self._gv.iface.mapCanvas().refresh()
         QSWATUtils.loginfo('{0} outlets after adding lakes'.format(len(self._gv.topo.outlets)))
@@ -861,7 +861,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         mustRun = True
         (base, suffix) = os.path.splitext(self._gv.demFile)
         # AreaD8 has an outlets shapefile input, but no need to rerun as adding lake inlets and outlets will not change the watershed area
-        self.progress('GridNet ...')
+        # self.progress('GridNet ...')
         gordFile = base + 'gord' + suffix
         plenFile = base + 'plen' + suffix
         tlenFile = base + 'tlen' + suffix
@@ -1258,7 +1258,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
             # noinspection PyArgumentList
             root = QgsProject.instance().layerTreeRoot()
             if not haveDistSt:
-                self.progress('Tributary stream lengths ...')
+                # self.progress('Tributary stream lengths ...')
                 threshold = self._gv.topo.makeOutletThresholds(self._gv, root)
                 if threshold > 0:
                     self._gv.distStFile = demBase + 'distst.tif'
@@ -1276,7 +1276,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
                     # Probably using existing watershed but switched tabs in delineation form
                     self._gv.distStFile = ''
             if not self._gv.useGridModel and not haveDistCh:
-                self.progress('Channel flow lengths ...')
+                # self.progress('Channel flow lengths ...')
                 if not QSWATUtils.isUpToDate(self._gv.demFile, self._gv.ad8File):
                     # Probably using existing watershed but switched tabs in delineation form
                     # At any rate, cannot calculate flow paths
@@ -1295,7 +1295,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
                 # estimate valley depths for tributary slopes in hrus if not calculated for floodplain
                 # so don't calculate here
 #             if not haveValleyDepths:
-#                 self.progress('Valley depths ...')
+#                 # self.progress('Valley depths ...')
 #                 if self.L is None:
 #                     self.L = Landscape(self._gv, self._dlg.taudemOutput, self._dlg.numProcesses.value(), self.progress)
 #                 # mustRun probably left true by previous run: avoid unnecessary recalculation
@@ -1307,7 +1307,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
 #                 self.L.calcHillslopes(threshold, clipper, root)
 #                 self._dlg.setCursor(Qt.ArrowCursor)
 #                 QSWATUtils.loginfo('Created valley depths file {0}'.format(self._gv.valleyDepthsFile))
-            self.progress('')
+            # self.progress('')
         else:
             self._gv.distStFile = ''
     
@@ -1598,7 +1598,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
             if not QSWATUtils.isUpToDate(demFile, burnedDemFile) or not QSWATUtils.isUpToDate(burnFile, burnedDemFile):
                 # just in case
                 QSWATUtils.tryRemoveLayerAndFiles(burnedDemFile, root)
-                self.progress('Burning streams ...')
+                # self.progress('Burning streams ...')
                 QSWATTopology.burnStream(burnFile, demFile, burnedDemFile, self._gv.burninDepth, self._gv.verticalFactor, self._gv.isBatch)
                 if not os.path.exists(burnedDemFile):
                     return
@@ -1622,7 +1622,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         self.deleteFloodFiles(root)
         felFile = base + 'fel' + suffix
         QSWATUtils.removeLayer(felFile, root)
-        self.progress('PitFill ...')
+        # self.progress('PitFill ...')
         depmask = QSWATUtils.join(baseDir, 'depmask.tif')
         if not os.path.isfile(depmask):
             depmask = None
@@ -1635,7 +1635,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         pFile = base + 'p' + suffix
         QSWATUtils.removeLayer(sd8File, root)
         QSWATUtils.removeLayer(pFile, root)
-        self.progress('D8FlowDir ...')
+        # self.progress('D8FlowDir ...')
         ok = TauDEMUtils.runD8FlowDir(felFile, sd8File, pFile, numProcesses, self._dlg.taudemOutput)   
         if not ok:
             self.cleanUp(3)
@@ -1644,21 +1644,20 @@ assumed that its crossing the lake boundary is an inaccuracy.
         angFile = base + 'ang' + suffix
         QSWATUtils.removeLayer(slpFile, root)
         QSWATUtils.removeLayer(angFile, root)
-        self.progress('DinfFlowDir ...')
         ok = TauDEMUtils.runDinfFlowDir(felFile, slpFile, angFile, numProcesses, self._dlg.taudemOutput)  
         if not ok:
             self.cleanUp(3)
             return
         ad8File = base + 'ad8' + suffix
         QSWATUtils.removeLayer(ad8File, root)
-        self.progress('AreaD8 ...')
+        # self.progress('AreaD8 ...')
         ok = TauDEMUtils.runAreaD8(pFile, ad8File, None, None, numProcesses, self._dlg.taudemOutput, mustRun=self.thresholdChanged)   
         if not ok:
             self.cleanUp(3)
             return
         scaFile = base + 'sca' + suffix
         QSWATUtils.removeLayer(scaFile, root)
-        self.progress('AreaDinf ...')
+        # self.progress('AreaDinf ...')
         ok = TauDEMUtils.runAreaDinf(angFile, scaFile, None, numProcesses, self._dlg.taudemOutput, mustRun=self.thresholdChanged)  
         if not ok:
             self.cleanUp(3)
@@ -1669,17 +1668,18 @@ assumed that its crossing the lake boundary is an inaccuracy.
         QSWATUtils.removeLayer(gordFile, root)
         QSWATUtils.removeLayer(plenFile, root)
         QSWATUtils.removeLayer(tlenFile, root)
-        self.progress('GridNet ...')
+        # self.progress('GridNet ...')
         ok = TauDEMUtils.runGridNet(pFile, plenFile, tlenFile, gordFile, None, numProcesses, self._dlg.taudemOutput, mustRun=self.thresholdChanged)  
         if not ok:
             self.cleanUp(3)
             return
         srcStreamFile = base + 'srcStream' + suffix
         QSWATUtils.removeLayer(srcStreamFile, root)
-        self.progress('Threshold ...')
+        # self.progress('Threshold ...')
         streamThreshold = self._dlg.numCellsSt.text()
         if self._gv.isBatch:
-            QSWATUtils.information('Stream threshold: {0} cells'.format(streamThreshold), True)
+            # QSWATUtils.information('Stream threshold: {0} cells'.format(streamThreshold), True)
+            print('\t - Stream threshold: {0} cells'.format(streamThreshold))
         ok = TauDEMUtils.runThreshold(ad8File, srcStreamFile, streamThreshold, numProcesses, self._dlg.taudemOutput, mustRun=self.thresholdChanged) 
         if not ok:
             self.cleanUp(3)
@@ -1689,7 +1689,8 @@ assumed that its crossing the lake boundary is an inaccuracy.
             QSWATUtils.removeLayer(srcChannelFile, root)
             channelThreshold = self._dlg.numCellsCh.text()
             if self._gv.isBatch:
-                QSWATUtils.information('Channel threshold: {0} cells'.format(channelThreshold), True)
+                # QSWATUtils.information('Channel threshold: {0} cells'.format(channelThreshold), True)
+                print('\t - Channel threshold: {0} cells'.format(channelThreshold))
             ok = TauDEMUtils.runThreshold(ad8File, srcChannelFile, channelThreshold, numProcesses, self._dlg.taudemOutput, mustRun=self.thresholdChanged) 
             if not ok:
                 self.cleanUp(3)
@@ -1704,7 +1705,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         QSWATUtils.removeLayer(ordStreamFile, root)
         QSWATUtils.removeLayer(streamFile, root)
         QSWATUtils.removeLayer(wStreamFile, root)
-        self.progress('StreamNet ...')
+        # self.progress('StreamNet ...')
         ok = TauDEMUtils.runStreamNet(felFile, pFile, ad8File, srcStreamFile, None, ordStreamFile, treeStreamFile, coordStreamFile,
                                           streamFile, wStreamFile, False, numProcesses, self._dlg.taudemOutput, mustRun=self.thresholdChanged)
         if not ok:
@@ -1775,7 +1776,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
             if not outletLayer:
                 self.cleanUp(-1)
                 return
-            self.progress('SnapOutletsToStreams ...')
+            # self.progress('SnapOutletsToStreams ...')
             chanLayer = streamLayer if self._gv.useGridModel else channelLayer
             ok = self.createSnapOutletFile(outletLayer, streamLayer, chanLayer, outletFile, snapFile, root)  
             if not ok:
@@ -1793,18 +1794,18 @@ assumed that its crossing the lake boundary is an inaccuracy.
             # repeat AreaD8, GridNet, Threshold and StreamNet with snapped outlets
             mustRun = self.thresholdChanged
             QSWATUtils.removeLayer(ad8File, root)
-            self.progress('AreaD8 ...')
+            # self.progress('AreaD8 ...')
             ok = TauDEMUtils.runAreaD8(pFile, ad8File, self._gv.snapFile, None, numProcesses, self._dlg.taudemOutput, mustRun=mustRun)   
             if not ok:
                 self.cleanUp(3)
                 return
-            self.progress('GridNet ...')
+            # self.progress('GridNet ...')
             ok = TauDEMUtils.runGridNet(pFile, plenFile, tlenFile, gordFile, self._gv.snapFile, numProcesses, self._dlg.taudemOutput, mustRun=mustRun)  
             if not ok:
                 self.cleanUp(3)
                 return
             QSWATUtils.removeLayer(srcStreamFile, root)
-            self.progress('Threshold ...')
+            # self.progress('Threshold ...')
             ok = TauDEMUtils.runThreshold(ad8File, srcStreamFile, streamThreshold, numProcesses, self._dlg.taudemOutput, mustRun=mustRun) 
             if not ok:
                 self.cleanUp(3)
@@ -1823,7 +1824,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
             QSWATUtils.removeLayer(streamFile, root)
             # having this as a layer results in DSNODEIDs being set to zero
             QSWATUtils.removeLayer(ioSnapFile, root)
-            self.progress('StreamNet ...')
+            # self.progress('StreamNet ...')
             ok = TauDEMUtils.runStreamNet(felFile, pFile, ad8File, srcStreamFile, ioSnapFile, ordStreamFile, treeStreamFile, coordStreamFile,
                                           streamFile, wStreamFile, False, numProcesses, self._dlg.taudemOutput, mustRun=mustRun)
             if not ok:
@@ -1875,7 +1876,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
             # need to make slope file from original dem
             felNoburn = base + 'felnoburn' + suffix
             QSWATUtils.removeLayer(felNoburn, root)
-            self.progress('PitFill ...')
+            # self.progress('PitFill ...')
             ok = TauDEMUtils.runPitFill(demFile, depmask, felNoburn, numProcesses, self._dlg.taudemOutput)  
             if not ok:
                 self.cleanUp(3)
@@ -1884,7 +1885,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
             angleFile = base + 'angle' + suffix
             QSWATUtils.removeLayer(slopeFile, root)
             QSWATUtils.removeLayer(angleFile, root)
-            self.progress('DinfFlowDir ...')
+            # self.progress('DinfFlowDir ...')
             ok = TauDEMUtils.runDinfFlowDir(felNoburn, slopeFile, angleFile, numProcesses, self._dlg.taudemOutput)  
             if not ok:
                 self.cleanUp(3)
@@ -2026,7 +2027,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         angFile = base + 'ang' + suffix
         QSWATUtils.removeLayer(slpFile, root)
         QSWATUtils.removeLayer(angFile, root)
-        self.progress('DinfFlowDir ...')
+        # self.progress('DinfFlowDir ...')
         willRun = not (QSWATUtils.isUpToDate(demFile, slpFile) and QSWATUtils.isUpToDate(demFile, angFile))
         if willRun:
             if self._dlg.showTaudem.isChecked():
@@ -2083,14 +2084,14 @@ assumed that its crossing the lake boundary is an inaccuracy.
             # generate subbasins raster
             wStreamFile = base + 'wStream' + suffix
             if not (QSWATUtils.isUpToDate(demFile, wStreamFile) and QSWATUtils.isUpToDate(subbasinsFile, wStreamFile)):
-                self.progress('Generating subbasins raster ...')
+                # self.progress('Generating subbasins raster ...')
                 wStreamFile = self.createBasinFile(subbasinsFile, demLayer, 'wStream', root)
             self._gv.basinFile = wStreamFile
             # generate watershed raster
             if not self._gv.useGridModel:
                 wChannelFile = base + 'wChannel' + suffix
                 if not (QSWATUtils.isUpToDate(demFile, wChannelFile) and QSWATUtils.isUpToDate(wshedFile, wChannelFile)):
-                    self.progress('Generating watershed raster ...')
+                    # self.progress('Generating watershed raster ...')
                     wChannelFile = self.createBasinFile(wshedFile, demLayer, 'wChannel', root)
                 self._gv.channelBasinFile = wChannelFile
         self._gv.felFile = felFile
@@ -2676,9 +2677,9 @@ assumed that its crossing the lake boundary is an inaccuracy.
                 if gridLayer is None:
                     QSWATUtils.error('Cannot find grid layer for {0}'.format(self._gv.subbasinsFile))
                     return
-                self.progress('Making grid lakes ...')
+                # self.progress('Making grid lakes ...')
                 self.makeGridLakes(lakesLayer, gridLayer)
-                self.progress('')
+                # self.progress('')
                 
     def removeLakeCells(self) -> None:
         """Allow user to remove cells from lake."""
@@ -2697,9 +2698,9 @@ assumed that its crossing the lake boundary is an inaccuracy.
             if lakesLayer is None:
                 QSWATUtils.error('Lakes layer not found.', self._gv.isBatch)
                 return
-            self.progress('Making grid lakes ...')
+            # self.progress('Making grid lakes ...')
             self.makeGridLakes(lakesLayer, gridLayer)
-            self.progress('')
+            # self.progress('')
         self._gv.iface.setActiveLayer(gridLayer)
         self._gv.iface.actionSelect().trigger()
         msgBox = QMessageBox()
@@ -2756,9 +2757,9 @@ If you want to start again from scratch, reload the lakes shapefile."""
             QSWATUtils.error('Lakes layer not found.', self._gv.isBatch)
             return
         if not self.gridLakesAdded:
-            self.progress('Making grid lakes ...')
+            # self.progress('Making grid lakes ...')
             self.makeGridLakes(lakesLayer, gridLayer)
-            self.progress('')
+            # self.progress('')
         lakeId = int(self._dlg.lakeIdCombo.currentText())
         self._gv.iface.setActiveLayer(gridLayer)
         self._gv.iface.actionSelect().trigger()
@@ -3468,7 +3469,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         if tabIndex >= 0:
             self._dlg.tabWidget.setCurrentIndex(tabIndex)
         self._dlg.setCursor(Qt.ArrowCursor)
-        self.progress('')
+        # self.progress('')
         return
      
     def createWatershedShapefile(self, wFile: str, subbasinsFile: str, ft: FileTypes, root: QgsLayerTree) -> None:
@@ -3645,7 +3646,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
     
     def createGridShapefile(self, pFile: str, ad8File: str, wFile: str) -> None:
         """Create grid shapefile for watershed."""
-        self.progress('Creating grid ...')
+        # self.progress('Creating grid ...')
         self._gv.gridSize = self._dlg.gridSize.value()
         time2 = time.process_time()
         storeGrid, accTransform, minDrainArea, maxDrainArea = self.storeGridData(ad8File, wFile, self._gv.gridSize)
@@ -4063,7 +4064,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
     # noinspection PyCallByClass
     def writeGridShapefile(self, storeGrid: Dict[int, Dict[int, GridData]], flowFile: str, gridSize: int, accTransform: Transform) -> None:
         """Write grid data to grid shapefile.  Also writes centroids dictionary."""
-        self.progress('Writing grid ...')
+        # self.progress('Writing grid ...')
         gridFile = QSWATUtils.join(self._gv.shapesDir, 'grid.shp')
         root = QgsProject.instance().layerTreeRoot()
         ft = FileTypes._GRID
@@ -4160,7 +4161,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
     def writeGridStreamsShapefile(self, storeGrid: Dict[int, Dict[int, GridData]], flowFile: str, minDrainArea: float, maxDrainArea: float, 
                                   accTransform: Transform) -> int:
         """Write grid data to grid streams shapefile."""
-        self.progress('Writing grid streams ...')
+        # self.progress('Writing grid streams ...')
         gridStreamsFile = QSWATUtils.join(self._gv.shapesDir, 'gridstreams.shp')
         root = QgsProject.instance().layerTreeRoot()
         ft = FileTypes._GRIDSTREAMS
@@ -4260,7 +4261,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         channelsLayer = QSWATUtils.getLayerByLegend(QSWATUtils._CHANNELSLEGEND, root.findLayers())
         if channelsLayer is not None:
             streamsLayer.setItemVisibilityChecked(False)
-        self.progress('')
+        # self.progress('')
         return numOutlets
     
     def writeDrainageStreamsShapefile(self, subbasinsFile: str, subbasinsLayer: QgsVectorLayer, 
@@ -4296,7 +4297,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             if not os.path.exists(self.drainageTable):
                 QSWATUtils.error('Please select a drainage csv file', self._gv.isBatch)
                 return None
-        self.progress('Writing drainage grid streams ...')
+        # self.progress('Writing drainage grid streams ...')
         time1 = time.process_time()
         drainStreamsFile: str = QSWATUtils.join(self._gv.shapesDir, 'drainstreams.shp')
         ft = FileTypes._DRAINSTREAMS
@@ -4466,7 +4467,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         channelsLayer = QSWATUtils.getLayerByLegend(QSWATUtils._CHANNELSLEGEND, root.findLayers())
         if channelsLayer is not None:
             channelsLayer.setItemVisibilityChecked(False)
-        self.progress('')
+        # self.progress('')
         return drainStreamsFile
     
     def runLandscape(self) -> None:
@@ -4487,7 +4488,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 pFile = base + 'p' + suffix
                 QSWATUtils.removeLayer(sd8File, root)
                 QSWATUtils.removeLayer(pFile, root)
-                self.progress('D8FlowDir ...')
+                # self.progress('D8FlowDir ...')
                 ok = TauDEMUtils.runD8FlowDir(self._gv.felFile, sd8File, pFile, self._dlg.numProcesses.value(), self._dlg.taudemOutput)   
                 if not ok:
                     self.cleanUp(3)
@@ -4557,7 +4558,8 @@ If you want to start again from scratch, reload the lakes shapefile."""
         if not Delineation.createOutletFile(snapFile, outletFile, False, root, self._gv):
             return False
         if self._gv.isBatch:
-            QSWATUtils.information('Snap threshold: {0!s} metres'.format(snapThreshold), self._gv.isBatch)
+            # QSWATUtils.information('Snap threshold: {0!s} metres'.format(snapThreshold), self._gv.isBatch)
+            print('\t - Snap threshold: {0!s} metres'.format(snapThreshold))
         snapLayer = QgsVectorLayer(snapFile, 'Snapped inlets/outlets ({0})'.format(QFileInfo(snapFile).baseName()), 'ogr')
         idIndex = self._gv.topo.getIndex(outletLayer, QSWATTopology._ID)
         inletIndex = self._gv.topo.getIndex(outletLayer, QSWATTopology._INLET)
@@ -4615,7 +4617,8 @@ If you want to start again from scratch, reload the lakes shapefile."""
         failMessage = '' if errorCount == 0 else ': {0!s} failed'.format(errorCount)
         self._dlg.snappedLabel.setText('{0!s} snapped{1}'.format(count, failMessage))
         if self._gv.isBatch:
-            QSWATUtils.information('{0!s} snapped{1}'.format(count, failMessage), True)
+            # QSWATUtils.information('{0!s} snapped{1}'.format(count, failMessage), True)
+            print('\t - {0!s} snapped{1}'.format(count, failMessage))
         if count == 0:
             QSWATUtils.error('Could not snap any points to streams or channels', self._gv.isBatch)
             return False

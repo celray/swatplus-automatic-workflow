@@ -132,7 +132,7 @@ class WeatherImport(ExecutableApi):
 		Weather_sta_cli.delete().execute()
 
 	def match_stations(self, start_prog):
-		self.emit_progress(start_prog, "Adding weather stations to spatial connection tables...")
+		# self.emit_progress(start_prog, "Adding weather stations to spatial connection tables...")
 		wst_col = "wst_id"
 		wst_table = "weather_sta_cli"
 		update_closest_lat_lon("aquifer_con", wst_col, wst_table)
@@ -158,7 +158,7 @@ class WeatherImport(ExecutableApi):
 		self.match_wgn(start_prog + 30)"""
 
 	def match_stations_table(self, table, name, prog):
-		self.emit_progress(prog, "Adding weather stations to {name}...".format(name=name))
+		# self.emit_progress(prog, "Adding weather stations to {name}...".format(name=name))
 		with project_base.db.atomic():
 			for row in table.select():
 				coords_key = "{lat},{lon}".format(lat=row.lat, lon=row.lon)
@@ -172,7 +172,7 @@ class WeatherImport(ExecutableApi):
 
 	def match_wgn(self, prog):
 		if Weather_wgn_cli.select().count() > 0:
-			self.emit_progress(prog, "Matching wgn to weather stations...")
+			# self.emit_progress(prog, "Matching wgn to weather stations...")
 			with project_base.db.atomic():
 				for row in Weather_sta_cli.select():
 					id = closest_lat_lon(project_base.db, "weather_wgn_cli", row.lat, row.lon)
@@ -195,7 +195,7 @@ class WeatherImport(ExecutableApi):
 			name = weather_sta_name(lat, lon)
 
 			prog = round(i * total_prog / records) + start_prog
-			self.emit_progress(prog, "Creating weather station {name}...".format(name=name))
+			# self.emit_progress(prog, "Creating weather station {name}...".format(name=name))
 
 			try:
 				existing = Weather_sta_cli.get(Weather_sta_cli.name == name)
@@ -224,7 +224,7 @@ class WeatherImport(ExecutableApi):
 		self.match_files_to_stations(45, 45)
 
 	def match_files_to_stations(self, start_prog, total_prog):
-		self.emit_progress(start_prog, "Matching files to weather station...")
+		# self.emit_progress(start_prog, "Matching files to weather station...")
 		update_closest_lat_lon("weather_sta_cli", "hmd", "weather_file", "filename", "hmd")
 		update_closest_lat_lon("weather_sta_cli", "pcp", "weather_file", "filename", "pcp")
 		update_closest_lat_lon("weather_sta_cli", "slr", "weather_file", "filename", "slr")
@@ -301,7 +301,7 @@ class WeatherImport(ExecutableApi):
 		starts = []
 		ends = []
 		if os.path.exists(source_file):
-			self.emit_progress(prog, "Inserting {type} files and coordinates...".format(type=weather_type))
+			# self.emit_progress(prog, "Inserting {type} files and coordinates...".format(type=weather_type))
 			weather_files = []
 			dir = os.path.dirname(source_file)
 			with open(source_file, "r") as source_data:
@@ -475,7 +475,7 @@ class Swat2012WeatherImport(ExecutableApi):
 
 							self.write_station(os.path.dirname(source_file), station_obj, weather_type)
 							prog = round(curr_file_num * 100 / total_files)
-							self.emit_progress(prog, "Writing {type}, {file}...".format(type=weather_type, file=new_file_name))
+							# self.emit_progress(prog, "Writing {type}, {file}...".format(type=weather_type, file=new_file_name))
 							curr_file_num += 1
 
 						i += 1
@@ -606,10 +606,10 @@ class WgnImport(ExecutableApi):
 	def add_wgn_stations_tf(self, start_prog, total_prog):
 		if self.__abort: return
 		prog = (total_prog - start_prog) / 4 + start_prog
-		self.emit_progress(prog, 'Adding weather generator stations...')
+		# self.emit_progress(prog, 'Adding weather generator stations...')
 		fileio.read_csv_file(self.file1, Weather_wgn_cli, self.project_db, 0, ignore_id_col=False, overwrite=fileio.FileOverwrite.replace, remove_spaces_cols=['name'])
 		prog = (total_prog - start_prog) / 2 + start_prog
-		self.emit_progress(prog, 'Adding weather generator monthly values...')
+		# self.emit_progress(prog, 'Adding weather generator monthly values...')
 		fileio.read_csv_file(self.file2, Weather_wgn_cli_mon, self.project_db, 0, ignore_id_col=False, overwrite=fileio.FileOverwrite.ignore)
 
 	def add_wgn_stations_sf(self, start_prog, total_prog):
@@ -662,6 +662,7 @@ class WgnImport(ExecutableApi):
 		#print(records)
 
 		i = 1
+		print('\t - Preparing weather generator')
 		for row in data:
 			if self.__abort: return
 
@@ -669,7 +670,7 @@ class WgnImport(ExecutableApi):
 				existing = Weather_wgn_cli.get(Weather_wgn_cli.name == row['name'])
 			except Weather_wgn_cli.DoesNotExist:
 				prog = round(i * (total_prog / 2) / records) + start_prog
-				self.emit_progress(prog, "Preparing weather generator {name}...".format(name=row['name']))
+				# self.emit_progress(prog, "Preparing weather generator {name}...".format(name=row['name']))
 				i += 1
 
 				ids.append(row['id'])
@@ -684,7 +685,7 @@ class WgnImport(ExecutableApi):
 				wgns.append(wgn)
 
 		prog = start_prog if records < 1 else round(i * (total_prog / 2) / records) + start_prog
-		self.emit_progress(prog, "Inserting {total} weather generators...".format(total=len(ids)))
+		# self.emit_progress(prog, "Inserting {total} weather generators...".format(total=len(ids)))
 		db_lib.bulk_insert(project_base.db, Weather_wgn_cli, wgns)
 
 		# Chunk the id array so we don't hit the SQLite parameter limit!
@@ -711,7 +712,7 @@ class WgnImport(ExecutableApi):
 
 				if i == 1 or (i % 12 == 0):
 					prog = round(i * (total_prog / 2) / mon_records) + start_prog
-					self.emit_progress(prog, "Preparing monthly values {i}/{total}...".format(i=i, total=mon_records))
+					# self.emit_progress(prog, "Preparing monthly values {i}/{total}...".format(i=i, total=mon_records))
 				i += 1
 
 				mon = {
@@ -736,7 +737,7 @@ class WgnImport(ExecutableApi):
 
 			prog = round(i * (total_prog / 2) / mon_records) + start_prog
 			current_total = current_total + mon_records
-			self.emit_progress(prog, "Inserting monthly values {rec}/{total}...".format(rec=current_total, total=total_mon_rows))
+			# self.emit_progress(prog, "Inserting monthly values {rec}/{total}...".format(rec=current_total, total=total_mon_rows))
 			db_lib.bulk_insert(project_base.db, Weather_wgn_cli_mon, monthly_values)
 
 	def create_weather_stations(self, start_prog, total_prog):  # total_prog is the total progress percentage available for this method
@@ -755,7 +756,7 @@ class WgnImport(ExecutableApi):
 			name = weather_sta_name(lat, lon)
 
 			prog = round(i * total_prog / records) + start_prog
-			self.emit_progress(prog, "Creating weather station {name}...".format(name=name))
+			# self.emit_progress(prog, "Creating weather station {name}...".format(name=name))
 
 			try:
 				existing = Weather_sta_cli.get(Weather_sta_cli.name == name)
@@ -794,7 +795,7 @@ class WgnImport(ExecutableApi):
 					if row.lat is not None and row.lon is not None:
 						id = closest_lat_lon(project_base.db, "weather_wgn_cli", row.lat, row.lon)
 
-						self.emit_progress(prog, "Updating weather station with generator {i}/{total}...".format(i=i, total=records))
+						# self.emit_progress(prog, "Updating weather station with generator {i}/{total}...".format(i=i, total=records))
 						row.wgn_id = id
 						row.save()
 

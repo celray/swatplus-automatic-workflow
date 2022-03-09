@@ -86,7 +86,7 @@ class sqlite_connection:
         this function deletes the specified table
         """
         self.cursor.execute('''DROP TABLE ''' + table_name)
-        report("\t-> deleted table " + table_name + " from " + self.db_name)
+        # report("\t-> deleted table " + table_name + " from " + self.db_name)
 
 
     def undo_changes(self):
@@ -117,7 +117,7 @@ class sqlite_connection:
             report("\t-> read selected table columns from " + table_name)
         return list_of_tuples
         
-    def insert_field(self, table_name, field_name, data_type, to_new_line = False, messages = True):
+    def insert_field(self, table_name, field_name, data_type, to_new_line = False, messages = False):
         """
         This will insert a new field into your sqlite database
 
@@ -183,7 +183,7 @@ class sqlite_connection:
         if commit:
             self.commit_changes()
         self.connection.close()
-        report("\t-> closed connection to " + self.db_name)
+        # report("\t-> closed connection to " + self.db_name)
 
 def report(string, printing = True):
     if printing:

@@ -1,8 +1,4 @@
 
-# set the directory of QGIS
-# export QGIS_Dir=C:\Program Files\QGIS 3.10
-# set ERRORLEVEL=0
-
 # set variables for project initialisation
 export python_script_prepare_qswat=$HOME/.SWAT/SWATPlus/Workflow/main_stages/prepare_project.py
 export python_script_make_namelist=$HOME/.SWAT/SWATPlus/Workflow/main_stages/generate_namelist.py
@@ -15,7 +11,7 @@ export python_script_clean_up=$HOME/.SWAT/SWATPlus/Workflow/main_stages/run_clea
 export BASE_DIR=$PWD
 export swatplus_wf_dir=$HOME/.SWAT/SWATPlus/Workflow/
 
-# # add default plugins and model directory to python path
+# add default plugins and model directory to python path
 export PYTHONPATH=$BASE_DIR:$PYTHONPATH
 # export PATH=%PATH%
 

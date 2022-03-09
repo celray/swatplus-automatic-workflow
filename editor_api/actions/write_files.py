@@ -181,7 +181,7 @@ class WriteFiles(ExecutableApi):
 
 	def copy_weather_file(self, file_name, prog):
 		try:
-			self.emit_progress(prog, "Copying weather file {}...".format(file_name))
+			# self.emit_progress(prog, "Copying weather file {}...".format(file_name))
 			copyfile(os.path.join(self.__weather_dir, file_name), os.path.join(self.__dir, file_name))
 		except IOError as err:
 			print(err)
@@ -963,7 +963,8 @@ class WriteFiles(ExecutableApi):
 			regions.Aqu_catunit_ele(os.path.join(self.__dir, aqu_catunit_ele_file), self.__version, self.__swat_version).write()
 
 	def update_file_status(self, prog, file_name):
-		self.emit_progress(prog, "Writing {name}...".format(name=file_name))
+		# self.emit_progress(prog, "Writing {name}...".format(name=file_name))
+		pass
 
 
 if __name__ == '__main__':

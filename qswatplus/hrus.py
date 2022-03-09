@@ -1061,12 +1061,12 @@ class CreateHRUs(QObject):
                 if not self.noCropOrSoilLSUs():
                     return False
             if self._gv.useLandscapes:
-                self.progress('Creating landscape units shapes ...')
+                self.progress('\t - Creating landscape units shapes ...')
                 lsuShapes.finish()
-                self.progress('Writing landscape units shapes ...')
+                self.progress('\t - Writing landscape units shapes ...')
                 lsusLayer = self.createLSUShapefileFromShapes(lsuShapes, subbasinChannelLandscapeCropSoilSlopeNumbers)
             else:
-                self.progress('Writing landscape units shapes ...')
+                self.progress('\t - Writing landscape units shapes ...')
                 lsusLayer = self.createLSUShapefileFromWshed()
             if lsusLayer is not None and not self._gv.useGridModel:
                 # insert above dem (or hillshade if exists) in legend, so subbasin still visible
@@ -1093,30 +1093,30 @@ class CreateHRUs(QObject):
                     group.insertLayer(index, fullLSUsLayer)
                 fullLSUsLayer.loadNamedStyle(QSWATUtils.join(self._gv.plugin_dir, 'lsus.qml'))
                 fullLSUsLayer.setMapTipTemplate(FileTypes.mapTip(FileTypes._LSUS))
-            self.progress('')
+            # self.progress('')
             if self.fullHRUsWanted:
-                self.progress('Creating FullHRUs shapes ...')
+                self.progress('\t - Creating FullHRUs shapes ...')
                 hruShapes.finish()
                 #QSWATUtils.loginfo(hruShapes.makeString())
-                self.progress('Writing FullHRUs shapes ...')
+                self.progress('\t - Writing FullHRUs shapes ...')
                 if not self.createFullHRUsShapefile(hruShapes, subbasinChannelLandscapeCropSoilSlopeNumbers, progressBar, lastHru):
                     QSWATUtils.error('Unable to create FullHRUs shapefile', self._gv.isBatch)
-                    self.progress('')
+                    # self.progress('')
                 else:
-                    self.progress('FullHRUs shapefile finished')
+                    self.progress('\t - FullHRUs shapefile finished')
             # clear memory
             if not self._gv.useGridModel:
                 basinDs = None
             self.saveAreas(True, redistributeNodata=not (under95 and self._gv.isHUC))
-            self.progress('Writing HRU data to database ...')
+            self.progress('\t - Writing HRU data to database ...')
             if not self._db.createBasinsDataTables(cursor):
                 return False
             self._db.writeBasinsData(self.basins, cursor)
             cursor = None
             conn.commit()
-            self.progress('Writing topographic report ...')
+            self.progress('\t - Writing topographic report ...')
             self.writeTopoReport()
-            self.progress('')
+            # self.progress('')
         return True
     
     def noCropOrSoilLSUs(self) -> bool:
@@ -1247,7 +1247,7 @@ class CreateHRUs(QObject):
                         else:
                             SWATChannel = self._gv.topo.channelToSWATChannel[channel]
                             SWATTarget = self._gv.topo.channelToSWATChannel[candidate]
-                            QSWATUtils.loginfo('Merging channel {0} ({1}) into {2} ({3}) in basin {4}'.format(SWATChannel, channel, SWATTarget, candidate, SWATBasin))
+                            QSWATUtils.loginfo('\t - Merging channel {0} ({1}) into {2} ({3}) in basin {4}'.format(SWATChannel, channel, SWATTarget, candidate, SWATBasin))
                             self.mergedChannels[channel] = candidate
                             self.mergees.add(candidate)
 #                             for landscape, lsuData in channelData.iteritems():
@@ -2810,22 +2810,22 @@ class CreateHRUs(QObject):
                         QSWATUtils.information('Dominant Landuse/Soil/Slope option', True)
                 else: # multiple
                     if self.useArea:
-                        method = 'Using area in hectares'
+                        method = '\t - Using area in hectares'
                         units = 'ha'
                     else:
-                        method = 'Using percentage of subbasin'
+                        method = '\t - Using percentage of subbasin'
                         units = '%'
                     if self.isTarget:
                         line1 = method + ' as a measure of size'
-                        line2 = 'Target number of HRUs option'.ljust(47) + \
+                        line2 = '\t - Target number of HRUs option'.ljust(47) + \
                                      'Target {0}'.format(self.targetVal)
                     elif self.isArea:
                         line1 = method + ' as threshold'
-                        line2 = 'Multiple HRUs Area option'.ljust(47) + \
+                        line2 = '\t - Multiple HRUs Area option'.ljust(47) + \
                                      'Threshold: {:d} {:s}'.format(self.areaVal, units)
                     else:
                         line1 = method + ' as a threshold'
-                        line2 = 'Multiple HRUs Landuse/Soil/Slope option'.ljust(47) + \
+                        line2 = '\t - Multiple HRUs Landuse/Soil/Slope option'.ljust(47) + \
                                      'Thresholds: {0:d}/{1:d}/{2:d} [{3}]'.format(self.landuseVal, self.soilVal, self.slopeVal, units)
                     fw.writeLine(line1)
                     if self._gv.isBatch:
@@ -2923,10 +2923,10 @@ class CreateHRUs(QObject):
                     if not conn:
                         return
                     curs = conn.cursor()
-                    self.progress('Writing channels table ...')
+                    self.progress('\t - Writing channels table ...')
                     self._gv.topo.writeChannelsTable(self.mergedChannels, self.basins, self._gv)
                     demLayer = QgsRasterLayer(self._gv.demFile, 'DEM')
-                    self.progress('Writing points, routing and hrus tables ...')
+                    self.progress('\t - Writing points, routing and hrus tables ...')
                     self._gv.topo.writePointsTable(demLayer, self.mergees, self._gv.useGridModel, self._gv.existingWshed)
                     if not self._db.createRoutingTable():
                         QSWATUtils.error('Failed to create table gis_routing in project database', self._gv.isBatch)
@@ -2944,7 +2944,7 @@ class CreateHRUs(QObject):
                     curs.execute(clearSQL)
                     curs.execute(self._db._HRUSCREATESQL)
                     self.printBasinsDetails(basinHa, True, fw, curs, fullHRUsLayer, horizLine)
-                    self.progress('')
+                    # self.progress('')
                     time2 = time.process_time()
                     QSWATUtils.loginfo('Writing gis_points, gis_hrus and gis_routing tables took {0} seconds'.format(int(time2-time1)))
                     conn.commit()
@@ -3631,7 +3631,7 @@ class CreateHRUs(QObject):
         if not os.path.isfile(lsus2File):
             QSWATUtils.error('No actual LSUs file, so gis_subbasins and gis_lsus tables not written', self._gv.isBatch)
             return False
-        self.progress('Writing subbasins and lsus tables ...')
+        self.progress('\t - Writing subbasins and lsus tables ...')
         # remove features with 0 subbasin value
         exp = QgsExpression('"{0}" = 0'.format(QSWATTopology._SUBBASIN))
 #         context = QgsExpressionContext()
@@ -3933,7 +3933,7 @@ class CreateHRUs(QObject):
             if subbasinsLayer is not None:
                 QSWATUtils.setLayerVisibility(subbasinsLayer, False, root)
         self.createAquifers(root)
-        self.progress('')
+        # self.progress('')
         return True
     
     def createAquifers(self, root: QgsLayerTree) -> None:
@@ -4120,7 +4120,7 @@ class CreateHRUs(QObject):
                     self._gv.db.addToRouting(cursor, deepAqId, 'DAQ', pointId, 'PT', QSWATTopology._TOTAL, 100)
         
         # start of createAquifers
-        self.progress('Writing aquifers and deep aquifers tables ...')
+        self.progress('\t - Writing aquifers and deep aquifers tables ...')
         if os.path.isfile(self._gv.subsNoLakesFile):
             subsFile = self._gv.subsNoLakesFile
             subsLayer = QgsVectorLayer(subsFile, 'Subbasins', 'ogr')
@@ -5136,7 +5136,7 @@ class HRUs(QObject):
         """Run HRUs dialog."""
         self.init()
         self._dlg.show()
-        self.progress('')
+        # self.progress('')
         result = self._dlg.exec_()  # @UnusedVariable
         # TODO: result is always zero. Need to reset to discover if CreateHRUs was run successfully
         self._gv.hrusPos = self._dlg.pos()
@@ -5298,34 +5298,39 @@ class HRUs(QObject):
         else: # allow user to choose
             luse = ''
             soil = ''
-        self.progress('Checking landuses ...')
+        self.progress('\t - Checking landuses ...')
         self._dlg.setCursor(Qt.WaitCursor)
         if not self.initLanduses(luse):
             self._dlg.setCursor(Qt.ArrowCursor)
             self.progress('')
             return False
         #QSWATUtils.information('Using {0} as landuse table'.format(self.landuseTable), self._gv.isBatch)
-        self.progress('Checking soils ...')
+        self.progress('\t - Checking soils ...')
         if not self.initSoils(soil):
             self._dlg.setCursor(Qt.ArrowCursor)
-            self.progress('')
+            # self.progress('')
             return False
         # write landuse, soil, landscape choices in case of failure later
         self.saveProjPart1()
         #QSWATUtils.information('Using {0} as soil table'.format(self.soilTable), self._gv.isBatch)
         if self._gv.isBatch:
-            QSWATUtils.information('Landuse file: {0}'.format(os.path.split(self.landuseFile)[1]), True)
-            QSWATUtils.information('Landuse lookup table: {0}'.format(self.landuseTable), True)
-            QSWATUtils.information('Soil file: {0}'.format(os.path.split(self.soilFile)[1]), True)
-            QSWATUtils.information('Soil lookup table: {0}'.format(self.soilTable), True)
+            print('\t - Landuse file: {0}'.format(os.path.split(self.landuseFile)[1]))
+            print('\t - Landuse lookup table: {0}'.format(self.landuseTable))
+            print('\t - Soil file: {0}'.format(os.path.split(self.soilFile)[1]))
+            print('\t - Soil lookup table: {0}'.format(self.soilTable))
+
+            # QSWATUtils.information('Landuse file: {0}'.format(os.path.split(self.landuseFile)[1]), True)
+            # QSWATUtils.information('Landuse lookup table: {0}'.format(self.landuseTable), True)
+            # QSWATUtils.information('Soil file: {0}'.format(os.path.split(self.soilFile)[1]), True)
+            # QSWATUtils.information('Soil lookup table: {0}'.format(self.soilTable), True)
         if self._dlg.readFromPrevious.isChecked():
             # read from database
-            self.progress('Reading basin data from database ...')
+            self.progress('\t - Reading basin data from database ...')
             time1 = time.process_time()
             (self.CreateHRUs.basins, OK) = self._db.regenerateBasins(self._gv)
             time2 = time.process_time()
-            QSWATUtils.loginfo('Reading from previous took {0} seconds'.format(int(time2 - time1)))
-            self.progress('')
+            QSWATUtils.loginfo('\t - Reading from previous took {0} seconds'.format(int(time2 - time1)))
+            # self.progress('')
             if OK:
                 self.CreateHRUs.saveAreas(True)
                 if not self._gv.useGridModel:
@@ -5340,7 +5345,7 @@ class HRUs(QObject):
                     self._reportsCombo.addItem(Parameters._BASINITEM)
                 self._dlg.HRUsTab.setTabEnabled(1, True)
         else:
-            self.progress('Reading rasters ...')
+            self.progress('\t - Reading rasters ...')
             self._gv.useLandscapes = False
             if self._dlg.floodplainCombo.isEnabled() and self._dlg.floodplainCombo.currentIndex() > 0:
                 floodFile = self._dlg.floodplainCombo.currentText()
@@ -5374,7 +5379,7 @@ class HRUs(QObject):
             OK = self.CreateHRUs.generateBasins(self._dlg.progressBar, root)
             time2 = time.process_time()
             QSWATUtils.loginfo('Reading from files took {0} seconds'.format(int(time2 - time1)))
-            self.progress('')
+            # self.progress('')
             # now have occurrences of landuses, so can make proper colour scheme and legend entry
             # soils will be done after HRU creation, since only uses occurring soils
             FileTypes.colourLanduses(self.landuseLayer, self._db)
@@ -5397,7 +5402,8 @@ class HRUs(QObject):
                         self.setChannelMergeChoice()
                         self.CreateHRUs.mergeChannels()
                 if self._gv.isBatch:
-                    QSWATUtils.information('Writing landuse and soil report ...', True)
+                    # QSWATUtils.information('Writing landuse and soil report ...', True)
+                    print('\t - Writing landuse and soil report ...')
                 self.CreateHRUs.printBasins(False, None)
             self._dlg.progressBar.setVisible(False)
         self._dlg.setCursor(Qt.ArrowCursor)
@@ -5506,7 +5512,7 @@ class HRUs(QObject):
             root = QgsProject.instance().layerTreeRoot()
             fullHRUsLayer = QSWATUtils.getLayerByFilename(root.findLayers(), self._gv.fullHRUsFile, None, None, None, None)[0]
             if self._gv.isBatch:
-                QSWATUtils.information('Writing HRUs report ...', True)
+                QSWATUtils.information('\t - Writing HRUs report ...', True)
             self.CreateHRUs.writeWaterBodiesTable()
             self.CreateHRUs.printBasins(True, fullHRUsLayer)
             if not self.CreateHRUs.mergeLSUs(root):
@@ -5524,7 +5530,7 @@ class HRUs(QObject):
                     self.completed = True
                     self._gv.writeProjectConfig(-1, 1)
                     self._dlg.readFromPrevious.setEnabled(True)
-                    msg = 'HRUs done: {0!s} HRUs formed with {1!s} channels in {2!s} subbasins.'.format(self.CreateHRUs.countHRUs(), 
+                    msg = '\t - HRUs done: {0!s} HRUs formed with {1!s} channels in {2!s} subbasins.'.format(self.CreateHRUs.countHRUs(), 
                                                                                                 self.CreateHRUs.countChannels(), 
                                                                                                 len(self.CreateHRUs.basins))
                     self._iface.messageBar().pushMessage(msg, level=Qgis.Info, duration=10)  # type: ignore

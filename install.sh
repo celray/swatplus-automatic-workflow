@@ -1,5 +1,5 @@
 # set version to download
-version="1.0.4"
+version="2.1.0"
 
 rm -r "$HOME/.SWAT/SWATPlus"
 rm -r "$HOME/.local/share/swatplus"
@@ -9,7 +9,7 @@ mkdir -p "$HOME/.local/share/swatplus"
 
 wget -c "https://github.com/celray/swatplus-automatic-workflow/archive/v$version.zip"
 wget -c "https://github.com/celray/swatplus-automatic-workflow/releases/download/v$version/TauDEM5Bin_Linux.zip"
-wget -c "https://github.com/celray/swatplus-automatic-workflow/raw/master/editor_api/swatplus_wgn.sqlite"
+wget -c "https://bitbucket.org/swatplus/swatplus.editor/downloads/swatplus_wgn.sqlite"
 
 unzip "./v$version.zip"
 unzip "./TauDEM5Bin_Linux.zip"

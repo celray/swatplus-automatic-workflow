@@ -369,7 +369,7 @@ class QSWATPlus(QObject):
             #result = hrus.tryRun()
             #if result == 1:
             if self.hrus.HRUsAreCreated():
-                QSWATUtils.progress('Done', self._odlg.hrusLabel)
+                # QSWATUtils.progress('Done', self._odlg.hrusLabel)
                 self.showReports()
                 self._odlg.editLabel.setEnabled(True)
                 self._odlg.editButton.setEnabled(True)
@@ -470,7 +470,7 @@ class QSWATPlus(QObject):
         self.hrus = HRUs(self._gv, self._odlg.reportsBox)
         result = self.hrus.run()
         if result == 1:
-            QSWATUtils.progress('Done', self._odlg.hrusLabel)
+            # QSWATUtils.progress('Done', self._odlg.hrusLabel)
             self._odlg.editLabel.setEnabled(True)
             self._odlg.editButton.setEnabled(True)
         self._odlg.raise_()
@@ -734,8 +734,8 @@ class QSWATPlus(QObject):
             
     def allowCreateHRU(self):
         """Mark delineation as Done and make create HRUs option visible."""
-        QSWATUtils.progress('Done', self._odlg.delinLabel)
-        QSWATUtils.progress('Step 2', self._odlg.hrusLabel)
+        # QSWATUtils.progress('Done', self._odlg.delinLabel)
+        # QSWATUtils.progress('Step 2', self._odlg.hrusLabel)
         self._odlg.hrusLabel.setEnabled(True)
         self._odlg.hrusButton.setEnabled(True)
         self._odlg.editLabel.setEnabled(False)

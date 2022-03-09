@@ -96,42 +96,42 @@ class GisImport(ExecutableApi):
 			try:
 				if gis.Gis_subbasins.select().count() > 0:					
 					if self.is_lte:
-						self.emit_progress(15, "Importing channels from GIS...")
+						# self.emit_progress(15, "Importing channels from GIS...")
 						self.insert_om_water()
 						self.insert_channels_lte()
 
-						self.emit_progress(40, "Importing landscape units from GIS...")
+						# self.emit_progress(40, "Importing landscape units from GIS...")
 						self.insert_lsus_lte()
 
-						self.emit_progress(50, "Importing hrus from GIS...")
+						# self.emit_progress(50, "Importing hrus from GIS...")
 						self.insert_hru_ltes()
 
-						self.emit_progress(90, "Importing connections from GIS...")
+						# self.emit_progress(90, "Importing connections from GIS...")
 						self.insert_connections_lte()
 					else:
-						self.emit_progress(15, "Importing routing units from GIS...")
+						# self.emit_progress(15, "Importing routing units from GIS...")
 						self.insert_routing_units()
 
-						self.emit_progress(30, "Importing channels from GIS...")
+						# self.emit_progress(30, "Importing channels from GIS...")
 						self.insert_om_water()
 						self.insert_channels_lte()
 
-						self.emit_progress(40, "Importing reservoirs from GIS...")
+						# self.emit_progress(40, "Importing reservoirs from GIS...")
 						self.insert_reservoirs()
 
-						self.emit_progress(50, "Importing point source from GIS...")
+						# self.emit_progress(50, "Importing point source from GIS...")
 						self.insert_recall()
 
-						self.emit_progress(60, "Importing hrus from GIS...")
+						# self.emit_progress(60, "Importing hrus from GIS...")
 						self.insert_hrus()
 						
-						self.emit_progress(75, "Importing aquifers from GIS...")
+						# self.emit_progress(75, "Importing aquifers from GIS...")
 						self.insert_aquifers()
 
-						self.emit_progress(90, "Importing connections from GIS...")
+						# self.emit_progress(90, "Importing connections from GIS...")
 						self.insert_connections()
 
-						self.emit_progress(95, "Creating default landscape units...")
+						# self.emit_progress(95, "Creating default landscape units...")
 						self.insert_lsus()
 
 						if climate.Weather_sta_cli.select().count() > 0:
@@ -142,17 +142,18 @@ class GisImport(ExecutableApi):
 					config.imported_gis = True
 					config.save()
 				else:
-					self.emit_progress(95, "No GIS data to import...")
+					# self.emit_progress(95, "No GIS data to import...")
+					pass
 			except Exception as err:
 				#logging.debug("Import error encountered. Trying rollback: {}".format(self.rollback_db))
 				if self.rollback_db is not None:
-					self.emit_progress(50, "Error occurred. Rolling back database...")
+					# self.emit_progress(50, "Error occurred. Rolling back database...")
 					SetupProjectDatabase.rollback(self.project_db_file, self.rollback_db)
-					self.emit_progress(100, "Error occurred.")
+					# self.emit_progress(100, "Error occurred.")
 				sys.exit(traceback.format_exc())
 
 	def delete_existing(self):
-		self.emit_progress(5, "Deleting existing connections before importing from GIS...")
+		# self.emit_progress(5, "Deleting existing connections before importing from GIS...")
 		hydrology.Topography_hyd.delete().execute()
 		hydrology.Hydrology_hyd.delete().execute()
 		hydrology.Field_fld.delete().execute()
